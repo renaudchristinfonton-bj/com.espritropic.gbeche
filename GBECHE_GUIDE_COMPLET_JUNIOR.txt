@@ -1,0 +1,2180 @@
+# 📖 GBECHE - Guide Complet de Développement Pour Junior
+
+---
+
+## 🎯 Table des Matières
+
+1. [Introduction & Vision](#introduction--vision)
+2. [Stack Technique Expliquée](#stack-technique-expliquée)
+3. [Prérequis Système](#prérequis-système)
+4. [Installation Complète](#installation-complète)
+5. [Architecture de l'Application](#architecture-de-lapplication)
+6. [La Base de Données](#la-base-de-données)
+7. [Les Écrans à Créer (Ordre Prioritaire)](#les-écrans-à-créer-ordre-prioritaire)
+8. [Détail Écran par Écran](#détail-écran-par-écran)
+9. [Les Cas d'Utilisation Expliqués](#les-cas-dutilisation-expliqués)
+10. [Fonctionnalités Principales & Algorithmes](#fonctionnalités-principales--algorithmes)
+11. [Flux De Données Complet](#flux-de-données-complet)
+12. [Checklist de Développement](#checklist-de-développement)
+
+---
+
+## 🌟 Introduction & Vision
+
+**GBECHE** est une application de gestion de discipline personnelle qu'on peut utiliser sur son téléphone **sans Internet**. Elle gamifie la vie en la transformant en une stratégie militaire :
+
+- **GUERRES** = Domaines de vie (Finance, Santé, Professionnel, Spirituel, etc.)
+- **BATAILLES** = Objectifs grands (Ex: "Créer un fonds d'urgence de 100.000 FCFA")
+- **ADVERSAIRES** = Petites tâches (Ex: "Ajouter 5000 FCFA à mon épargne")
+
+L'app fonctionne en 100% offline, protège ta vie privée (cryptage), et utilise une IA locale pour automatiser la saisie de tes activités.
+
+### Philosophie
+- **100% Offline** : Rien ne part sur le cloud. Tes données restent dans ton téléphone.
+- **Privacy First** : Accès par FaceID, empreinte, ou code PIN.
+- **Gamification** : Chaque tâche complétée = Victoire. Chaque échec = Défaite. Des graphes te montrent ta progression.
+- **IA Locale** : Tu peux parler à l'app ("J'ai dépensé 5000 au coiffeur") et elle comprend.
+
+---
+
+## 🛠️ Stack Technique Expliquée
+
+### Qu'est-ce que c'est ?
+
+Pour construire GBECHE, on utilise plusieurs outils. Voici pourquoi chacun est choisi :
+
+| Technologie | Quoi ? | Pourquoi ? |
+|---|---|---|
+| **React Native** | Framework pour créer des apps mobiles | Même code pour iPhone ET Android. Plus rapide qu'écrire deux apps séparées. |
+| **Expo** | Framework par-dessus React Native | Simplifie tout. Pas besoin de Xcode/Android Studio. |
+| **Vite** | Outil pour faire démarrer l'app rapidement | L'app charge plus vite en développement. |
+| **TailwindCSS** | Système de design rapide | Crée une belle UI en 10x moins de code. |
+| **WatermelonDB** | Base de données mobile | Super rapide. Peut gérer 10,000 tâches sans ralentir. |
+| **expo-local-authentication** | Lecteur d'empreinte/FaceID | Protège l'app avec ton empreinte ou Face ID. |
+| **expo-notifications** | Système d'alertes | T'envoie des notifications pour te rappeler de faire tes tâches. |
+| **pnpm** | Gestionnaire de packages | Plus rapide et efficace que npm ou yarn. |
+| **ONNX Runtime / react-native-llama** | IA locale | L'IA fonctionne **dans** le téléphone, sans Internet. |
+| **react-native-chart-kit** | Graphes et courbes | Affiche tes statistiques de façon belle. |
+| **Lottie** | Animations | Crée des animations fluides. |
+
+### Qu'est-ce qu'un Framework ?
+
+Un **framework** c'est comme une boîte à outils pré-faite.
+
+- Sans framework : Tu construis une maison brique par brique.
+- Avec framework : La charpente est déjà là, tu dois juste ajouter les portes et les fenêtres.
+
+**React Native** = Charpente pour les apps mobiles.
+
+### Qu'est-ce que c'est "Offline" ?
+
+**Offline = Sans Internet.**
+
+- ❌ Mauvais : L'app envoie tes données à un serveur dans le cloud.
+- ✅ Bon : GBECHE garde tes données **dans ton téléphone**.
+
+Avantage : Si tu es en avion, dans un métro, ou en brousse → L'app fonctionne toujours.
+
+---
+
+## 📋 Prérequis Système
+
+Avant de commencer, assure-toi que tu as :
+
+### Sur ton ordinateur
+
+1. **Node.js** (version 18+)
+   - C'est l'outil qui exécute JavaScript sur ton PC.
+   - Télécharger : https://nodejs.org/
+   - Vérifier : Ouvre Terminal/CMD et tape `node -v`
+   - Résultat attendu : `v18.x.x` ou plus récent.
+
+2. **pnpm** (le gestionnaire de packages)
+   - C'est comme l'App Store du développement. Ça télécharge les librairies qu'on a besoin.
+   - Installation : Ouvre Terminal/CMD et tape `npm install -g pnpm`
+   - Vérifier : `pnpm -v` (doit afficher un numéro de version)
+
+3. **Git** (Pour le contrôle de version)
+   - Télécharger : https://git-scm.com/
+   - Ça permet de "revenir en arrière" si on casse quelque chose.
+
+### Sur ton téléphone
+
+- **iPhone 13+** ou **Android 10+**
+- L'app **Expo Go** (télécharger gratuitement sur l'App Store ou Google Play)
+- C'est l'app qui te permet de tester en développement.
+
+---
+
+## 🚀 Installation Complète
+
+### Étape 1 : Crée le Projet de Base
+
+Ouvre Terminal/CMD dans le dossier où tu veux créer le projet :
+
+```bash
+# Crée une nouvelle app Expo avec TypeScript
+npx create-expo-app@latest GBECHE --template expo-template-blank-typescript
+
+# Entre dans le dossier
+cd GBECHE
+```
+
+**Qu'est-ce qu'on vient de faire ?**
+- `npx` = "Exécute ce programme téléchargé une fois"
+- `create-expo-app` = L'outil qui crée le projet
+- `GBECHE` = Le nom du dossier du projet
+- `--template expo-template-blank-typescript` = Utilise TypeScript (plus sûr que JavaScript)
+
+### Étape 2 : Remplace npm par pnpm
+
+Par défaut, le projet utilise `npm`. On va utiliser `pnpm` (plus rapide) :
+
+```bash
+# Supprime les fichiers npm
+rm -rf node_modules package-lock.json
+
+# Crée un fichier de configuration pour pnpm
+pnpm install
+```
+
+**Qu'est-ce qui s'est passé ?**
+- `rm -rf node_modules` = Efface le dossier des librairies téléchargées.
+- `pnpm install` = Retélécharge tout avec pnpm.
+
+### Étape 3 : Installe les Dépendances Principales
+
+```bash
+# Base de données
+pnpm add @nozbe/watermelondb
+
+# Authentification (FaceID, empreinte)
+pnpm add expo-local-authentication
+
+# Notifications locales
+pnpm add expo-notifications
+
+# Système de fichiers (pour exporter les données)
+pnpm add expo-file-system expo-sharing
+
+# UI/Styling
+pnpm add nativewind
+
+# Graphes et statistiques
+pnpm add react-native-chart-kit
+
+# Animations
+pnpm add lottie-react-native
+
+# Navigation
+pnpm add @react-navigation/native @react-navigation/bottom-tabs
+pnpm add react-native-screens react-native-safe-area-context
+
+# Gestion d'état (optionnel mais recommandé)
+pnpm add zustand
+
+# IA locale (optionnel pour le chat, version simplifiée d'abord)
+# pnpm add react-native-llama  (À activer plus tard)
+```
+
+**Qu'est-ce qu'on vient d'ajouter ?**
+- Chaque `pnpm add` télécharge une librairie.
+- Les librairies sont stockées dans `node_modules/`.
+- Elles sont référencées dans `package.json`.
+
+### Étape 4 : Structure de Dossiers
+
+Crée cette structure (manuellement ou avec Terminal) :
+
+```
+GBECHE/
+├── app/
+│   ├── _layout.tsx           # La structure globale de l'app
+│   ├── (onboarding)/         # Les écrans de bienvenue
+│   │   ├── index.tsx
+│   │   ├── step1.tsx
+│   │   ├── step2.tsx
+│   │   └── ...
+│   ├── (app)/                # Les écrans principaux
+│   │   ├── _layout.tsx
+│   │   ├── home.tsx
+│   │   ├── finance.tsx
+│   │   ├── calendar.tsx
+│   │   ├── wars.tsx
+│   │   ├── chat.tsx
+│   │   └── settings.tsx
+│   └── api/                  # (Optionnel) Routes backend
+│
+├── src/
+│   ├── components/           # Composants réutilisables
+│   │   ├── Button.tsx
+│   │   ├── Card.tsx
+│   │   └── ...
+│   ├── services/             # Logique métier
+│   │   ├── database.ts       # Configuration WatermelonDB
+│   │   ├── auth.ts           # Authentification
+│   │   ├── nlp.ts            # Traitement du texte IA
+│   │   └── ...
+│   ├── types/                # Définitions TypeScript
+│   │   └── index.ts
+│   ├── hooks/                # Hooks personnalisés
+│   │   └── index.ts
+│   ├── utils/                # Fonctions utilitaires
+│   │   └── math.ts
+│   ├── store/                # Gestion d'état (Zustand)
+│   │   └── index.ts
+│   └── assets/               # Images, fonts
+│       ├── fonts/
+│       └── images/
+│
+├── assets/                   # Assets d'Expo
+├── app.json                  # Configuration d'Expo
+├── package.json              # Les dépendances
+├── tsconfig.json             # Configuration TypeScript
+└── tailwind.config.js        # Configuration TailwindCSS
+```
+
+**Comment créer les dossiers ?**
+
+Soit avec le terminal :
+```bash
+mkdir -p src/{components,services,types,hooks,utils,store}
+mkdir -p app/{(onboarding),(app),api}
+```
+
+Soit manuellement avec ton explorateur de fichiers.
+
+---
+
+## 🏗️ Architecture de l'Application
+
+### Comment l'App Fonctionne Globalement
+
+```
+┌─────────────────────────────────────────────────┐
+│             ÉCRANS DE L'APPLICATION              │
+│ (Ce que l'utilisateur voit sur son téléphone)    │
+└──────────────────┬──────────────────────────────┘
+                   │
+┌──────────────────▼──────────────────────────────┐
+│            COMPOSANTS REACT                      │
+│ (Les briques d'interface : boutons, cartes, etc) │
+└──────────────────┬──────────────────────────────┘
+                   │
+┌──────────────────▼──────────────────────────────┐
+│         SERVICES & LOGIQUE MÉTIER                │
+│ (Les règles : calculs, décisions, stats)        │
+└──────────────────┬──────────────────────────────┘
+                   │
+┌──────────────────▼──────────────────────────────┐
+│         BASE DE DONNÉES (WatermelonDB)           │
+│ (Les données : tâches, finances, etc)           │
+└─────────────────────────────────────────────────┘
+```
+
+### Flux de Données
+
+```
+Utilisateur clique sur Bouton
+    ↓
+Composant React détecte le clic
+    ↓
+On appelle une Fonction du Service
+    ↓
+La Fonction modifie les données dans WatermelonDB
+    ↓
+WatermelonDB dit "Mis à jour !"
+    ↓
+React met à jour l'écran en temps réel
+```
+
+### Navigation de l'Application
+
+```
+Démarrage
+    ↓
+┌─ Est-ce la première fois ? ─┐
+│                              │
+OUI                           NON
+│                              │
+ONBOARDING                  AUTHENTIFICATION
+(5 étapes)                  (FaceID/Code PIN)
+│                              │
+└──────────────────┬──────────┘
+                   ↓
+            DASHBOARD "QUARTIER GÉNÉRAL"
+            (Vue d'ensemble)
+                   ↓
+        ┌─────────┼─────────┐
+        │         │         │
+    Finances  Calendrier  Guerres  ...
+        │         │         │
+        └─────────┼─────────┘
+                   ↓
+            Assistant IA (Chat)
+```
+
+---
+
+## 📊 La Base de Données
+
+### Qu'est-ce que WatermelonDB ?
+
+C'est une base de données **relationnelle** pour téléphones mobiles.
+
+**Analogie** : C'est comme un carnet avec plusieurs pages, où chaque page a une liste d'informations.
+
+### Les Tables (Les Pages du Carnet)
+
+#### 1. **WARS** (Les Domaines)
+
+```typescript
+// Structure d'une Guerre
+{
+  id: "uuid-unique",
+  title: "Finances",           // Nom du domaine
+  icon: "💰",                   // Emoji
+  color: "#81ecff",            // Couleur néon
+  type: "FINANCE",             // Type (enum)
+  createdAt: "2026-04-08T...", // Date de création
+  updatedAt: "2026-04-08T...",
+}
+```
+
+**Exemples de Guerres** :
+- Finance
+- Santé & Physique
+- Professionnel & Éducatif
+- Spirituel & Mental
+- Relationnel & Social
+- Loisirs & Détente
+
+#### 2. **BATTLES** (Les Objectifs)
+
+```typescript
+// Structure d'une Bataille
+{
+  id: "uuid-unique",
+  war_id: "uuid-war",           // Lien vers la Guerre parent
+  title: "Créer un fonds d'urgence",
+  description: "3 mois de salaire",
+  deadline: "2026-12-31",       // Date limite
+  status: "IN_PROGRESS",        // IN_PROGRESS, COMPLETED, FAILED
+  priority: "HIGH",             // HIGH, MEDIUM, LOW
+  createdAt: "2026-04-08T...",
+  updatedAt: "2026-04-08T...",
+}
+```
+
+#### 3. **ADVERSARIES** (Les Petites Tâches)
+
+```typescript
+// Structure d'un Adversaire
+{
+  id: "uuid-unique",
+  battle_id: "uuid-battle",     // Lien vers la Bataille parent
+  title: "Ajouter 5000 FCFA à mon épargne",
+  frequency: "WEEKLY",          // DAILY, WEEKLY, MONTHLY, ONCE
+  recurrence_days: [1, 3],      // Lundi (1), Mercredi (3) si WEEKLY
+  scheduled_at: "2026-04-15T10:00:00",
+  completed_at: null,           // null = pas encore complété
+  status: "WON",                // WON, LOST, PENDING
+  reminder: true,
+  createdAt: "2026-04-08T...",
+}
+```
+
+**Cas d'utilisation** :
+- Tâche quotidienne (DAILY) : Sport chaque matin à 6h.
+- Tâche hebdo (WEEKLY) : Appeler maman le dimanche.
+- Tâche mensuelle (MONTHLY) : Payer les factures.
+- Tâche unique (ONCE) : Denicher un job.
+
+#### 4. **ACCOUNTS** (Les Comptes Financiers)
+
+```typescript
+// Structure d'un Compte
+{
+  id: "uuid-unique",
+  name: "MTN MOMO",             // Nom du compte
+  type: "MOBILE_MONEY",         // MOBILE_MONEY, CASH, BANK, WAVE
+  balance: 50000.00,            // Solde actuel
+  currency: "XOF",              // Devise
+  createdAt: "2026-04-08T...",
+}
+```
+
+**Exemples** :
+- MTN MOMO (Solde actuel)
+- Orange Money
+- Liquide (Cash)
+- Compte Bancaire
+- Wave
+
+#### 5. **TRANSACTIONS** (Les Dépenses & Revenus)
+
+```typescript
+// Structure d'une Transaction
+{
+  id: "uuid-unique",
+  account_id: "uuid-account",   // Lien vers le compte
+  amount: 2500.00,              // Montant
+  type: "EXPENSE",              // EXPENSE ou INCOME
+  category: "HEALTH_BEAUTY",    // Catégorie (coiffeur = santé/beauté)
+  description: "Coiffure",
+  timestamp: "2026-04-08T14:30:00",
+  receipt_image_path: null,     // Path vers une image (optionnel)
+  createdAt: "2026-04-08T...",
+}
+```
+
+**Catégories de Dépenses** :
+- FOOD (Nourriture)
+- TRANSPORT
+- HEALTH_BEAUTY (Santé/Beauté)
+- RENT (Loyer)
+- UTILITIES (Factures)
+- ENTERTAINMENT (Loisirs)
+- CUSTOM (Personnalisée)
+
+#### 6. **BUDGETS** (Les Budgets Mensuels)
+
+```typescript
+// Structure d'un Budget
+{
+  id: "uuid-unique",
+  account_id: "uuid-account",
+  category: "FOOD",
+  limit: 10000.00,              // Limite d'argent pour cette catégorie
+  spent: 7500.00,               // Déjà dépensé ce mois
+  month: "2026-04",             // Format YYYY-MM
+  createdAt: "2026-04-08T...",
+}
+```
+
+#### 7. **TIME_LOGS** (Le Suivi du Temps)
+
+```typescript
+// Structure d'un Log de Temps
+{
+  id: "uuid-unique",
+  date: "2026-04-08",
+  start_hour: 14,               // 14h00
+  end_hour: 15,                 // 15h00
+  activity: "Repos",            // Ce que l'utilisateur a fait
+  is_planned: false,            // Était-ce prévu au calendrier ?
+  category: "OTHER",
+  createdAt: "2026-04-08T14:00:00",
+}
+```
+
+#### 8. **MOOD_LOGS** (Suivi de l'Humeur)
+
+```typescript
+// Structure d'un Log d'Humeur
+{
+  id: "uuid-unique",
+  date: "2026-04-08",
+  mood: 4,                      // 1-5 (Très mauvais à excellent)
+  note: "Bonne journée",        // Note optionnelle
+  createdAt: "2026-04-08T20:00:00",
+}
+```
+
+---
+
+## 📱 Les Écrans à Créer (Ordre Prioritaire)
+
+### Ordre de Création (**IMPORTANT** : Suis cet ordre !)
+
+1. ✅ **Écran d'authentification** (FaceID/Code PIN)
+2. ✅ **Onboarding** (5 étapes)
+3. ✅ **Dashboard "Quartier Général"** (Les statistiques)
+4. ✅ **Gestion des Finances/Trésorerie**
+5. ✅ **Calendrier & Tracking du temps**
+6. ✅ **Guerres & Batailles & Adversaires**
+7. ✅ **Chat IA (L'Agent)**
+8. ✅ **Paramètres & Sécurité**
+
+### Pourquoi cet ordre ?
+
+- L'authentification d'abord : Pas d'app sans sécurité.
+- L'onboarding : Les utilisateurs doivent comprendre.
+- Le dashboard : Vue d'ensemble.
+- Les finances : Le cœur du projet (plus complexe).
+- Le calendrier : Suivi en temps réel.
+- Les guerres : Gestion des objectifs.
+- Le chat : Optionnel pour la version 1.
+- Les paramètres : En dernier.
+
+---
+
+## 🖥️ Détail Écran par Écran
+
+### Écran 1 : AUTHENTIFICATION
+
+#### Localisation
+```
+app/(app)/_layout.tsx   ← On vérifie l'auth avant d'accéder aux écrans
+```
+
+#### Qu'est-ce que c'est ?
+Au démarrage de l'app, on demande à l'utilisateur de se présenter (FaceID, empreinte, ou Code PIN).
+
+#### Design
+```
+┌─────────────────────────────────┐
+│                                   │
+│      [Fond flouté : Glassmorphism]│
+│                                   │
+│         🛡️ GBECHE 🛡️              │
+│                                   │
+│   "Qui êtes-vous ?"               │
+│                                   │
+│  ┌─────────────────────────────┐  │
+│  │  🔐 FaceID / Empreinte      │  │  Bouton principal
+│  └─────────────────────────────┘  │
+│                                   │
+│  ┌─────────────────────────────┐  │
+│  │  . . . Code PIN             │  │  Fallback
+│  └─────────────────────────────┘  │
+│                                   │
+└─────────────────────────────────┘
+```
+
+#### Flux d'Exécution
+
+```
+Utilisateur ouvre l'app
+    ↓
+On regarde : "Est-ce enregistré dans AsyncStorage ?"
+    ↓
+NON → Montrer l'écran d'enregistrement du first-time
+OUI → Continuer
+    ↓
+On demande FaceID/Empreinte (expo-local-authentication)
+    ↓
+┌─ Succes ? ─┐
+│             │
+OUI          NON
+│             │
+✅           Demander Code PIN
+Via          │
+Zustand      ┌─ Code Correct ? ─┐
+│             │                  │
+✅           OUI                NON
+│             │                  │
+│             ✅                ❌ (Afficher "Erreur")
+│             │
+└─────────────┴─→ Décrypter WatermelonDB
+                  ↓
+                Aller au Dashboard
+```
+
+#### Code TypeScript à Écrire
+
+```typescript
+// src/services/auth.ts
+import * as SecureStore from "expo-secure-store";
+import * as LocalAuthentication from "expo-local-authentication";
+
+export async function authenticate() {
+  try {
+    // Vérifier si biométrie est disponible
+    const compatible = await LocalAuthentication.hasHardwareAsync();
+    
+    if (!compatible) {
+      // Fallback: Code PIN
+      return askForPIN();
+    }
+
+    // Demander FaceID/Empreinte
+    const result = await LocalAuthentication.authenticateAsync({
+      promptMessage: "Authentifiez-vous",
+      fallbackLabel: "Utiliser le Code PIN",
+      disableDeviceFallback: false,
+    });
+
+    if (result.success) {
+      return true; // Authentification réussie
+    } else {
+      return false;
+    }
+  } catch (error) {
+    console.error("Erreur d'authentification :", error);
+    return false;
+  }
+}
+
+export async function askForPIN(): Promise<boolean> {
+  // À implémenter : UI avec saisie du Code PIN
+  // Comparer avec SecureStore.getItemAsync("userPin")
+  return false;
+}
+```
+
+---
+
+### Écran 2 : ONBOARDING (5 Étapes)
+
+#### Localisation
+```
+app/(onboarding)/index.tsx
+```
+
+#### Les 5 Étapes
+
+##### Étape 1 : **Le Manifeste** (L'Impact Visuel)
+
+```
+┌──────────────────────────────┐
+│  [Animation Lottie]          │
+│  Boussole → Épée (néon)      │
+│                              │
+│  "Le chaos s'arrête ici."    │
+│  "GBECHE n'est pas un outil. │
+│   C'est ton quartier général"│
+│                              │
+│  [Bouton] Prendre le         │
+│           Commandement →     │
+└──────────────────────────────┘
+```
+
+##### Étape 2 : **La Forteresse** (Sécurité)
+
+```
+┌──────────────────────────────┐
+│  [Animation Lottie]          │
+│  Bouclier qui pulse          │
+│                              │
+│  "Ce qui se passe dans       │
+│   GBECHE reste dans GBECHE"  │
+│  "Pas de cloud, pas de       │
+│   serveurs"                  │
+│                              │
+│  [Bouton] FaceID/Empreinte   │
+│           ou Code PIN        │
+└──────────────────────────────┘
+```
+
+Ici, on déclenche `authenticate()` pour configurer la sécurité.
+
+##### Étape 3 : **Le Recensement** (Finances)
+
+```
+┌──────────────────────────────┐
+│  "Quelles sont tes réserves ?"│
+│                              │
+│  Cartes flottantes :         │
+│  ┌──────────┐                │
+│  │ 📱 Momo  │  Solde : ___   │
+│  └──────────┘                │
+│  ┌──────────┐                │
+│  │ 💵 Cash  │  Solde : ___   │
+│  └──────────┘                │
+│  ┌──────────┐                │
+│  │ 🏦 Bank  │  Solde : ___   │
+│  └──────────┘                │
+│                              │
+│  [Suivant →]                 │
+└──────────────────────────────┘
+```
+
+L'utilisateur rentre les soldes. Ces données créent les entrées dans la table `ACCOUNTS`.
+
+##### Étape 4 : **Déclaration de Guerre** (Premier Objectif)
+
+```
+┌──────────────────────────────┐
+│  "Choisis ta première Guerre"│
+│  "Quel domaine vas-tu        │
+│   conquérir ?"               │
+│                              │
+│  [💰 Finance]     [❤️ Santé]  │
+│  [💼 Pro]         [🧘 Spirit]│
+│  [👨‍👩‍👧 Social]     [🎮 Loisirs]│
+│                              │
+│  Ou : [+ Créer domaine]      │
+│                              │
+│  [Suivant →]                 │
+└──────────────────────────────┘
+```
+
+Création d'une première `WARS` entry.
+
+##### Étape 5 : **Le Pacte de Discipline** (Notifications)
+
+```
+┌──────────────────────────────┐
+│  [Animation Lottie]          │
+│  Horloge qui scanne          │
+│                              │
+│  "Je serai ton ombre."       │
+│  "Si tu dévies, je te        │
+│   ramènerai."                │
+│                              │
+│  [✓] Autoriser les notifs    │
+│      horaires                │
+│  [✓] Me notifier les         │
+│      défaites                │
+│                              │
+│  [Finir & Aller au Dashboard]│
+└──────────────────────────────┘
+```
+
+On demande les permissions pour les notifications.
+
+#### Code Onboarding
+
+```typescript
+// app/(onboarding)/index.tsx
+import React, { useState } from "react";
+import { View, Text, TouchableOpacity } from "react-native";
+import LottieView from "lottie-react-native";
+
+export default function OnboardingIndex() {
+  const [step, setStep] = useState<1 | 2 | 3 | 4 | 5>(1);
+
+  if (step === 1) return <Step1Manifesto onNext={() => setStep(2)} />;
+  if (step === 2) return <Step2Fortress onNext={() => setStep(3)} />;
+  if (step === 3) return <Step3Census onNext={() => setStep(4)} />;
+  if (step === 4) return <Step4DeclareWar onNext={() => setStep(5)} />;
+  if (step === 5) return <Step5Covenant onNext={() => goToDashboard()} />;
+}
+
+function Step1Manifesto({ onNext }: { onNext: () => void }) {
+  return (
+    <View className="flex-1 bg-black justify-center items-center">
+      <LottieView
+        source={require("@/assets/animations/compass-to-sword.json")}
+        autoPlay
+        loop
+        style={{ width: 200, height: 200 }}
+      />
+      <Text className="text-white text-xl font-bold mt-8">
+        Le chaos s'arrête ici
+      </Text>
+      <TouchableOpacity
+        onPress={onNext}
+        className="mt-12 bg-cyan-400 px-8 py-4 rounded-full"
+      >
+        <Text className="text-black font-bold">Prendre le Commandement</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+// ... Step2, Step3, etc.
+```
+
+---
+
+### Écran 3 : DASHBOARD "QUARTIER GÉNÉRAL"
+
+#### Localisation
+```
+app/(app)/home.tsx
+```
+
+#### Design
+
+```
+┌──────────────────────────────────────┐
+│  GBECHE 🏰                            │
+│  Lundi 8 Avril                       │
+├──────────────────────────────────────┤
+│                                      │
+│  [CARTES FLOTTANTES - Statistiques]  │
+│  ┌─────────────────────────────────┐ │
+│  │ 📊 Vue du Jour                  │ │
+│  │ Tâches : 8/12 (67%)             │ │
+│  │ Temps productif : 5.2h / 8h cible
+│  └─────────────────────────────────┘ │
+│                                      │
+│  ┌─────────────────────────────────┐ │
+│  │ 💰 Finances                     │ │
+│  │ Solde : 150,000 FCFA            │ │
+│  │ Dépenses aujourd'hui : 3,500    │ │
+│  └─────────────────────────────────┘ │
+│                                      │
+│  ┌─────────────────────────────────┐ │
+│  │ 📈 Progression Global           │ │
+│  │ [===== 65% cette semaine =====] │ │
+│  └─────────────────────────────────┘ │
+│                                      │
+│  [GRAPHES - Camouti circulaires]     │
+│  [Pie Chart : Répartition domaines]  │
+│                                      │
+│  [PROCHAINES BATAILLES]             │
+│  • 10h : Sport 30 min (Santé)       │
+│  • 14h : Lire 20 pages (Pro)        │
+│  • 19h : Appeler maman (Social)     │
+│                                      │
+│  [FAB Bouton] +  (Créer)            │
+│                                      │
+│  [Navigation Bas]                    │
+│  🏰 Home | 💰 Finance | 📅 Cal | ...  │
+└──────────────────────────────────────┘
+```
+
+#### Ce qui s'affiche
+
+- **Vue du Jour** : Tâches complétées / Total.
+- **Finances** : Solde total + dépenses du jour.
+- **Progression** : Barre de progression de la semaine.
+- **Graphes** : Pie chart avec répartition des domaines.
+- **Prochaines Tâches** : Les 5 adversaires de la journée.
+
+#### Code pour Récupérer les Données
+
+```typescript
+// src/services/dashboard.ts
+import { db } from "./database"; // WatermelonDB connection
+
+export async function getDayStats(date: Date) {
+  // Récupérer les tâches d'aujourd'hui
+  const adversaries = await db
+    .get("adversaries")
+    .query()
+    .where("scheduled_at", gte, startOfDay(date))
+    .where("scheduled_at", lte, endOfDay(date))
+    .fetch();
+
+  const completed = adversaries.filter((a) => a.status === "WON").length;
+  const total = adversaries.length;
+  const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+  return { completed, total, percentage };
+}
+
+export async function getAverageBalance() {
+  const accounts = await db.get("accounts").query().fetch();
+  return accounts.reduce((sum, acc) => sum + acc.balance, 0);
+}
+
+export async function getUpcomingAdversaries(limit = 5) {
+  const today = new Date();
+  const adversaries = await db
+    .get("adversaries")
+    .query()
+    .where("scheduled_at", gte, today)
+    .where("status", "!=", "WON")
+    .orderBy("scheduled_at", "asc")
+    .take(limit)
+    .fetch();
+
+  return adversaries;
+}
+```
+
+---
+
+### Écran 4 : GESTION DES FINANCES (Trésorerie)
+
+#### Localisation
+```
+app/(app)/finance.tsx
+```
+
+#### Design
+
+```
+┌─────────────────────────────────────┐
+│  💰 TRÉSORERIE                      │
+├─────────────────────────────────────┤
+│  Solde Total : 150,000 FCFA         │
+│  ↑ +5,000  ↓ -3,500 (Aujourd'hui)   │
+│                                     │
+│  [Onglets]                          │
+│  [Comptes] [Transactions] [Budgets] │
+│                                     │
+│  ┌─ COMPTES ────────────────────┐   │
+│  │ ┌───────────────────────────┐│   │
+│  │ │ 📱 MTN MOMO               ││   │
+│  │ │ 75,000 FCFA               ││   │
+│  │ │ [Ajouter] [Voir]          ││   │
+│  │ └───────────────────────────┘│   │
+│  │                               │   │
+│  │ ┌───────────────────────────┐│   │
+│  │ │ 💵 CASH (Liquide)         ││   │
+│  │ │ 35,000 FCFA               ││   │
+│  │ │ [Ajouter] [Voir]          ││   │
+│  │ └───────────────────────────┘│   │
+│  │                               │   │
+│  │ ┌───────────────────────────┐│   │
+│  │ │ 🏦 COMPTE BANCAIRE        ││   │
+│  │ │ 40,000 FCFA               ││   │
+│  │ │ [Ajouter] [Voir]          ││   │
+│  │ └───────────────────────────┘│   │
+│  │                               │   │
+│  │ [+ Ajouter un Compte] ───────│→ Formulaire
+│  └───────────────────────────────┘   │
+│                                     │
+│  ┌─ GRAPHES ────────────────────┐   │
+│  │ [Pie Chart : Répartition]    │   │
+│  │ 40% Nourriture               │   │
+│  │ 30% Transport                │   │
+│  │ 20% Santé                    │   │
+│  │ 10% Autres                   │   │
+│  └───────────────────────────────┘   │
+│                                     │
+│  [FAB] +  → Ajouter une dépense   │
+└─────────────────────────────────────┘
+```
+
+#### Fonctionnalités
+
+1. **Voir les Comptes** : Liste des portefeuilles (Momo, Cash, etc.)
+2. **Ajouter une Dépense** : Formulaire rapide.
+3. **Budgets** : Fixer une limite par catégorie.
+4. **Graphes** : Pie chart, courbe d'évolution.
+5. **Export** : Exporter en CSV/Excel.
+
+#### Code pour Ajouter une Dépense
+
+```typescript
+// src/services/finance.ts
+import { db } from "./database";
+
+export async function addTransaction(
+  accountId: string,
+  amount: number,
+  category: string,
+  description: string,
+  type: "INCOME" | "EXPENSE"
+) {
+  const transactionsCollection = db.get("transactions");
+
+  // Créer la transaction
+  const transaction = await transactionsCollection.create((trans) => {
+    trans.account_id = accountId;
+    trans.amount = amount;
+    trans.category = category;
+    trans.description = description;
+    trans.type = type;
+    trans.timestamp = new Date().toISOString();
+  });
+
+  // Mettre à jour le solde du compte
+  const account = await db.get("accounts").find(accountId);
+  await account.update((acc) => {
+    if (type === "EXPENSE") {
+      acc.balance -= amount;
+    } else {
+      acc.balance += amount;
+    }
+  });
+
+  return transaction;
+}
+```
+
+---
+
+### Écran 5 : CALENDRIER & TRACKING (Suivi du Temps)
+
+#### Localisation
+```
+app/(app)/calendar.tsx
+```
+
+#### Design
+
+```
+┌───────────────────────────────────┐
+│  📅 CALENDRIER & TRACKING         │
+├───────────────────────────────────┤
+│  Lundi 8 Avril 2026               │
+│                                   │
+│  [Sélecteur de Mois/Jour]         │
+│  < Avril 2026 >                   │
+│  L M M J V S D                    │
+│  1 2 3 4 5 6 7                    │
+│  8 9 ...                          │
+│  [Jour sélectionné : 8, couleur]  │
+│                                   │
+├───────────────────────────────────┤
+│  [VUE HORAIRE]                    │
+│  06:00 [  6h de sommeil ✓  ]     │
+│  07:00 [  Gym 45 min ✓  ]        │
+│  08:00 [  Petit-déj  ]           │
+│  09:00 [  Deep Work ...........] │
+│  10:00 [  ❌ TON TEMPS LIBRE  ]   │ ← Clic = notification
+│  11:00 [  Réunion projet ✓  ]    │
+│  12:00 [  Lunch  ]               │
+│  13:00 [  .........  ]           │
+│  14:00 [  Finance saisie  ]      │
+│  ...                             │
+│  23:00 [  Lit  ]                 │
+│                                   │
+│  [Résumé du jour]                 │
+│  Productif : 6h 30min             │
+│  Repos : 1h 30min                │
+│  Non-planifié : 16h               │
+│                                   │
+│  [Graphe Heatmap GitHub]          │
+│  (Activité par jour sur 3 mois)  │
+└───────────────────────────────────┘
+```
+
+#### Cas d'Utilisation (Tracking Actif)
+
+```
+Utilisateur ouvre l'app à 15h
+    ↓
+On regarde 14h-15h du calendrier
+    ↓
+"Est-ce qu'il y a une tâche prévue ?"
+    ↓
+NON → Notification : "Qu'as-tu fait ?"
+OUI → Afficher la tâche (Sport, etc.)
+    ↓
+Utilisateur clique sur la notification
+    ↓
+Bottom Sheet s'ouvre avec suggestions :
+    • "Sports" (basé sur l'historique)
+    • "Repos"
+    • "Travail"
+    • "Autre..." (champ texte libre)
+    ↓
+Utilisateur choisit ou rentre une activité
+    ↓
+TimeLog créé dans la DB
+    ↓
+Calendrier mis à jour
+```
+
+#### Code pour Créer un TimeLog
+
+```typescript
+// src/services/tracking.ts
+import { db } from "./database";
+
+export async function logTime(
+  date: Date,
+  startHour: number,
+  endHour: number,
+  activity: string,
+  isPlanned: boolean
+) {
+  const timeLogsCollection = db.get("time_logs");
+
+  const timeLog = await timeLogsCollection.create((log) => {
+    log.date = date.toISOString().split("T")[0];
+    log.start_hour = startHour;
+    log.end_hour = endHour;
+    log.activity = activity;
+    log.is_planned = isPlanned;
+  });
+
+  return timeLog;
+}
+
+export async function notifyMissingHour() {
+  // À 15h, si 14-15 est vide, envoyer notification
+  const now = new Date();
+  const pastHour = new Date(now.getTime() - 60 * 60 * 1000);
+
+  const timeLogs = await db
+    .get("time_logs")
+    .query()
+    .where(
+      "date",
+      "==",
+      now.toISOString().split("T")[0]
+    ) // Aujourd'hui
+    .where("start_hour", "==", pastHour.getHours())
+    .fetch();
+
+  if (timeLogs.length === 0) {
+    // Envoyer notification
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: "Qu'as-tu fait cette heure ?",
+        body: "1 heure s'est écoulée sans activité enregistrée.",
+      },
+      trigger: null, // Immédiatement
+    });
+  }
+}
+```
+
+---
+
+### Écran 6 : GUERRES & BATAILLES & ADVERSAIRES
+
+#### Localisation
+```
+app/(app)/wars.tsx
+```
+
+#### Design
+
+```
+┌────────────────────────────────────┐
+│  ⚔️ MES GUERRES                    │
+├────────────────────────────────────┤
+│                                    │
+│  [💰 FINANCE]  [❤️ SANTÉ]  [...]    │
+│   3 batailles  5 batailles         │
+│   45% victoires 72% victoires      │
+│                                    │
+│  ┌─ FINANCE (Sélectionné) ────────┐│
+│  │ [Graphe Pie : Répartition]    ││
+│  │ [Courbe : Solde à long terme] ││
+│  │                               ││
+│  │ BATAILLES                     ││
+│  │ ✅ Créer fonds d'urgence      ││
+│  │    Deadline : 31 Déc 2026     ││
+│  │    Adversaires complétés : 12/50
+│  │                               ││
+│  │ 🔄 Investir en bourse         ││
+│  │    Deadline : 30 Juin 2026    ││
+│  │    Adversaires : 5/30         ││
+│  │                               ││
+│  │ ❌ Réduire dépenses inutiles  ││
+│  │    Deadline : 30 Avril 2026   ││
+│  │    Adversaires : 2/20 (EN RD) ││
+│  │                               ││
+│  │ [+ Nouvelle Bataille]         ││
+│  └───────────────────────────────┘│
+│                                    │
+│  [DÉTAILS BATAILLE CLIQUÉE]        │
+│  Créer fonds d'urgence             │
+│                                    │
+│  ADVERSAIRES (Tâches)             │
+│  ✅ Mon 8 Avril : +5000 FCFA      │
+│  ✅ Mer 10 Avril : +5000 FCFA     │
+│  ❌ Ven 12 Avril : +5000 FCFA     │
+│  ⏳ Dim 14 Avril : +5000 FCFA (non fait) │
+│                                    │
+│  [+ Ajouter Adversaire]            │
+└────────────────────────────────────┘
+```
+
+#### Fonctionnalités
+
+1. **Voir Guerres** : Liste des domaines avec stats.
+2. **Voir Batailles** : Objectifs pour chaque Guerre.
+3. **Voir Adversaires** : Petites tâches avec récurrence.
+4. **Marquer comme Complété** : Clic = ✅ changé en ✓.
+5. **Graphes** : Par domaine (radar pour santé, pie pour finance).
+
+#### Code pour Créer une Bataille
+
+```typescript
+// src/services/wars.ts
+import { db } from "./database";
+
+export async function createBattle(
+  warId: string,
+  title: string,
+  description: string,
+  deadline: Date,
+  priority: "HIGH" | "MEDIUM" | "LOW" = "MEDIUM"
+) {
+  const battlesCollection = db.get("battles");
+
+  const battle = await battlesCollection.create((battle) => {
+    battle.war_id = warId;
+    battle.title = title;
+    battle.description = description;
+    battle.deadline = deadline.toISOString();
+    battle.status = "IN_PROGRESS";
+    battle.priority = priority;
+  });
+
+  return battle;
+}
+
+export async function createAdversary(
+  battleId: string,
+  title: string,
+  frequency: "DAILY" | "WEEKLY" | "MONTHLY" | "ONCE",
+  recurrenceDays?: number[], // [0, 2, 4] = Lun, Mer, Ven
+  firstScheduledDate?: Date
+) {
+  const adversariesCollection = db.get("adversaries");
+
+  // Si WEEKLY, créer une instance pour chaque jour spécifié pour les 3 prochains mois
+  if (frequency === "WEEKLY" && recurrenceDays) {
+    const today = firstScheduledDate || new Date();
+    const threeMonthsLater = new Date(today.getTime() + 90 * 24 * 60 * 60 * 1000);
+
+    let date = new Date(today);
+    while (date <= threeMonthsLater) {
+      if (recurrenceDays.includes(date.getDay())) {
+        await adversariesCollection.create((adv) => {
+          adv.battle_id = battleId;
+          adv.title = title;
+          adv.frequency = frequency;
+          adv.scheduled_at = date.toISOString();
+          adv.status = "PENDING";
+        });
+      }
+      date.setDate(date.getDate() + 1);
+    }
+  }
+}
+```
+
+---
+
+### Écran 7 : CHAT IA (L'Agent)
+
+#### Localisation
+```
+app/(app)/chat.tsx
+```
+
+#### Design
+
+```
+┌────────────────────────────────────┐
+│  🤖 ASSISTANT IA                  │
+├────────────────────────────────────┤
+│  [Chat Bubbles]                    │
+│                                    │
+│  Bot : "Bonjour ! Je suis ton      │
+│         agent personnel. Je peux   │
+│         t'aider à enregistrer des  │
+│         tâches, des dépenses, etc.│
+│                                    │
+│  Toi : "J'ai dépensé 2500          │
+│        chez le coiffeur en cash"   │
+│                                    │
+│  Bot : "D'accord ! J'ai compris :  │
+│         📌 Dépense : 2500 FCFA     │
+│         📌 Catégorie : Santé/Beauté
+│         📌 Compte : Cash           │
+│         📌 Description : Coiffeur  │
+│                                    │
+│         Valider cette transaction ?"
+│                                    │
+│  [Cartes d'action]                 │
+│  ┌──────────────────────────────┐  │
+│  │ ✅ Valider                   │  │
+│  └──────────────────────────────┘  │
+│  ┌──────────────────────────────┐  │
+│  │ ❌ Modifier                  │  │
+│  └──────────────────────────────┘  │
+│                                    │
+│  [Champ de saisie]                 │
+│  Dis-moi ce que tu as fait...      │
+│  [🎤] [Envoyer]                    │
+└────────────────────────────────────┘
+```
+
+#### Cas d'Utilisation
+
+```
+Utilisateur rentre : "Ajoute 20000 à mon épargne et rappelle-moi de lire ce soir"
+    ↓
+1. NLP local extrait 2 intents :
+   - Intent 1 : Finance → +20000, catégorie Épargne
+   - Intent 2 : ProductivitÂ → Tâche "Lire", ce soir (21h)
+    ↓
+2. Bot génère les cartes d'action
+    ↓
+3. Utilisateur valide
+    ↓
+4. Les 2 éléments sont créés dans la DB en même temps
+```
+
+#### Code pour le NLP Basique
+
+```typescript
+// src/services/nlp.ts
+export interface Intent {
+  type: "FINANCE" | "PRODUCTIVITY" | "HEALTH" | "OTHER";
+  action: string;
+  params: Record<string, any>;
+}
+
+export function parseUserInput(userInput: string): Intent[] {
+  const intents: Intent[] = [];
+
+  // Regex pour détecter les dépenses
+  const expenseRegex = /(?:dépens|paié|acheté|coûté).*?(\d+).*?(cash|momo|wave|bank)/i;
+  const expenseMatch = userInput.match(expenseRegex);
+
+  if (expenseMatch) {
+    const amount = parseInt(expenseMatch[1]);
+    const account = expenseMatch[2].toUpperCase();
+
+    // Déduire la catégorie du texte
+    let category = "CUSTOM";
+    if (userInput.includes("coiffeur") || userInput.includes("salon"))
+      category = "HEALTH_BEAUTY";
+    if (userInput.includes("mange") || userInput.includes("restau"))
+      category = "FOOD";
+    if (userInput.includes("taxi") || userInput.includes("transport"))
+      category = "TRANSPORT";
+
+    intents.push({
+      type: "FINANCE",
+      action: "ADD_EXPENSE",
+      params: { amount, account, category },
+    });
+  }
+
+  // Regex pour détecter les tâches
+  const taskRegex = /(?:rappelle|ajoute tâche|fais|apprend).*?([^.]+)/i;
+  const taskMatch = userInput.match(taskRegex);
+
+  if (taskMatch) {
+    const taskTitle = taskMatch[1].trim();
+
+    // Détecter l'heure si elle existe
+    const timeRegex = /(\d{1,2}):?(\d{0,2})\s*(h|am|pm)?/i;
+    const timeMatch = userInput.match(timeRegex);
+
+    intents.push({
+      type: "PRODUCTIVITY",
+      action: "ADD_TASK",
+      params: {
+        title: taskTitle,
+        scheduledTime: timeMatch ? timeMatch[0] : null,
+      },
+    });
+  }
+
+  return intents;
+}
+```
+
+---
+
+### Écran 8 : PARAMÈTRES & SÉCURITÉ
+
+#### Localisation
+```
+app/(app)/settings.tsx
+```
+
+#### Design
+
+```
+┌──────────────────────────────────┐
+│  ⚙️ PARAMÈTRES                   │
+├──────────────────────────────────┤
+│                                  │
+│  👤 PROFIL                       │
+│  Nom : Utilisateur               │
+│  Email : (Hors-ligne)            │
+│  [Modifier Profil]               │
+│                                  │
+│  🔐 SÉCURITÉ & VIE PRIVÉE       │
+│  ✓ FaceID/Empreinte activé      │
+│  ✓ Chiffrement des données      │
+│  [Changer le Code PIN]           │
+│  [Réinitialiser l'app]           │
+│                                  │
+│  💾 BASE DE DONNÉES              │
+│  Dernière sauvegarde : Aujourd'hui│
+│  [Sauvegarder Maintenant]        │
+│  [Exporter en CSV]               │
+│  [Exporter en Excel]             │
+│  [Importer une Sauvegarde]       │
+│                                  │
+│  🔔 NOTIFICATIONS                │
+│  ✓ Notifications horaires        │
+│  [Heure de la première alerte]   │
+│  ✓ Rappels de tâches            │
+│  ✓ Résumé du soir               │
+│                                  │
+│  🎨 APPARENCE                    │
+│  [Mode Sombre]  (Actif)          │
+│  [Mode Clair]                    │
+│  [Couleur Accent]  Cyan Néon     │
+│                                  │
+│  ℹ️ À PROPOS                     │
+│  Version : 1.0.0                 │
+│  Developer : GBECHE Team         │
+│  [Conditions d'utilisation]      │
+│  [Politique de confidentialité]  │
+│                                  │
+│  [Déconnexion / Quitter]         │
+└──────────────────────────────────┘
+```
+
+#### Fonctionnalités
+
+1. **Exportation de Données** : CSV ou Excel.
+2. **Importation** : Re-importer une sauvegarde.
+3. **Changer Code PIN** : Modifier la sécurité.
+4. **Gérer Notifications** : Activer/désactiver les alertes.
+
+---
+
+## 🎮 Les Cas d'Utilisation Expliqués
+
+### USE CASE 1 : Authentification et Ouverture
+
+**Acteur** : Utilisateur
+**Point de départ** : Ouverture de l'app
+
+```
+1. L'utilisateur ouvre GBECHE
+   ↓
+2. L'app charge
+   ↓
+3. L'app demande : "Êtes-vous sûr que c'est vous ?"
+   ↓
+4. Si OUI (FaceID/Empreinte reconnus)
+   → Aller au Dashboard
+   ↓
+5. Si NON (échec authentification)
+   → Fallback : Demander Code PIN
+   ↓
+6. Code PIN correct ?
+   → Aller au Dashboard
+   ↓
+7. Code PIN incorrect ?
+   → "Erreur. Essayer à nouveau."
+```
+
+### USE CASE 2 : Créer une Bataille (Objectif)
+
+**Acteur** : Utilisateur
+**Point de départ** : Clic sur FAB "+"
+
+```
+1. Utilisateur clique sur le bouton "+" du Dashboard
+   ↓
+2. Menu popup :
+   • Créer une Bataille
+   • Ajouter une Dépense
+   • Enregistrer du temps
+   ↓
+3. Utilisateur choisit "Créer une Bataille"
+   ↓
+4. Écran de création :
+   a. Choisir/créer une Guerre (domaine)
+   b. Nommer la Bataille
+   c. Fixer une deadline
+   d. Ajouter des Adversaires
+   ↓
+5. Clic sur "Créer"
+   ↓
+6. Bataille créée dans WatermelonDB
+   ↓
+7. Les Adversaires sont auto-générés pour 3 mois
+   (exemple : "Ajouter 5000" tous les lundis pendant 3 mois)
+```
+
+### USE CASE 3 : Suivi Actif du Temps
+
+**Acteur** : Utilisateur + App (automatique)
+**Point de départ** : 15h00 (1 heure s'est écoulée)
+
+```
+1. À 15h00, l'app vérifie le calendrier de 14h-15h
+   ↓
+2. "Y a-t-il une tâche prévue ?"
+   ↓
+3. NON → Créer une notification :
+   "1 heure s'est écoulée. Qu'as-tu fait ?"
+   ↓
+4. Utilisateur clique sur la notification
+   ↓
+5. Bottom Sheet s'ouvre avec suggestions :
+   • Sport (basé sur l'historique)
+   • Repos
+   • Travail
+   • Autre...
+   ↓
+6. Utilisateur choisit une option
+   ↓
+7. TimeLog créé dans la DB
+   (date: "2026-04-08", start_hour: 14, end_hour: 15, activity: "Sport", is_planned: false)
+   ↓
+8. Mise à jour du Dashboard
+   (Les graphes reflètent cette nouvelle activité)
+```
+
+### USE CASE 4 : Réajustement Automatique
+
+**Acteur** : App (automatique)
+**Point de départ** : 23h00 (Fin de la journée)
+
+```
+1. À 23h00, l'app scan les Adversaires du jour
+   ↓
+2. Lesquels ne sont pas complétés ?
+   Adversaire 1 : "Sport" → ❌ (Non complété)
+   Adversaire 2 : "Lire 20 pages" → ✅ (Complété)
+   ↓
+3. Lesquels ne sont pas complétés = Défaites
+   ↓
+4. L'app scan demain (9 Avril) :
+   • 10h-11h : Libre
+   • 14h-15h : Libre
+   ↓
+5. Popup : "Tu as perdu 1 bataille aujourd'hui.
+   Je l'ai reprogrammée demain à 10h. Valider ?"
+   ↓
+6. Si OUI :
+   - L'Adversaire "Sport" passe de pending à RESCHEDULED
+   - scheduled_at = "2026-04-09T10:00:00"
+   - Les graphes mettent à jour (défaite du jour)
+   ↓
+7. Si NON :
+   - L'Adversaire passe en LOST
+   - Les graphes reflètent -1 victoire
+```
+
+### USE CASE 5 : Saisie via Agent IA
+
+**Acteur** : Utilisateur
+**Point de départ** : Ouverture du Chat
+
+```
+1. Utilisateur rentre :
+   "J'ai dépensé 2500 chez le coiffeur en cash, 
+    et rappelle-moi de lire 20 pages ce soir à 21h"
+   ↓
+2. NLP local décompose la phrase en 2 intents :
+   
+   Intent 1 :
+   - Type : FINANCE
+   - Action : ADD_EXPENSE
+   - Params : { amount: 2500, category: "HEALTH_BEAUTY", account: "CASH" }
+   
+   Intent 2 :
+   - Type : PRODUCTIVITY
+   - Action : ADD_TASK
+   - Params : { title: "Lire 20 pages", scheduledTime: "21:00" }
+   ↓
+3. Bot génère 2 cartes d'action :
+   
+   Carte 1 :
+   📌 Dépense : 2500 FCFA
+   📌 Catégorie : Santé/Beauté
+   📌 Compte : Cash
+   
+   Carte 2 :
+   📌 Tâche : Lire 20 pages
+   📌 Heure : 21h00
+   ↓
+4. Bot demande : "Valider tout ?"
+   ↓
+5. Utilisateur clique "✅ Valider tout"
+   ↓
+6. Les 2 éléments sont créés en BD :
+   - Une Transaction dans la table TRANSACTIONS
+   - Un Adversaire dans la table ADVERSARIES
+   - Le solde du compte CASH est mis à jour
+   ↓
+7. Dashboard et Graphes se mettent à jour automatiquement
+   (Dépense visible, tâche visible dans le calendrier)
+```
+
+### USE CASE 6 : Export de Données
+
+**Acteur** : Utilisateur
+**Point de départ** : Paramètres → "Exporter"
+
+```
+1. Utilisateur accède aux Paramètres
+   ↓
+2. Clic sur "Exporter en CSV"
+   ↓
+3. L'app parcourt toutes les tables WatermelonDB :
+   - WARS
+   - BATTLES
+   - ADVERSARIES
+   - ACCOUNTS
+   - TRANSACTIONS
+   - TIME_LOGS
+   - MOOD_LOGS
+   ↓
+4. Pour chaque table, formatage en CSV
+   (Colonnes séparées par des virgules)
+   ↓
+5. Écriture du fichier dans le stockage local du téléphone
+   Chemin : `/data/data/com.gbeche/databases/GBECHE_export_2026-04-08.csv`
+   ↓
+6. Popup : "Fichier prêt !"
+   ↓
+7. Clic sur "Partager"
+   ↓
+8. Utilisateur peut envoyer par email, WhatsApp, etc.
+   ↓
+9. Sur un autre téléphone, l'utilisateur peut importer :
+   GBECHE → Paramètres → "Importer" → Sélectionner le fichier CSV
+   ↓
+10. La DB est reconstruite à partir du CSV sur le nouveau téléphone
+```
+
+---
+
+## ⚙️ Fonctionnalités Principales & Algorithmes
+
+### Algorithme 1 : Calcul de la Progression Journalière
+
+**Objectif** : Calculer quelle pourcentage de tâches ont été complétées aujourd'hui.
+
+```typescript
+// src/services/stats.ts
+export async function calculateDayProgress(date: Date) {
+  const startOfDay = new Date(date);
+  startOfDay.setHours(0, 0, 0, 0);
+
+  const endOfDay = new Date(date);
+  endOfDay.setHours(23, 59, 59, 999);
+
+  // Récupérer les Adversaires d'aujourd'hui
+  const adversaries = await db
+    .get("adversaries")
+    .query()
+    .where("scheduled_at", gte, startOfDay.toISOString())
+    .where("scheduled_at", lte, endOfDay.toISOString())
+    .fetch();
+
+  const completed = adversaries.filter((a) => a.status === "WON").length;
+  const total = adversaries.length;
+
+  const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+  return { completed, total, percentage };
+}
+```
+
+### Algorithme 2 : Génération Automatique des Récurrences
+
+**Objectif** : Créer des instances de tâches pour X mois en fonction de la fréquence.
+
+```typescript
+// src/services/recurrence.ts
+type Frequency = "DAILY" | "WEEKLY" | "MONTHLY" | "ONCE";
+
+export async function generateRecurrenceInstances(
+  adversaryTemplate: {
+    battleId: string;
+    title: string;
+    frequency: Frequency;
+    recurrenceDays?: number[]; // 0=Dimanche, 1=Lundi, etc.
+    startDate: Date;
+  },
+  monthsInFuture: number = 3
+) {
+  const endDate = new Date(adversaryTemplate.startDate);
+  endDate.setMonth(endDate.getMonth() + monthsInFuture);
+
+  const instances: Array<{
+    battleId: string;
+    title: string;
+    scheduledAt: string;
+  }> = [];
+
+  let currentDate = new Date(adversaryTemplate.startDate);
+
+  while (currentDate <= endDate) {
+    let shouldCreate = false;
+
+    switch (adversaryTemplate.frequency) {
+      case "DAILY":
+        shouldCreate = true;
+        break;
+
+      case "WEEKLY":
+        // Si c'est un jour de la semaine spécifié
+        if (
+          adversaryTemplate.recurrenceDays?.includes(currentDate.getDay())
+        ) {
+          shouldCreate = true;
+        }
+        break;
+
+      case "MONTHLY":
+        // Si c'est le même jour du mois
+        if (currentDate.getDate() === adversaryTemplate.startDate.getDate()) {
+          shouldCreate = true;
+        }
+        break;
+
+      case "ONCE":
+        // Créer une seule fois à la startDate
+        if (currentDate.toDateString() === adversaryTemplate.startDate.toDateString()) {
+          shouldCreate = true;
+        }
+        break;
+    }
+
+    if (shouldCreate) {
+      instances.push({
+        battleId: adversaryTemplate.battleId,
+        title: adversaryTemplate.title,
+        scheduledAt: currentDate.toISOString(),
+      });
+    }
+
+    // Avancer d'un jour
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+
+  return instances;
+}
+```
+
+### Algorithme 3 : Réajustement Automatique des Tâches Non Complétées
+
+**Objectif** : Reprogrammer les tâches du jour qui n'ont pas été complétées vers des créneaux libres demain.
+
+```typescript
+// src/services/rescheduling.ts
+export async function attemptReschedule(targetDate: Date) {
+  const today = new Date(targetDate);
+  today.setHours(0, 0, 0, 0);
+
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+
+  // 1. Récupérer les Adversaires d'aujourd'hui non complétés
+  const uncompleted = await db
+    .get("adversaries")
+    .query()
+    .where("scheduled_at", gte, today.toISOString())
+    .where("scheduled_at", lt, tomorrow.toISOString()) // Uniquement aujourd'hui
+    .where("status", "!=", "WON") // Pas complétés
+    .fetch();
+
+  if (uncompleted.length === 0) return; // Rien à faire
+
+  // 2. Récupérer les TimeLogs de demain pour trouver les créneaux libres
+  const tomorrowTimeLogs = await db
+    .get("time_logs")
+    .query()
+    .where("date", "==", tomorrow.toISOString().split("T")[0])
+    .fetch();
+
+  // 3. Trouver les heures libres (0-23)
+  const occupiedHours = new Set(tomorrowTimeLogs.map((log) => log.start_hour));
+  const freeSlots: number[] = [];
+  for (let hour = 9; hour <= 18; hour++) {
+    if (!occupiedHours.has(hour)) {
+      freeSlots.push(hour);
+    }
+  }
+
+  // 4. Reprogrammer les tâches vers les créneaux libres
+  const batch = db.batch();
+
+  uncompleted.forEach((adversary, index) => {
+    if (index < freeSlots.length) {
+      const newHour = freeSlots[index];
+      batch.prepareUpdate(adversary, (adv) => {
+        const newDate = new Date(tomorrow);
+        newDate.setHours(newHour, 0, 0, 0);
+        adv.scheduled_at = newDate.toISOString();
+        adv.status = "PENDING"; // Remise à 0
+      });
+    } else {
+      // Pas assez de créneaux, marquer comme "LOST"
+      batch.prepareUpdate(adversary, (adv) => {
+        adv.status = "LOST";
+      });
+    }
+  });
+
+  await batch.commit();
+
+  // 5. Afficher une modale à l'utilisateur
+  if (uncompleted.length > 0) {
+    showRescheduleAlert(uncompleted.length, freeSlots.length);
+  }
+}
+
+function showRescheduleAlert(uncompleted: number, availableSlots: number) {
+  const message =
+    availableSlots > 0
+      ? `Tu as perdu ${uncompleted} bataille(s). Je les ai reprogrammées demain.`
+      : `Tu as perdu ${uncompleted} bataille(s). Pas assez de créneaux libres demain.`;
+
+  // Afficher alert
+}
+```
+
+### Algorithme 4 : Détection des Trous dans l'Emploi du Temps
+
+**Objectif** : Toutes les heures, vérifier s'il y a une heure non planifiée et envoyer une notification.
+
+```typescript
+// src/services/notifications.ts
+import * as Notifications from "expo-notifications";
+
+export async function scheduleHourlyNotifications() {
+  // Cette fonction s'exécute au démarrage de l'app
+  // Elle crée des tâches horaires pour vérifier les trous
+
+  for (let hour = 6; hour < 23; hour++) {
+    // De 6h à 22h
+    scheduleNotificationForHour(hour);
+  }
+}
+
+async function scheduleNotificationForHour(pastHour: number) {
+  const now = new Date();
+
+  // Vérifier si ce passé-heure avait une activité
+  const todayString = now.toISOString().split("T")[0];
+
+  const timeLogs = await db
+    .get("time_logs")
+    .query()
+    .where("date", "==", todayString)
+    .where("start_hour", "==", pastHour)
+    .fetch();
+
+  if (timeLogs.length === 0) {
+    // Aucune activité enregistrée → Envoyer notification
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: "Qu'as-tu fait cette heure ?",
+        body: `De ${pastHour}h à ${pastHour + 1}h, je n'ai rien d'enregistré.`,
+        data: { pastHour, todayString },
+      },
+      trigger: {
+        hour: pastHour + 1,
+        minute: 0,
+        type: Notifications.SchedulableTriggerInputTypes.CALENDAR,
+      },
+    });
+  }
+}
+
+// Quand l'utilisateur clique sur la notification
+Notifications.addNotificationResponseListener((response) => {
+  const { pastHour, todayString } = response.notification.request.content.data;
+
+  // Afficher Bottom Sheet pour que l'utilisateur rentre l'activité
+  openActivityBottomSheet(todayString, pastHour);
+});
+```
+
+---
+
+## 🔄 Flux De Données Complet
+
+### Exemple Concret : Utilisateur Ajoute une Dépense
+
+```
+┌─────────────────────────────────────────────────────────┐
+│ UTILISATEUR CLIQUE "AJOUTER UNE DÉPENSE"                │
+└────────────────────────┬────────────────────────────────┘
+                         │
+                         ↓
+        ┌────────────────────────────────┐
+        │ ÉCRAN FINANCE (finance.tsx)    │
+        │                                │
+        │ Formulaire :                   │
+        │ . Montant : [2500]             │
+        │ . Compte : [CASH ✓]            │
+        │ . Catégorie : [COIFFEUR]      │
+        └────────────────┬───────────────┘
+                         │
+                         ↓ Clic [Ajouter]
+                         │
+        ┌────────────────────────────────┐
+        │ SERVICE FINANCE (finance.ts)   │
+        │                                │
+        │ addTransaction()               │
+        │ . Valider les paramètres       │
+        │ . Déduire la catégorie        │
+        └────────────────┬───────────────┘
+                         │
+                         ↓
+        ┌────────────────────────────────┐
+        │ BASE DE DONNÉES (WatermelonDB) │
+        │                                │
+        │ Table TRANSACTIONS :           │
+        │ Créer une ligne                │
+        │ id : uuid                      │
+        │ amount : 2500                  │
+        │ account_id : uuid-cash         │
+        │ category : HEALTH_BEAUTY       │
+        │ type : EXPENSE                 │
+        │ timestamp : now()              │
+        │                                │
+        │ Table ACCOUNTS :               │
+        │ Mettre à jour le solde         │
+        │ balance -= 2500                │
+        └────────────────┬───────────────┘
+                         │
+                         ↓ Les données changent
+                         │
+        ┌────────────────────────────────┐
+        │ COMPOSANTS REACT               │
+        │                                │
+        │ Les composants "écoutent" les  │
+        │ changements de DB              │
+        │ et se mettent à jour auto      │
+        └────────────────┬───────────────┘
+                         │
+                         ↓
+        ┌────────────────────────────────┐
+        │ ÉCRANS MISES À JOUR            │
+        │                                │
+        │ Dashboard :                    │
+        │ "Solde : 150000 → 147500"      │
+        │ "Dépenses aujourd'hui : 3500"  │
+        │                                │
+        │ Finance > Transactions         │
+        │ "2500 Coiffeur (Cash)" ✓       │
+        │                                │
+        │ Finance > Graphes              │
+        │ Pie Chart % remis à jour       │
+        └────────────────────────────────┘
+```
+
+### Architecture de Flux Réactif
+
+```
+┌─────────────────────────────────────┐
+│    UTILISATEUR (Actions)            │
+│    ┌─────────────────────────────┐  │
+│    │ Clic               Texte   │  │
+│    │ Swipe            Scan Infos│  │
+│    └──────────────┬──────────────┘  │
+│                  │                  │
+│        ┌─────────▼────────────┐    │
+│        │ COMPOSANTS REACT     │    │
+│        │ (Layers UI)          │    │
+│        │ - Button             │    │
+│        │ - TextInput          │    │
+│        │ - List               │    │
+│        └──────────┬──────────┘     │
+│                   │                 │
+│        ┌──────────▼──────────┐     │
+│        │ HOOKS PERSONNALISÉS │     │
+│        │ &  STORE ZUSTAND    │     │
+│        │                     │     │
+│        │ useAdversaries()    │     │
+│        │ useTransaction()    │     │
+│        │ useAuth()           │     │
+│        └──────────┬──────────┘     │
+│                   │                 │
+│        ┌──────────▼──────────┐     │
+│        │ SERVICES            │     │
+│        │ (Business Logic)    │     │
+│        │ - wars.ts           │     │
+│        │ - finance.ts        │     │
+│        │ - tracking.ts       │     │
+│        └──────────┬──────────┘     │
+│                   │                 │
+│        ┌──────────▼──────────┐     │
+│        │ DATABASE            │     │
+│        │                     │     │
+│        │ WatermelonDB        │     │
+│        │ (SQLite)            │     │
+│        │ Offline-First       │     │
+│        └─────────────────────┘     │
+└─────────────────────────────────────┘
+
+FLUX :
+1. Utilisateur intéragit (Tapotage, entrée texte, etc.)
+2. Composant React détecte l'action
+3. Hook personnalisé gère l'état
+4. Service effectue la logique
+5. Service modifie la BD
+6. BD signal les changements
+7. Hook/Zustand met à jour l'état
+8. Composant se re-render
+9. Utilisateur voit le changement
+```
+
+---
+
+## ✅ Checklist de Développement
+
+### Phase 0 : Configuration Initiale
+
+- [ ] Initialiser le repo Git
+- [ ] Créer le projet Expo
+- [ ] Installer pnpm et toutes les dépendances
+- [ ] Configurer TypeScript
+- [ ] Configurer TailwindCSS + NativeWind
+- [ ] Configurer WatermelonDB (schéma + migration)
+- [ ] Tester que l'app démarre sans erreur
+
+### Phase 1 : Authentication & Onboarding
+
+- [ ] Implémenter FaceID/Empreinte (expo-local-authentication)
+- [ ] Implémenter fallback Code PIN
+- [ ] Créer l'écran d'authentification
+- [ ] Créer les 5 écrans d'onboarding
+- [ ] Tester le flux complet first-time
+
+### Phase 2 : Dashboard & Structure
+
+- [ ] Créer la navigation (Tabs) avec React Navigation
+- [ ] Créer le Dashboard "Quartier Général"
+- [ ] Afficher les statistiques du jour
+- [ ] Implémenter le bouton FAB "+"
+- [ ] Créer les écrans de menu (Finance, Wars, etc.)
+
+### Phase 3 : base de données
+
+- [ ] Schéma WatermelonDB complet
+- [ ] Modèles TypeScript (WARS, BATTLES, ADVERSARIES, etc.)
+- [ ] Migrations
+- [ ] Vérifier que les données persiste après fermeture de l'app
+
+### Phase 4 : Finances
+
+- [ ] Écran Gestion des Comptes
+- [ ] Formulaire Ajouter une Dépense
+- [ ] Calcul automatique des soldes
+- [ ] Graphes (Pie Chart)
+- [ ] Budgets por catégorie
+
+### Phase 5 : Guerres & Objectifs
+
+- [ ] Écran Guerres (Domaines)
+- [ ] Écran Créer Bataille
+- [ ] Écran Créer Adversaire (Tâche)
+- [ ] Générateur de récurrence (DAILY, WEEKLY, etc.)
+- [ ] Marquer tâches comme complétées
+
+### Phase 6 : Calendrier & Tracking
+
+- [ ] Écran Calendrier
+- [ ] Vue horaire
+- [ ] Système de notifications horaires
+- [ ] Bottom Sheet pour saisir l'activité
+- [ ] TimeLog dans la BD
+
+### Phase 7 : Graphes & Stats
+
+- [ ] Graphique Pie Chart (Répartition finances)
+- [ ] Graphique Courbe (Évolution soldes)
+- [ ] Graphique Heatmap (Contributiones GitHub style)
+- [ ] Graphique Radar (Santé)
+- [ ] Graphique Barres (Deep Work vs Production)
+
+### Phase 8 : Chat IA (Optionnel Phase 1)
+
+- [ ] Parser NLP basique
+- [ ] Reconnaître intents (Finance, Productivité, etc.)
+- [ ] Générer cartes d'action
+- [ ] Créer items en BD après validation
+- [ ] (Optionnel) Intégrer modèle IA local
+
+### Phase 9 : Paramètres & Export
+
+- [ ] Écran Paramètres
+- [ ] Fonction d'export CSV
+- [ ] Fonction d'import CSV
+- [ ] Changer le Code PIN
+- [ ] Gestion des notifications
+
+### Phase 10 : Polish & Déploiement
+
+- [ ] Animations Lottie
+- [ ] Glassmorphism design
+- [ ] Optimisation performance
+- [ ] Tests unitaires pour les services clés
+- [ ] Déployer sur Expo Store (EAS Build)
+
+---
+
+## 🔧 Installation des Dépendances - Commandes Exactes
+
+```bash
+# Base du projet
+npx create-expo-app@latest GBECHE --template expo-template-blank-typescript
+cd GBECHE
+
+# Package Manager
+npm install -g pnpm
+pnpm install
+
+# Base de datos
+pnpm add @nozbe/watermelondb
+
+# Authentification
+pnpm add expo-local-authentication
+
+# Notifications
+pnpm add expo-notifications
+
+# Système de fichiers
+pnpm add expo-file-system expo-sharing
+
+# UI/Design
+pnpm add nativewind
+pnpm add --save-dev tailwindcss
+
+# Navigation
+pnpm add @react-navigation/native @react-navigation/bottom-tabs
+pnpm add react-native-screens react-native-safe-area-context
+
+# Graphes
+pnpm add react-native-chart-kit react-native-svg
+
+# Animations
+pnpm add lottie-react-native
+
+# Gestion d'état
+pnpm add zustand
+
+# Utilitaires
+pnpm add dayjs
+pnpm add axios # (If calling any API)
+
+# Dev Dependencies
+pnpm add --save-dev @types/react @types/react-native
+pnpm add --save-dev typescript
+
+# Démarrer en dev
+pnpm expo start
+```
+
+---
+
+## 🎓 Points Clés à Retenir
+
+### 1. **Offline-First**
+- L'app fonctionne 100% sans Internet.
+- Les données restent dans le téléphone.
+- WatermelonDB = DB locale et performante.
+
+### 2. **Gamification**
+- Guerres = Domaines de vie
+- Batailles = Gros objectifs
+- Adversaires = Petites tâches
+- Victoires/Défaites = Motivation
+
+### 3. **IA Locale**
+- NLP basique pour reconnaître les intentions
+- L'utilisateur peut dicter des tâches en langage naturel
+- L'app crée automatiquement les entrées
+
+### 4. **Privacy**
+- Authentification FaceID/Code PIN
+- Aucune donnée sur le cloud
+- Utilisateur propriétaire de ses données
+
+### 5. **UX/Motivation**
+- Graphes partout pour visualiser la progression
+- Notifications actives pour maintenir la discipline
+- Réajustement automatique des tâches non faites
+- Animations pour rendre l'expérience fluide
+
+---
+
+## 📚 Ressources Externes
+
+- **React Native Docs** : https://reactnative.dev/
+- **Expo Docs** : https://docs.expo.dev/
+- **WatermelonDB** : https://nozbe.github.io/WatermelonDB/
+- **React Navigation** : https://reactnavigation.org/
+- **TailwindCSS** : https://tailwindcss.com/
+- **TypeScript Handbook** : https://www.typescriptlang.org/docs/
+
+---
+
+**Fin du Guide. Bon développement ! 🚀**
+
+Si vous avez des questions, referrez-vous aux sections correspondantes ou explorez les docs des technologies utilisées.

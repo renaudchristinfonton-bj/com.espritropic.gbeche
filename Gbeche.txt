@@ -1,0 +1,301 @@
+Je veux créer une application de discipline nourrit par un bot local fonctionnant sans internet mais adapter comme un agent interne complet. Tout en offline et crypter pour protéger la vie privée. J'ai choisi React Native + Expo + Vite + TailwindCss. Je ne sais pas si c'est un choix judicieux. On aura une base de données local, relationnel et qui fonctionne en temps puis performant. Je vais utiliser pnpm. L'application doit se comporter comme un agent personnel pour la planification mais doit rester strict sur les objectifs de l'utilisateur. D'abord, l'utilisateur doit avoir plusieurs domaines de s vie dans lesquelles il veut atteindre des objectifs. Il pourra créer des objectifs, les diviser en des tâches, ou des batailles. Ou même pour gamifier, on appel les domaines les GUERRES, les objectifs divisés les BATAILS, les petites taches ADVERSAIRES, puis on tiens compte de la récurrence des tâches, des différentes fréquences de répétition, par jours, une fois par semaine, seulement un jour de la semaines, seulement les lundis, seulement les lundis et jeudis, tous les dimanches, juste une fois par mois, une fois par an, 10 fois par ans, des objectifs qui seront seulement sur une période, tenir un calendrier qui tiendra compte des objectifs pour voir si l'utilisateur peut en rajouter sur la même période. Avoir un calendrier bien définir pour connaitre ce que l'utilisateur fais quel jour de quelle heure à quelle heure, traquer chaque heure de l'utilisateur ! Demander chaque chaque 1h de temps par notification à l'utilisateur ce qu'il fait s'il n'a rien prévu et en tenir compte puis enregistrer, faire en sorte de savoir si l'utilisateur a terminer ou pas une tâche et faire un réajustement automatiquement. Avoir des graphes par domaines. Surtout, santé et financier. Pouvoir prendre les dépenses de l'utilisateur, lui donner la possibilité de créer un budget pour chaque chose, transport, nourriture, santé, des projets personnels, qu'il puisse ajouter des catégories de budget lui même, faire un budget totale, lui donner un recap avec des graphe sur ce qui siphonne beaucoup plus son argent, l'amener à enrégistrer chaque dépense, lui donner la possibilité de créer plsuieurs comptes comme MTN MOMO, CASH, WAVE, BANCAIRE, automatiser l'enrégistremlent de ses revenus fixe et l'amner à enreistrer les autres aussi. Sur les autres domaines de la vie aide moi à trouver des idées complète (Santé, professionel, spirituel, relationnel, loisirs, éducatif etc...) et surtout une interface qui parle après les graphe. Il faut beaucoup de graphe pour parler avec l'utilisateur et lui permettre de faire des tris de productivité sur des période personnalités, générer du texte pour expliquer les graphes, ne pas forcer l'utilisateur à créer les domaines, les batails, ou les taches de façons ecquallique, lui dionner un chat IA qui va tout comprendre et les automatiser enrégistrer après validation de l'utilisateur. Reformule tout ce que je viens de t'expliquer en tenant compte du fait que le projet s'appel GBECHE et qu'il faut faire en sorte de le détaillé afin de le confier à un junior qui s'y connait pas en dev. Préciser chaque écran, chaque technologie à utiliser, comment installer, comment configurer, quelle écran créer avant l'autre, chaque endpoint, chaque fonction, chaque cas d'utilisation, chaque fonctionnalité et comment ça fonctionne, du clic à l'exécution du code jusqu'au résultat. Maintenant côté design, on va volé le glass morpisme de apple et faire en sorte que l'expérience utilisateur soit très optimale donc fouillé les vraies études psychologique sur les expériences utilisateurs et trouver des façons optimales de rendre les utilisateur accro à l'application. Du motion design intégré pour expliquer chaque chose à l'utilisateur dès la toute première ouverture de l'aplication, authentification par empreinte, face id ou code PIN, possibilité d'exporter sa base de données vers un fichier CSV ou EXCEL pour l'importer sur un autre téléphone, entrainement de l'IA local avec les habitude de l'utilisateur, rendre l'utilisation tellment facile que les utilisateur vont en rafoller. 1. Finance (Déjà bien défini par tes soins)
+
+
+
+
+
+Métriques : Dépenses vs Budget, Évolution du patrimoine, Taux d'épargne.
+
+
+
+Graphes : Camembert (répartition des dépenses), Courbe (évolution des soldes MTN Momo, Banque, etc.), Jauges (progression des budgets mensuels).
+
+2. Santé & Physique
+
+
+
+
+
+Ce qu'on traque : Heures de sommeil, Litres d'eau, Séances de sport (Cardio vs Force), Poids/Mensurations, Jours sans mauvaises habitudes (ex: sans sucre, sans alcool).
+
+
+
+Cas d'utilisation : L'utilisateur clique sur "Ajouter une séance". Il entre la durée et l'intensité.
+
+
+
+Graphes : * Heatmap (Carte de chaleur) : Comme les contributions GitHub, avec des carrés verts plus ou moins foncés selon l'intensité du sport chaque jour.
+
+
+
+
+
+Radar Chart : Pour montrer l'équilibre entre Cardio, Force, et Souplesse.
+
+
+
+Texte auto-généré : "Tu as dormi en moyenne 6h cette semaine. Ton objectif est de 7h30. Tes jours d'entraînement sont moins performants quand tu dors moins de 6h."
+
+3. Professionnel & Éducatif
+
+
+
+
+
+Ce qu'on traque : Heures de Deep Work (travail concentré), Cours terminés, Livres lus, Tâches de projet accomplies, Nouvelles compétences acquises (temps passé à coder, par exemple).
+
+
+
+Cas d'utilisation : L'utilisateur lance un minuteur Pomodoro intégré à l'appli pour traquer son Deep Work. À la fin, le temps s'ajoute automatiquement à la jauge du jour.
+
+
+
+Graphes : Barres empilées montrant les heures dédiées à l'apprentissage vs la production pure.
+
+4. Spirituel & Mental
+
+
+
+
+
+Ce qu'on traque : Temps de méditation/prière, Jours de journal intime (Journaling), Suivi de l'humeur (Mood Tracker de 1 à 5).
+
+
+
+Cas d'utilisation : Une notification le soir demande : "Comment t'es-tu senti aujourd'hui ?". L'utilisateur clique sur un smiley.
+
+
+
+Graphes : Courbe d'humeur superposée avec la courbe de sommeil (pour que l'utilisateur voie la corrélation entre son repos et son état mental).
+
+5. Relationnel & Social
+
+
+
+
+
+Ce qu'on traque : Temps de qualité passé avec la famille/conjoint, Appels aux parents/proches (récurrence stricte, ex: "Appeler maman tous les dimanches"), Sorties/Networking.
+
+
+
+Cas d'utilisation : Validation de l'Adversaire "Appeler les parents". Si raté, la tâche passe en rouge vif.
+
+
+
+Graphes : Jauge circulaire "Temps d'écran vs Temps social".
+
+⚙️ LES CAS D'UTILISATION STRICTS (De A à Z)
+
+Voici ce que ton développeur doit coder, action par action.
+
+UC 1 : Authentification et Ouverture (Le sas de sécurité)
+
+
+
+
+
+Déclencheur : L'utilisateur ouvre l'application.
+
+
+
+Exécution : L'application affiche un écran flouté (Glassmorphism). La librairie expo-local-authentication fait appel au système natif (iOS/Android) pour demander FaceID/Empreinte.
+
+
+
+Résultat : Si échec ou annulation, fallback sur un pavé numérique pour le Code PIN. Si succès, décryptage de l'accès à WatermelonDB et affichage du Dashboard.
+
+UC 2 : Création de la Hiérarchie (Guerre -> Bataille -> Adversaire)
+
+
+
+
+
+Déclencheur : Clic sur le bouton flottant géant (FAB) "+".
+
+
+
+Exécution : 1. L'utilisateur sélectionne un domaine (Guerre) existant ou crée un nouveau (choix d'icône et de couleur néon). 2. Il nomme l'Objectif (Bataille) et définit une Deadline (Date de fin). 3. Il découpe en Tâches (Adversaires). Il choisit la récurrence via un sélecteur intelligent (ex: "Jours spécifiques" -> Checkbox pour Lundi, Jeudi).
+
+
+
+Enregistrement : WatermelonDB crée les entrées. Des triggers internes génèrent immédiatement toutes les instances futures des "Adversaires" dans la table du calendrier pour les 3 prochains mois.
+
+UC 3 : Le "Flicage" Actif (Tracking des trous dans l'emploi du temps)
+
+
+
+
+
+Déclencheur : Il est 15h00. Le calendrier local de 14h à 15h était vide.
+
+
+
+Exécution : Une notification push locale programmée se déclenche : "1 heure s'est écoulée. Qu'as-tu fait ?".
+
+
+
+Action UI : L'utilisateur clique sur la notification. Un Bottom Sheet (menu glissant du bas) s'ouvre avec des suggestions basées sur ses habitudes (ex: "Repos", "Scroll inutile", "Travail non prévu") et un champ texte.
+
+
+
+Résultat : Le trou dans le calendrier est bouché. Les graphiques de productivité sont mis à jour en temps réel.
+
+UC 4 : Réajustement Automatique d'un Adversaire (Tâche non faite)
+
+
+
+
+
+Déclencheur : La fin de la journée approche (23h00) et des "Adversaires" prévus aujourd'hui ne sont pas cochés.
+
+
+
+Exécution : L'application calcule les espaces vides dans le planning du lendemain.
+
+
+
+Résultat : Une modale pop-up s'affiche : "Tu as perdu 2 batailles aujourd'hui. Je les ai reprogrammées demain à 10h et 14h. Accepter ?". Si oui, mise à jour des dates dans la DB. Si non, la tâche est marquée comme "Échec/Abandonnée" (impactant les graphiques de victoire).
+
+UC 5 : Saisie via l'Agent IA Local (Le Chatbot)
+
+
+
+
+
+Déclencheur : L'utilisateur n'a pas le temps de remplir des formulaires. Il ouvre l'onglet "Assistant".
+
+
+
+Exécution : Il tape (ou dicte, via expo-speech vers texte) : "J'ai dépensé 2500 chez le coiffeur en cash, et rappelle-moi de lire 20 pages ce soir à 21h".
+
+
+
+Logique : Une fonction Regex/NLP locale décompose la phrase.
+
+
+
+
+
+Intent 1 : Finance -> Montant : 2500 -> Catégorie : Santé/Beauté (déduite de "coiffeur") -> Compte : Cash.
+
+
+
+Intent 2 : Productivité -> Tâche : "Lire 20 pages" -> Heure : 21h00.
+
+
+
+Validation : Le bot répond sous forme de cartes d'action : "Je m'apprête à faire ça : [Carte Dépense] + [Carte Tâche]. Valider ?".
+
+
+
+Résultat : L'utilisateur clique sur "Valider tout". Écriture asynchrone dans WatermelonDB.
+
+UC 6 : Portabilité des Données (Export/Import CSV)
+
+
+
+
+
+Déclencheur : Clic sur "Sauvegarder mes données" dans les paramètres.
+
+
+
+Exécution : Une fonction JavaScript parcourt les collections WatermelonDB, formate les données en chaînes séparées par des virgules (CSV), et utilise expo-file-system pour écrire le fichier dans le stockage local du téléphone.
+
+
+
+Résultat : L'utilisateur peut partager ce fichier (expo-sharing) vers son mail, ou l'importer sur un autre appareil pour reconstruire la base de données.
+
+🚀 L'ONBOARDING "GBECHE" : LE PARCOURS D'INITIATION
+
+Le design sera en Glassmorphism sombre, avec des animations de particules qui réagissent au swipe de l'utilisateur.
+
+Étape 1 : Le Manifeste (L'impact visuel)
+
+
+
+
+
+Visuel : Une animation d'une boussole qui se transforme en épée (style néon).
+
+
+
+Texte : "Le chaos s'arrête ici. GBECHE n'est pas un outil, c'est ton quartier général. Tes objectifs sont tes Guerres. Tes tâches sont tes Adversaires."
+
+
+
+Action : Un seul bouton "Prendre le commandement".
+
+Étape 2 : La Forteresse (Sécurité & Vie Privée)
+
+
+
+
+
+Visuel : Un bouclier translucide qui pulse.
+
+
+
+Texte : "Ce qui se passe dans GBECHE reste dans GBECHE. Pas de cloud, pas de serveurs, 100% hors-ligne. Tes données t'appartiennent."
+
+
+
+Action : Déclenchement de la demande d'autorisation FaceID/Empreinte ou configuration du code PIN. Le junior doit utiliser expo-local-authentication ici. Si l'utilisateur refuse, on lui explique que sans protection, ses données financières sont à découvert.
+
+Étape 3 : Le Recensement (Initialisation des Finances)
+
+
+
+
+
+Visuel : Des cartes flottantes représentant les comptes (Momo, Wave, Cash).
+
+
+
+Texte : "Quelles sont tes réserves ? Configure tes premiers portefeuilles."
+
+
+
+Action : Un petit formulaire rapide. L'utilisateur saisit le solde actuel de ses comptes principaux.
+
+
+
+
+
+Cas d'utilisation : L'utilisateur tape "50 000" pour MTN MOMO. Cela crée instantanément la première entrée dans la table accounts de WatermelonDB.
+
+Étape 4 : Déclaration de Guerre (Premier Objectif)
+
+
+
+
+
+Visuel : Une liste de domaines stylisés (Santé, Carrière, Spiritualité).
+
+
+
+Texte : "Choisis ta première Guerre. Quel domaine de ta vie vas-tu conquérir aujourd'hui ?"
+
+
+
+Action : L'utilisateur sélectionne un domaine. L'application lui demande alors son premier "Adversaire" (une tâche simple pour demain).
+
+
+
+Psychologie : En lui faisant créer une tâche dès maintenant, on utilise le biais d'investissement. Il a déjà commencé, il ne voudra pas s'arrêter.
+
+Étape 5 : Le Pacte de Discipline (Notifications)
+
+
+
+
+
+Visuel : Une animation d'une horloge qui scanne le temps.
+
+
+
+Texte : "Je serai ton ombre. Si tu dévies, je te ramènerai. Autorise-moi à te questionner sur ton temps."
+
+
+
+Action : Demande de permission pour les Notifications. C'est ici qu'on programme les rappels horaires pour boucher les "trous" du planning.

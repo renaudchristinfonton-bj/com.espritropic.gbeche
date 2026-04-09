@@ -1,0 +1,3051 @@
+<!-- PRD GBECHE - Application de Discipline Offline -->
+# GBECHE - Spécifications Techniques et Fonctionnelles (PRD)
+
+## 1. Vision du Projet
+GBECHE est une application de discipline personnelle "offline-first". Elle transforme la gestion de vie en une stratégie militaire : les domaines sont des **Guerres**, les objectifs des **Batailles** et les tâches des **Adversaires**. Un agent IA local (LLM on-device) sert de mentor et d'assistant de saisie.
+
+## 2. Stack Technique (Choix Judicieux)
+- **Framework :** React Native + Expo (vitesse de dev, accès natif).
+- **Build Tool :** Vite (via Expo Router).
+- **Styling :** TailwindCSS (via NativeWind) pour la rapidité et la consistance.
+- **Base de données :** **WatermelonDB**. Pourquoi ? C'est une DB relationnelle hautement performante pour React Native, capable de gérer des milliers d'entrées sans ralentir l'UI.
+- **Local AI :** Utilisation de bibliothèques comme `react-native-llama` ou des modèles ONNX compressés (ex: Phi-2 ou Mistral 7B Tiny) pour le traitement NLP offline.
+- **Package Manager :** `pnpm` (efficace et rapide).
+
+## 3. Schéma de la Base de Données (Relations)
+- **Wars (Domaines) :** id, title, icon, color, type (Finance, Santé, etc.)
+- **Battles (Objectifs) :** id, war_id, title, deadline, status.
+- **Adversaries (Tâches) :** id, battle_id, title, frequency, scheduled_at, completed_at, status (Won/Lost).
+- **Accounts (Finances) :** id, name (Momo, Cash, etc.), balance.
+- **Transactions :** id, account_id, amount, type (Income/Expense), category, timestamp.
+- **TimeLogs :** id, activity_name, start_time, end_time, is_planned.
+
+## 4. Liste des Écrans (Ordre de Création)
+1. **Onboarding (5 étapes) :** Manifeste, Sécurité (FaceID), Initialisation Finances, Première Guerre, Pacte de Discipline.
+2. **Dashboard "Quartier Général" :** Vue d'ensemble, graphes de performance globale, prochaines batailles.
+3. **Calendrier / Tracking :** Visualisation heure par heure, détection des "trous", validation des tâches.
+4. **Finance "Trésorerie" :** Gestion des comptes, saisie de dépenses, budgets, graphes de répartition.
+5. **Guerres (Détails par Domaine) :** Graphes spécifiques (Radar pour santé, Deep Work pour Pro).
+6. **Chat IA "L'Agent" :** Interface de dialogue pour saisie naturelle et conseils.
+
+## 5. Guide pour le Développeur Junior
+- **Installation :** `npx create-expo-app Gbeche -t expo-template-blank-typescript` puis configurer `pnpm`.
+- **Configuration WatermelonDB :** Créer le schéma, les modèles et connecter le provider à la racine.
+- **Sécurité :** Utiliser `expo-local-authentication`.
+- **UI/UX :** Appliquer `backdrop-filter: blur()` pour le Glassmorphism. Utiliser `Lottie` pour les animations de "Guerre".
+
+## 6. Algorithme de Réajustement (UC 4)
+Chaque soir à 23h :
+1. Scanner les `Adversaries` du jour non complétés.
+2. Vérifier les `TimeLogs` vides du lendemain.
+3. Proposer une mise à jour des `scheduled_at` vers ces créneaux vides.
+
+
+<!-- Trésorerie & Finances -->
+<!DOCTYPE html>
+
+<html class="dark" lang="fr"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>GBECHE - Trésorerie</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;300;400;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-surface-variant": "#aaabb0",
+                    "primary": "#81ecff",
+                    "surface-tint": "#81ecff",
+                    "primary-fixed-dim": "#00d4ec",
+                    "on-secondary-fixed-variant": "#a60007",
+                    "surface-bright": "#292c33",
+                    "on-primary-fixed-variant": "#005762",
+                    "error-container": "#9f0519",
+                    "surface": "#0c0e12",
+                    "tertiary-dim": "#60ec79",
+                    "surface-container": "#171a1f",
+                    "secondary-container": "#c0000a",
+                    "primary-dim": "#00d4ec",
+                    "tertiary": "#b8ffb9",
+                    "on-primary": "#005762",
+                    "background": "#0c0e12",
+                    "on-tertiary": "#006725",
+                    "inverse-surface": "#f9f9ff",
+                    "on-secondary-fixed": "#700003",
+                    "secondary": "#ff7162",
+                    "on-background": "#f6f6fc",
+                    "on-secondary-container": "#fff6f4",
+                    "error-dim": "#d7383b",
+                    "primary-container": "#00e3fd",
+                    "tertiary-fixed-dim": "#60ec79",
+                    "outline": "#74757a",
+                    "inverse-primary": "#006976",
+                    "primary-fixed": "#00e3fd",
+                    "secondary-fixed": "#ffc3bb",
+                    "error": "#ff716c",
+                    "on-secondary": "#4a0001",
+                    "outline-variant": "#46484d",
+                    "surface-container-lowest": "#000000",
+                    "on-error": "#490006",
+                    "on-error-container": "#ffa8a3",
+                    "surface-container-high": "#1d2025",
+                    "secondary-fixed-dim": "#ffb0a5",
+                    "surface-dim": "#0c0e12",
+                    "on-tertiary-fixed": "#004818",
+                    "surface-container-low": "#111318",
+                    "secondary-dim": "#e2241f",
+                    "tertiary-container": "#6ffb85",
+                    "surface-container-highest": "#23262c",
+                    "surface-variant": "#23262c",
+                    "inverse-on-surface": "#53555a",
+                    "on-surface": "#f6f6fc",
+                    "on-primary-fixed": "#003840",
+                    "on-primary-container": "#004d57",
+                    "on-tertiary-fixed-variant": "#006826",
+                    "on-tertiary-container": "#005d21",
+                    "tertiary-fixed": "#6ffb85"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "fontFamily": {
+                    "headline": ["Inter"],
+                    "body": ["Inter"],
+                    "label": ["Inter"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .glass-card {
+            background: rgba(35, 38, 44, 0.4);
+            backdrop-filter: blur(20px);
+        }
+        .neon-glow-primary {
+            filter: drop-shadow(0 0 4px #81ecff);
+        }
+        .neon-glow-tertiary {
+            filter: drop-shadow(0 0 4px #b8ffb9);
+        }
+        .neon-glow-secondary {
+            filter: drop-shadow(0 0 4px #ff7162);
+        }
+        ::-webkit-scrollbar {
+            display: none;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background font-body selection:bg-primary/30 min-h-screen pb-24">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 bg-slate-900/60 backdrop-blur-xl shadow-[0_20px_40px_rgba(0,0,0,0.4)] flex items-center justify-between px-6 py-4 w-full">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full bg-surface-container-highest flex items-center justify-center overflow-hidden">
+<img alt="Profile security status" class="w-full h-full object-cover" data-alt="Stylized security avatar with tech aesthetics for user profile identity" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAZbLA2Y-_CZ2dGWzduLFoWVI-UeQ441Wc_8_lA3DcwHIbE4R9jdRfyCkshiWBFSNcQRjE2Yrgaeu7MVoHOzrFteqbAS1gpcB5d_S2gr4RShZmaxrdQjCxgLdn0Ny-qCuXWuViHP8gPrkzJrJ4huMRzObFF9yguH06NJF8ZoSks-Pz35DcoGOdU5GB5um5xX7Umh4WgpaB23pwKJHLSqsoQ4wNGS03otLmHeTdkzIWt73y6E_2dObZ0JuIr1kqRlMDbF4qBLpZxryM"/>
+</div>
+<h1 class="text-xl font-black tracking-tighter text-cyan-400 uppercase Inter">GBECHE</h1>
+</div>
+<button class="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-white/10 transition-colors active:scale-95 active:duration-100">
+<span class="material-symbols-outlined text-cyan-400">security</span>
+</button>
+</header>
+<main class="pt-24 px-6 max-w-5xl mx-auto space-y-8">
+<!-- Total Balance Section -->
+<section class="flex flex-col items-center justify-center text-center py-8 space-y-2">
+<span class="label-md uppercase tracking-widest font-bold text-on-surface-variant">Solde Total</span>
+<div class="flex items-baseline gap-2">
+<span class="text-5xl font-black tracking-tighter text-on-surface">1,240,500</span>
+<span class="text-3xl font-bold text-primary neon-glow-primary">FCFA</span>
+</div>
+<div class="mt-4 px-4 py-1.5 rounded-full bg-tertiary/10 border border-tertiary/20 flex items-center gap-2">
+<span class="material-symbols-outlined text-tertiary text-sm neon-glow-tertiary" style="font-variation-settings: 'FILL' 1;">trending_up</span>
+<span class="text-xs font-bold text-tertiary tracking-wide">+12.5% CE MOIS</span>
+</div>
+</section>
+<!-- Account Carousel -->
+<section class="space-y-4">
+<div class="flex items-center justify-between">
+<h2 class="text-lg font-bold tracking-tight">Comptes</h2>
+<span class="text-primary text-sm font-bold">Voir tout</span>
+</div>
+<div class="flex overflow-x-auto gap-4 pb-4 -mx-6 px-6">
+<!-- MTN MOMO -->
+<div class="min-w-[240px] glass-card p-5 rounded-2xl border border-outline-variant/15 flex flex-col justify-between h-36">
+<div class="flex justify-between items-start">
+<div class="bg-yellow-400/20 p-2 rounded-lg">
+<span class="material-symbols-outlined text-yellow-400">smartphone</span>
+</div>
+<span class="text-[10px] font-black text-on-surface-variant tracking-widest uppercase">MTN MOMO</span>
+</div>
+<div>
+<p class="text-2xl font-bold">450,000</p>
+<p class="text-[10px] text-on-surface-variant font-medium">**** 8921</p>
+</div>
+</div>
+<!-- WAVE -->
+<div class="min-w-[240px] glass-card p-5 rounded-2xl border border-outline-variant/15 flex flex-col justify-between h-36">
+<div class="flex justify-between items-start">
+<div class="bg-blue-400/20 p-2 rounded-lg">
+<span class="material-symbols-outlined text-blue-400">waves</span>
+</div>
+<span class="text-[10px] font-black text-on-surface-variant tracking-widest uppercase">WAVE</span>
+</div>
+<div>
+<p class="text-2xl font-bold">320,500</p>
+<p class="text-[10px] text-on-surface-variant font-medium">**** 4432</p>
+</div>
+</div>
+<!-- CASH -->
+<div class="min-w-[240px] glass-card p-5 rounded-2xl border border-outline-variant/15 flex flex-col justify-between h-36">
+<div class="flex justify-between items-start">
+<div class="bg-tertiary/20 p-2 rounded-lg">
+<span class="material-symbols-outlined text-tertiary">payments</span>
+</div>
+<span class="text-[10px] font-black text-on-surface-variant tracking-widest uppercase">CASH</span>
+</div>
+<div>
+<p class="text-2xl font-bold">70,000</p>
+<p class="text-[10px] text-on-surface-variant font-medium">PORTEFEUILLE PHYSIQUE</p>
+</div>
+</div>
+<!-- BANQUE -->
+<div class="min-w-[240px] glass-card p-5 rounded-2xl border border-outline-variant/15 flex flex-col justify-between h-36">
+<div class="flex justify-between items-start">
+<div class="bg-primary/20 p-2 rounded-lg">
+<span class="material-symbols-outlined text-primary">account_balance</span>
+</div>
+<span class="text-[10px] font-black text-on-surface-variant tracking-widest uppercase">BANQUE</span>
+</div>
+<div>
+<p class="text-2xl font-bold">400,000</p>
+<p class="text-[10px] text-on-surface-variant font-medium">SOCIETE GENERALE</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Insights Bento Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+<!-- Spending Insights: Donut Chart Concept -->
+<section class="glass-card p-6 rounded-2xl border border-outline-variant/15">
+<h3 class="label-md font-bold text-on-surface-variant uppercase tracking-widest mb-6">Répartition Dépenses</h3>
+<div class="flex items-center justify-around gap-4">
+<!-- Fake Donut Chart -->
+<div class="relative w-32 h-32 flex items-center justify-center">
+<svg class="w-full h-full -rotate-90">
+<circle cx="64" cy="64" fill="transparent" r="54" stroke="#1d2025" stroke-width="12"></circle>
+<circle cx="64" cy="64" fill="transparent" r="54" stroke="#81ecff" stroke-dasharray="339" stroke-dashoffset="100" stroke-width="12"></circle>
+<circle cx="64" cy="64" fill="transparent" r="54" stroke="#b8ffb9" stroke-dasharray="339" stroke-dashoffset="280" stroke-width="12"></circle>
+<circle cx="64" cy="64" fill="transparent" r="54" stroke="#ff7162" stroke-dasharray="339" stroke-dashoffset="310" stroke-width="12"></circle>
+</svg>
+<div class="absolute text-center">
+<p class="text-xs font-bold text-on-surface-variant">TOTAL</p>
+<p class="text-sm font-black">100%</p>
+</div>
+</div>
+<div class="space-y-2">
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-primary neon-glow-primary"></div>
+<span class="text-xs font-medium text-on-surface-variant">Alimentation (40%)</span>
+</div>
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-tertiary neon-glow-tertiary"></div>
+<span class="text-xs font-medium text-on-surface-variant">Transport (25%)</span>
+</div>
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-secondary neon-glow-secondary"></div>
+<span class="text-xs font-medium text-on-surface-variant">Santé (15%)</span>
+</div>
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-surface-container-highest"></div>
+<span class="text-xs font-medium text-on-surface-variant">Autres (20%)</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Budget Gauges -->
+<section class="glass-card p-6 rounded-2xl border border-outline-variant/15 space-y-5">
+<h3 class="label-md font-bold text-on-surface-variant uppercase tracking-widest">Objectifs Budget</h3>
+<div class="space-y-4">
+<div class="space-y-1.5">
+<div class="flex justify-between text-xs font-bold">
+<span>Loisirs</span>
+<span class="text-tertiary">45,000 / 60,000</span>
+</div>
+<div class="h-1.5 w-full bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-tertiary w-3/4 rounded-full"></div>
+</div>
+</div>
+<div class="space-y-1.5">
+<div class="flex justify-between text-xs font-bold">
+<span>Courses</span>
+<span class="text-secondary">155,000 / 150,000</span>
+</div>
+<div class="h-1.5 w-full bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-secondary w-full rounded-full shadow-[0_0_8px_rgba(255,113,98,0.5)]"></div>
+</div>
+</div>
+<div class="space-y-1.5">
+<div class="flex justify-between text-xs font-bold">
+<span>Abonnements</span>
+<span class="text-primary">12,000 / 20,000</span>
+</div>
+<div class="h-1.5 w-full bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-primary w-3/5 rounded-full"></div>
+</div>
+</div>
+</div>
+</section>
+</div>
+<!-- Recent Actions -->
+<section class="glass-card p-6 rounded-2xl border border-outline-variant/15">
+<div class="flex items-center justify-between mb-6">
+<h3 class="label-md font-bold text-on-surface-variant uppercase tracking-widest">Transactions Récentes</h3>
+<span class="material-symbols-outlined text-on-surface-variant cursor-pointer">tune</span>
+</div>
+<div class="space-y-4">
+<!-- Transaction Item -->
+<div class="flex items-center justify-between p-2 rounded-xl hover:bg-white/5 transition-all group">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-full bg-surface-container-highest flex items-center justify-center">
+<span class="material-symbols-outlined text-primary">shopping_bag</span>
+</div>
+<div>
+<p class="font-bold text-sm">Supermarché Abidjan</p>
+<p class="text-[10px] text-on-surface-variant uppercase tracking-widest font-medium">AUJOURD'HUI • 14:20</p>
+</div>
+</div>
+<div class="text-right">
+<p class="font-black text-secondary neon-glow-secondary">-12,500</p>
+<p class="text-[10px] text-on-surface-variant uppercase font-bold">WAVE</p>
+</div>
+</div>
+<!-- Transaction Item -->
+<div class="flex items-center justify-between p-2 rounded-xl hover:bg-white/5 transition-all group">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-full bg-surface-container-highest flex items-center justify-center">
+<span class="material-symbols-outlined text-tertiary">call_received</span>
+</div>
+<div>
+<p class="font-bold text-sm">Virement Salaire</p>
+<p class="text-[10px] text-on-surface-variant uppercase tracking-widest font-medium">HIER • 09:00</p>
+</div>
+</div>
+<div class="text-right">
+<p class="font-black text-tertiary neon-glow-tertiary">+850,000</p>
+<p class="text-[10px] text-on-surface-variant uppercase font-bold">BANQUE</p>
+</div>
+</div>
+<!-- Transaction Item -->
+<div class="flex items-center justify-between p-2 rounded-xl hover:bg-white/5 transition-all group">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-full bg-surface-container-highest flex items-center justify-center">
+<span class="material-symbols-outlined text-on-surface-variant">commute</span>
+</div>
+<div>
+<p class="font-bold text-sm">Yango Ride</p>
+<p class="text-[10px] text-on-surface-variant uppercase tracking-widest font-medium">HIER • 18:45</p>
+</div>
+</div>
+<div class="text-right">
+<p class="font-black text-secondary neon-glow-secondary">-3,000</p>
+<p class="text-[10px] text-on-surface-variant uppercase font-bold">CASH</p>
+</div>
+</div>
+</div>
+<button class="w-full mt-6 py-3 rounded-xl bg-surface-container-highest text-on-surface text-xs font-black uppercase tracking-widest hover:bg-surface-variant transition-colors">
+                Charger l'historique complet
+            </button>
+</section>
+</main>
+<!-- FAB for quick entry -->
+<button class="fixed bottom-28 right-6 w-14 h-14 bg-tertiary rounded-2xl flex items-center justify-center text-on-tertiary shadow-[0_10px_20px_rgba(184,255,185,0.3)] z-50 hover:scale-105 active:scale-95 transition-all">
+<span class="material-symbols-outlined text-3xl font-bold">add</span>
+</button>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full bg-slate-900/80 backdrop-blur-2xl rounded-t-2xl shadow-[0_-10px_30px_rgba(0,0,0,0.5)] z-50 flex justify-around items-center px-4 pb-6 pt-2">
+<a class="flex flex-col items-center justify-center text-slate-500 p-3 hover:text-cyan-200 transition-all active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined">terminal</span>
+</a>
+<a class="flex flex-col items-center justify-center text-slate-500 p-3 hover:text-cyan-200 transition-all active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined">swords</span>
+</a>
+<a class="flex flex-col items-center justify-center text-slate-500 p-3 hover:text-cyan-200 transition-all active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined">smart_toy</span>
+</a>
+<a class="flex flex-col items-center justify-center bg-cyan-500/20 text-cyan-400 rounded-xl p-3 drop-shadow-[0_0_8px_rgba(129,236,255,0.5)] active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">account_balance_wallet</span>
+</a>
+<a class="flex flex-col items-center justify-center text-slate-500 p-3 hover:text-cyan-200 transition-all active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined">calendar_month</span>
+</a>
+</nav>
+</body></html>
+
+<!-- Design System -->
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-surface-variant": "#aaabb0",
+                        "primary": "#81ecff",
+                        "surface-tint": "#81ecff",
+                        "primary-fixed-dim": "#00d4ec",
+                        "on-secondary-fixed-variant": "#a60007",
+                        "surface-bright": "#292c33",
+                        "on-primary-fixed-variant": "#005762",
+                        "error-container": "#9f0519",
+                        "surface": "#0c0e12",
+                        "tertiary-dim": "#60ec79",
+                        "surface-container": "#171a1f",
+                        "secondary-container": "#c0000a",
+                        "primary-dim": "#00d4ec",
+                        "tertiary": "#b8ffb9",
+                        "on-primary": "#005762",
+                        "background": "#0c0e12",
+                        "on-tertiary": "#006725",
+                        "inverse-surface": "#f9f9ff",
+                        "on-secondary-fixed": "#700003",
+                        "secondary": "#ff7162",
+                        "on-background": "#f6f6fc",
+                        "on-secondary-container": "#fff6f4",
+                        "error-dim": "#d7383b",
+                        "primary-container": "#00e3fd",
+                        "tertiary-fixed-dim": "#60ec79",
+                        "outline": "#74757a",
+                        "inverse-primary": "#006976",
+                        "primary-fixed": "#00e3fd",
+                        "secondary-fixed": "#ffc3bb",
+                        "error": "#ff716c",
+                        "on-secondary": "#4a0001",
+                        "outline-variant": "#46484d",
+                        "surface-container-lowest": "#000000",
+                        "on-error": "#490006",
+                        "on-error-container": "#ffa8a3",
+                        "surface-container-high": "#1d2025",
+                        "secondary-fixed-dim": "#ffb0a5",
+                        "surface-dim": "#0c0e12",
+                        "on-tertiary-fixed": "#004818",
+                        "surface-container-low": "#111318",
+                        "secondary-dim": "#e2241f",
+                        "tertiary-container": "#6ffb85",
+                        "surface-container-highest": "#23262c",
+                        "surface-variant": "#23262c",
+                        "inverse-on-surface": "#53555a",
+                        "on-surface": "#f6f6fc",
+                        "on-primary-fixed": "#003840",
+                        "on-primary-container": "#004d57",
+                        "on-tertiary-fixed-variant": "#006826",
+                        "on-tertiary-container": "#005d21",
+                        "tertiary-fixed": "#6ffb85"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "fontFamily": {
+                        "headline": ["Inter"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0c0e12;
+            overflow-x: hidden;
+        }
+        .glass-panel {
+            background: rgba(35, 38, 44, 0.4);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+        }
+        .neon-glow-primary {
+            filter: drop-shadow(0 0 8px rgba(129, 236, 255, 0.4));
+        }
+        .neon-glow-tertiary {
+            filter: drop-shadow(0 0 8px rgba(184, 255, 185, 0.4));
+        }
+        .particles-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at 50% 50%, #111318 0%, #0c0e12 100%);
+            z-index: -1;
+        }
+        .gauge-conic {
+            background: conic-gradient(from 0deg, #81ecff 0%, #81ecff 78%, transparent 78%);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="text-on-background min-h-screen pb-32">
+<!-- Particle Background (Visual) -->
+<div class="particles-bg"></div>
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 bg-slate-900/60 backdrop-blur-xl shadow-[0_20px_40px_rgba(0,0,0,0.4)] flex items-center justify-between px-6 py-4">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-surface-container-highest overflow-hidden ring-2 ring-cyan-400/30">
+<img alt="Profile" class="w-full h-full object-cover" data-alt="Cinematic close-up portrait of a tech professional with neon blue lighting accents, moody atmosphere, sharp focus, professional digital nomad style" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDQ2IN_9bXTwDdJTHkfN4dKFoEIQbQZqRMQ-KoNE1zy33NVUXKI8mItMt7QtMoaYqb57W-Ib5bn_rmCX793MEemIqkOrnRc22silav7SsWZ0ugdsP1N5jBUfBHRharheaeUyg2_S2qQgNDDma0TxVF6XS6JlKgHo9-vOsdnB0QtyEMO3UWgTRKf4ciC2pwnPY4xcNjKqmBN--z1V4NAaNI_FCrImwWGjujGTNHId6AQcpWKoZlG1EB4UhiUtToPX82XjBtIdRfM8XU"/>
+</div>
+<span class="text-xl font-black tracking-tighter text-cyan-400 uppercase">GBECHE</span>
+</div>
+<div class="flex items-center gap-4">
+<button class="p-2 text-slate-400 hover:bg-white/10 transition-colors rounded-lg active:scale-95 active:duration-100">
+<span class="material-symbols-outlined">security</span>
+</button>
+</div>
+</header>
+<main class="pt-24 px-6 max-w-5xl mx-auto space-y-8">
+<!-- Hero Section: Quartier Général -->
+<section class="relative">
+<h1 class="text-4xl font-black tracking-tighter uppercase mb-6">Quartier Général</h1>
+<div class="glass-panel rounded-2xl p-8 flex flex-col md:flex-row items-center gap-10">
+<!-- Gauge -->
+<div class="relative w-48 h-48 flex items-center justify-center">
+<div class="absolute inset-0 rounded-full border-8 border-surface-container-highest"></div>
+<div class="absolute inset-0 rounded-full border-8 border-primary gauge-conic transform -rotate-90 neon-glow-primary"></div>
+<div class="text-center z-10">
+<span class="block text-4xl font-black text-primary">78%</span>
+<span class="label-md uppercase tracking-widest text-on-surface-variant text-[10px]">Efficacité</span>
+</div>
+</div>
+<div class="space-y-4 flex-1">
+<div class="space-y-1">
+<h2 class="text-2xl font-bold tracking-tight">Taux de Victoire</h2>
+<p class="text-on-surface-variant">Performances tactiques du jour. Vous dominez le champ de bataille, Commandant.</p>
+</div>
+<div class="flex flex-wrap gap-3">
+<div class="px-4 py-2 bg-tertiary/10 text-tertiary rounded-xl text-xs font-bold uppercase tracking-widest flex items-center gap-2 border border-tertiary/20">
+<span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1;">trending_up</span>
+                            +12% vs Hier
+                        </div>
+<div class="px-4 py-2 bg-primary/10 text-primary rounded-xl text-xs font-bold uppercase tracking-widest flex items-center gap-2 border border-primary/20">
+<span class="material-symbols-outlined text-sm">military_tech</span>
+                            Rang: Élite
+                        </div>
+</div>
+</div>
+</div>
+</section>
+<!-- Stats Overview -->
+<section class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+<!-- Guerres Actives -->
+<div class="surface-container-low p-6 rounded-xl space-y-2">
+<div class="flex justify-between items-start">
+<span class="material-symbols-outlined text-primary neon-glow-primary">swords</span>
+<span class="label-md uppercase tracking-widest text-[10px] text-on-surface-variant">Statut</span>
+</div>
+<div>
+<div class="text-2xl font-bold">12</div>
+<div class="text-sm text-on-surface-variant font-medium">Guerres Actives</div>
+</div>
+</div>
+<!-- Soldat Fortune -->
+<div class="surface-container-low p-6 rounded-xl space-y-2">
+<div class="flex justify-between items-start">
+<span class="material-symbols-outlined text-tertiary neon-glow-tertiary">account_balance_wallet</span>
+<span class="label-md uppercase tracking-widest text-[10px] text-on-surface-variant">Trésorerie</span>
+</div>
+<div>
+<div class="text-2xl font-bold">42.5K</div>
+<div class="text-sm text-on-surface-variant font-medium">Soldat Fortune</div>
+</div>
+</div>
+<!-- Moral -->
+<div class="surface-container-low p-6 rounded-xl space-y-2">
+<div class="flex justify-between items-start">
+<span class="material-symbols-outlined text-secondary">analytics</span>
+<span class="label-md uppercase tracking-widest text-[10px] text-on-surface-variant">Psychologie</span>
+</div>
+<div>
+<div class="text-2xl font-bold">Stable</div>
+<div class="text-sm text-on-surface-variant font-medium">Moral des Troupes</div>
+</div>
+</div>
+</section>
+<!-- Active Wars Section -->
+<section class="space-y-4">
+<div class="flex items-center justify-between">
+<h3 class="text-xl font-bold tracking-tight uppercase">Théâtres d'Opérations</h3>
+<span class="text-xs text-primary font-bold uppercase tracking-widest">Voir Tout</span>
+</div>
+<div class="flex overflow-x-auto gap-4 pb-4 no-scrollbar -mx-6 px-6">
+<!-- Health War -->
+<div class="min-w-[280px] surface-container-highest p-6 rounded-2xl space-y-6">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 bg-secondary/10 rounded-xl flex items-center justify-center">
+<span class="material-symbols-outlined text-secondary">favorite</span>
+</div>
+<div>
+<div class="font-bold">Opération Vitalis</div>
+<div class="text-xs text-on-surface-variant uppercase tracking-widest">Health</div>
+</div>
+</div>
+<div class="space-y-2">
+<div class="flex justify-between text-xs font-bold uppercase tracking-widest mb-1">
+<span>Avancement</span>
+<span class="text-secondary">45%</span>
+</div>
+<div class="w-full bg-surface-container-low h-2 rounded-full overflow-hidden">
+<div class="bg-secondary h-full rounded-full" style="width: 45%;"></div>
+</div>
+</div>
+</div>
+<!-- Finance War -->
+<div class="min-w-[280px] surface-container-highest p-6 rounded-2xl space-y-6">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 bg-tertiary/10 rounded-xl flex items-center justify-center">
+<span class="material-symbols-outlined text-tertiary">payments</span>
+</div>
+<div>
+<div class="font-bold">Projet Capital</div>
+<div class="text-xs text-on-surface-variant uppercase tracking-widest">Finance</div>
+</div>
+</div>
+<div class="space-y-2">
+<div class="flex justify-between text-xs font-bold uppercase tracking-widest mb-1">
+<span>Avancement</span>
+<span class="text-tertiary">82%</span>
+</div>
+<div class="w-full bg-surface-container-low h-2 rounded-full overflow-hidden">
+<div class="bg-tertiary h-full rounded-full" style="width: 82%;"></div>
+</div>
+</div>
+</div>
+<!-- Work War -->
+<div class="min-w-[280px] surface-container-highest p-6 rounded-2xl space-y-6">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center">
+<span class="material-symbols-outlined text-primary">terminal</span>
+</div>
+<div>
+<div class="font-bold">Phase Code-X</div>
+<div class="text-xs text-on-surface-variant uppercase tracking-widest">Work</div>
+</div>
+</div>
+<div class="space-y-2">
+<div class="flex justify-between text-xs font-bold uppercase tracking-widest mb-1">
+<span>Avancement</span>
+<span class="text-primary">60%</span>
+</div>
+<div class="w-full bg-surface-container-low h-2 rounded-full overflow-hidden">
+<div class="bg-primary h-full rounded-full" style="width: 60%;"></div>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Immediate Adversaries -->
+<section class="space-y-4">
+<h3 class="text-xl font-bold tracking-tight uppercase">Adversaires Immédiats</h3>
+<div class="space-y-3">
+<!-- Task 1 -->
+<div class="glass-panel p-5 rounded-2xl flex items-center justify-between group transition-all hover:bg-surface-container-highest">
+<div class="flex items-center gap-4">
+<div class="w-2 h-10 bg-primary rounded-full"></div>
+<div>
+<div class="font-bold text-on-surface">Rapport Trimestriel</div>
+<div class="text-xs text-on-surface-variant uppercase tracking-widest">Echéance: 14:00</div>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<button class="w-10 h-10 rounded-xl border border-outline-variant flex items-center justify-center text-secondary hover:bg-secondary/10 transition-colors">
+<span class="material-symbols-outlined">close</span>
+</button>
+<button class="w-10 h-10 rounded-xl border border-outline-variant flex items-center justify-center text-tertiary hover:bg-tertiary/10 transition-colors">
+<span class="material-symbols-outlined">check</span>
+</button>
+</div>
+</div>
+<!-- Task 2 -->
+<div class="glass-panel p-5 rounded-2xl flex items-center justify-between group transition-all hover:bg-surface-container-highest">
+<div class="flex items-center gap-4">
+<div class="w-2 h-10 bg-secondary rounded-full"></div>
+<div>
+<div class="font-bold text-on-surface">Session Cardio Intitiale</div>
+<div class="text-xs text-on-surface-variant uppercase tracking-widest">Echéance: 17:30</div>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<button class="w-10 h-10 rounded-xl border border-outline-variant flex items-center justify-center text-secondary hover:bg-secondary/10 transition-colors">
+<span class="material-symbols-outlined">close</span>
+</button>
+<button class="w-10 h-10 rounded-xl border border-outline-variant flex items-center justify-center text-tertiary hover:bg-tertiary/10 transition-colors">
+<span class="material-symbols-outlined">check</span>
+</button>
+</div>
+</div>
+<!-- Task 3 -->
+<div class="glass-panel p-5 rounded-2xl flex items-center justify-between group transition-all hover:bg-surface-container-highest">
+<div class="flex items-center gap-4">
+<div class="w-2 h-10 bg-tertiary rounded-full"></div>
+<div>
+<div class="font-bold text-on-surface">Audit Cryptographique</div>
+<div class="text-xs text-on-surface-variant uppercase tracking-widest">Echéance: 20:00</div>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<button class="w-10 h-10 rounded-xl border border-outline-variant flex items-center justify-center text-secondary hover:bg-secondary/10 transition-colors">
+<span class="material-symbols-outlined">close</span>
+</button>
+<button class="w-10 h-10 rounded-xl border border-outline-variant flex items-center justify-center text-tertiary hover:bg-tertiary/10 transition-colors">
+<span class="material-symbols-outlined">check</span>
+</button>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full flex justify-around items-center px-4 pb-6 pt-2 bg-slate-900/80 backdrop-blur-2xl shadow-[0_-10px_30px_rgba(0,0,0,0.5)] z-50 rounded-t-2xl">
+<button class="flex flex-col items-center justify-center text-slate-500 p-3 hover:text-cyan-200 transition-all active:scale-90 duration-200">
+<span class="material-symbols-outlined">terminal</span>
+</button>
+<button class="flex flex-col items-center justify-center bg-cyan-500/20 text-cyan-400 rounded-xl p-3 drop-shadow-[0_0_8px_rgba(129,236,255,0.5)] active:scale-90 duration-200">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">swords</span>
+</button>
+<button class="flex flex-col items-center justify-center text-slate-500 p-3 hover:text-cyan-200 transition-all active:scale-90 duration-200">
+<span class="material-symbols-outlined">smart_toy</span>
+</button>
+<button class="flex flex-col items-center justify-center text-slate-500 p-3 hover:text-cyan-200 transition-all active:scale-90 duration-200">
+<span class="material-symbols-outlined">account_balance_wallet</span>
+</button>
+<button class="flex flex-col items-center justify-center text-slate-500 p-3 hover:text-cyan-200 transition-all active:scale-90 duration-200">
+<span class="material-symbols-outlined">calendar_month</span>
+</button>
+</nav>
+</body></html>
+
+<!-- Dashboard Quartier Général -->
+<!DOCTYPE html>
+
+<html class="dark" lang="fr"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "tertiary-dim": "#60ec79",
+                    "secondary": "#ff7162",
+                    "inverse-primary": "#006976",
+                    "on-background": "#f6f6fc",
+                    "on-error": "#490006",
+                    "secondary-fixed": "#ffc3bb",
+                    "on-secondary": "#4a0001",
+                    "surface-variant": "#23262c",
+                    "surface-container-high": "#1d2025",
+                    "primary-dim": "#00d4ec",
+                    "primary-container": "#00e3fd",
+                    "tertiary-container": "#6ffb85",
+                    "inverse-on-surface": "#53555a",
+                    "on-secondary-container": "#fff6f4",
+                    "background": "#0c0e12",
+                    "surface-tint": "#81ecff",
+                    "primary-fixed": "#00e3fd",
+                    "secondary-container": "#c0000a",
+                    "primary": "#81ecff",
+                    "surface-container-lowest": "#000000",
+                    "on-tertiary": "#006725",
+                    "surface-container-low": "#111318",
+                    "error": "#ff716c",
+                    "on-primary-fixed": "#003840",
+                    "error-dim": "#d7383b",
+                    "error-container": "#9f0519",
+                    "on-tertiary-fixed": "#004818",
+                    "primary-fixed-dim": "#00d4ec",
+                    "surface-dim": "#0c0e12",
+                    "outline-variant": "#46484d",
+                    "surface-container": "#171a1f",
+                    "secondary-dim": "#e2241f",
+                    "on-primary-container": "#004d57",
+                    "tertiary-fixed-dim": "#60ec79",
+                    "surface": "#0c0e12",
+                    "inverse-surface": "#f9f9ff",
+                    "tertiary": "#b8ffb9",
+                    "on-tertiary-container": "#005d21",
+                    "on-surface-variant": "#aaabb0",
+                    "on-secondary-fixed": "#700003",
+                    "on-secondary-fixed-variant": "#a60007",
+                    "on-surface": "#f6f6fc",
+                    "on-primary": "#005762",
+                    "surface-bright": "#292c33",
+                    "secondary-fixed-dim": "#ffb0a5",
+                    "on-primary-fixed-variant": "#005762",
+                    "on-tertiary-fixed-variant": "#006826",
+                    "surface-container-highest": "#23262c",
+                    "on-error-container": "#ffa8a3",
+                    "outline": "#74757a",
+                    "tertiary-fixed": "#6ffb85"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "fontFamily": {
+                    "headline": ["Inter"],
+                    "body": ["Inter"],
+                    "label": ["Inter"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; background-color: #0c0e12; color: #f6f6fc; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .glass-panel { backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
+        .glow-primary { filter: drop-shadow(0 0 4px rgba(129, 236, 255, 0.4)); }
+        .glow-tertiary { filter: drop-shadow(0 0 6px rgba(184, 255, 185, 0.3)); }
+        .pulsating-shield { animation: pulse-glow 4s ease-in-out infinite; }
+        @keyframes pulse-glow {
+            0%, 100% { transform: scale(1); opacity: 0.8; }
+            50% { transform: scale(1.05); opacity: 1; }
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background min-h-screen flex flex-col overflow-x-hidden">
+<!-- TopAppBar Fragment (Supressed according to Shell Visibility Rule for Onboarding, but using ID elements for consistency if needed) -->
+<header class="fixed top-0 w-full z-50 bg-slate-900/60 backdrop-blur-xl flex items-center justify-between px-6 py-4 w-full shadow-[0_20px_40px_rgba(0,0,0,0.4)]">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-surface-container-highest flex items-center justify-center">
+<span class="material-symbols-outlined text-cyan-400" style="font-variation-settings: 'FILL' 1;">security</span>
+</div>
+<span class="text-xl font-black tracking-tighter text-cyan-400 uppercase font-bold tracking-tight Inter">GBECHE</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="label-md uppercase tracking-widest font-bold text-on-surface-variant text-xs">Étape 02 / 03</span>
+</div>
+</header>
+<main class="flex-grow flex flex-col items-center justify-center px-6 pt-24 pb-12">
+<!-- Central Visual: The Fortress Shield -->
+<div class="relative w-full max-w-lg aspect-square flex items-center justify-center mb-12">
+<!-- Background Radial Glow (The "Bloom") -->
+<div class="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-primary/10 via-background to-transparent scale-150"></div>
+<!-- Floating Glass Shield -->
+<div class="relative z-10 w-64 h-64 md:w-80 md:h-80 bg-surface-variant/40 glass-panel rounded-[2.5rem] border border-white/5 flex items-center justify-center pulsating-shield shadow-[0_40px_80px_rgba(0,0,0,0.6)]">
+<div class="absolute inset-0 bg-gradient-to-br from-primary/20 to-transparent rounded-[2.5rem]"></div>
+<div class="relative flex flex-col items-center">
+<span class="material-symbols-outlined text-8xl md:text-9xl text-primary glow-primary" style="font-variation-settings: 'FILL' 1;">shield_lock</span>
+<div class="mt-4 flex gap-2">
+<span class="w-2 h-2 rounded-full bg-tertiary glow-tertiary"></span>
+<span class="w-2 h-2 rounded-full bg-tertiary/40"></span>
+<span class="w-2 h-2 rounded-full bg-tertiary/40"></span>
+</div>
+</div>
+</div>
+<!-- Orbiting Security Tokens -->
+<div class="absolute top-10 right-10 md:top-20 md:right-20 p-4 bg-surface-container-highest rounded-2xl glass-panel shadow-lg border border-outline-variant/10">
+<span class="material-symbols-outlined text-primary text-2xl">visibility_off</span>
+</div>
+<div class="absolute bottom-10 left-10 md:bottom-20 md:left-20 p-4 bg-surface-container-highest rounded-2xl glass-panel shadow-lg border border-outline-variant/10">
+<span class="material-symbols-outlined text-tertiary text-2xl">key</span>
+</div>
+</div>
+<!-- Messaging Section -->
+<div class="text-center max-w-2xl space-y-6">
+<h1 class="text-3xl md:text-5xl font-black tracking-tight text-on-surface leading-tight">
+                Ce qui se passe dans <span class="text-primary">GBECHE</span> reste dans <span class="text-primary">GBECHE</span>.
+            </h1>
+<p class="text-lg md:text-xl text-on-surface-variant leading-relaxed">
+                Pas de cloud, pas de serveurs, <span class="text-on-surface font-bold">100% hors-ligne</span>. Tes données t'appartiennent exclusivement. Aucun tiers ne peut accéder à ton coffre-fort tactique.
+            </p>
+<!-- Feature Badges -->
+<div class="flex flex-wrap justify-center gap-4 pt-4">
+<div class="flex items-center gap-2 px-4 py-2 bg-surface-container-low rounded-full border border-outline-variant/15">
+<span class="material-symbols-outlined text-sm text-tertiary">cloud_off</span>
+<span class="label-md text-[10px] uppercase tracking-widest font-bold text-on-surface-variant">Zero Cloud</span>
+</div>
+<div class="flex items-center gap-2 px-4 py-2 bg-surface-container-low rounded-full border border-outline-variant/15">
+<span class="material-symbols-outlined text-sm text-tertiary">enhanced_encryption</span>
+<span class="label-md text-[10px] uppercase tracking-widest font-bold text-on-surface-variant">AES-256</span>
+</div>
+<div class="flex items-center gap-2 px-4 py-2 bg-surface-container-low rounded-full border border-outline-variant/15">
+<span class="material-symbols-outlined text-sm text-tertiary">lan</span>
+<span class="label-md text-[10px] uppercase tracking-widest font-bold text-on-surface-variant">P2P Local Only</span>
+</div>
+</div>
+</div>
+<!-- Biometric CTA -->
+<div class="mt-12 w-full max-w-md bg-surface-container-high rounded-3xl p-8 border border-outline-variant/10 glass-panel shadow-2xl">
+<div class="flex items-center justify-between mb-8">
+<div>
+<h3 class="text-lg font-bold text-on-surface">Sécurité Biométrique</h3>
+<p class="text-sm text-on-surface-variant">Activez FaceID ou Empreinte</p>
+</div>
+<div class="p-3 bg-primary/10 rounded-xl">
+<span class="material-symbols-outlined text-primary text-3xl">fingerprint</span>
+</div>
+</div>
+<button class="w-full py-5 bg-tertiary text-on-tertiary font-black text-sm uppercase tracking-[0.2em] rounded-xl flex items-center justify-center gap-3 active:scale-95 transition-all shadow-[0_0_20px_rgba(184,255,185,0.2)] hover:bg-tertiary-dim">
+                Configuration Biométrique
+                <span class="material-symbols-outlined text-lg">arrow_forward</span>
+</button>
+<button class="w-full mt-4 py-3 text-on-surface-variant font-bold text-xs uppercase tracking-widest hover:text-on-surface transition-colors">
+                Peut-être plus tard
+            </button>
+</div>
+</main>
+<!-- Content-Only Footer (Supressing BottomNavBar but keeping visual flow) -->
+<footer class="mt-auto py-8 flex justify-center items-center gap-4">
+<div class="w-16 h-1 rounded-full bg-surface-container-highest overflow-hidden">
+<div class="w-2/3 h-full bg-primary shadow-[0_0_8px_rgba(129,236,255,0.5)]"></div>
+</div>
+</footer>
+<!-- Decorative Elements -->
+<div class="fixed top-1/4 -left-20 w-64 h-64 bg-primary/5 rounded-full blur-[100px] pointer-events-none"></div>
+<div class="fixed bottom-1/4 -right-20 w-96 h-96 bg-tertiary/5 rounded-full blur-[120px] pointer-events-none"></div>
+</body></html>
+
+<!-- Onboarding 2: La Forteresse -->
+<html class="dark"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+                  "tertiary-dim": "#60ec79",
+                  "secondary": "#ff7162",
+                  "inverse-primary": "#006976",
+                  "on-background": "#f6f6fc",
+                  "on-error": "#490006",
+                  "secondary-fixed": "#ffc3bb",
+                  "on-secondary": "#4a0001",
+                  "surface-variant": "#23262c",
+                  "surface-container-high": "#1d2025",
+                  "primary-dim": "#00d4ec",
+                  "primary-container": "#00e3fd",
+                  "tertiary-container": "#6ffb85",
+                  "inverse-on-surface": "#53555a",
+                  "on-secondary-container": "#fff6f4",
+                  "background": "#0c0e12",
+                  "surface-tint": "#81ecff",
+                  "primary-fixed": "#00e3fd",
+                  "secondary-container": "#c0000a",
+                  "primary": "#81ecff",
+                  "surface-container-lowest": "#000000",
+                  "on-tertiary": "#006725",
+                  "surface-container-low": "#111318",
+                  "error": "#ff716c",
+                  "on-primary-fixed": "#003840",
+                  "error-dim": "#d7383b",
+                  "error-container": "#9f0519",
+                  "on-tertiary-fixed": "#004818",
+                  "primary-fixed-dim": "#00d4ec",
+                  "surface-dim": "#0c0e12",
+                  "outline-variant": "#46484d",
+                  "surface-container": "#171a1f",
+                  "secondary-dim": "#e2241f",
+                  "on-primary-container": "#004d57",
+                  "tertiary-fixed-dim": "#60ec79",
+                  "surface": "#0c0e12",
+                  "inverse-surface": "#f9f9ff",
+                  "tertiary": "#b8ffb9",
+                  "on-tertiary-container": "#005d21",
+                  "on-surface-variant": "#aaabb0",
+                  "on-secondary-fixed": "#700003",
+                  "on-secondary-fixed-variant": "#a60007",
+                  "on-surface": "#f6f6fc",
+                  "on-primary": "#005762",
+                  "surface-bright": "#292c33",
+                  "secondary-fixed-dim": "#ffb0a5",
+                  "on-primary-fixed-variant": "#005762",
+                  "on-tertiary-fixed-variant": "#006826",
+                  "surface-container-highest": "#23262c",
+                  "on-error-container": "#ffa8a3",
+                  "outline": "#74757a",
+                  "tertiary-fixed": "#6ffb85"
+          },
+          "borderRadius": {
+                  "DEFAULT": "0.25rem",
+                  "lg": "0.5rem",
+                  "xl": "0.75rem",
+                  "full": "9999px"
+          },
+          "fontFamily": {
+                  "headline": ["Inter"],
+                  "body": ["Inter"],
+                  "label": ["Inter"]
+          }
+        },
+      },
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    }
+    .glass-panel {
+      background: rgba(35, 38, 44, 0.4);
+      backdrop-filter: blur(20px);
+    }
+    .neon-glow-primary {
+      filter: drop-shadow(0 0 2px #81ecff);
+    }
+    .neon-glow-tertiary {
+      filter: drop-shadow(0 0 2px #b8ffb9);
+    }
+    .tactical-gradient {
+      background: linear-gradient(135deg, #81ecff 0%, #00e3fd 100%);
+    }
+    .pulse-bloom {
+      background: radial-gradient(circle, rgba(184, 255, 185, 0.15) 0%, rgba(12, 14, 18, 0) 70%);
+    }
+  </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-surface font-body selection:bg-primary-container selection:text-on-primary-container min-h-screen overflow-x-hidden">
+<!-- TopAppBar Suppression for focused journey -->
+<main class="relative flex flex-col items-center justify-center min-h-screen p-6 md:p-12">
+<!-- Background Light Bloom (Signature Interaction) -->
+<div class="absolute inset-0 pointer-events-none pulse-bloom z-0"></div>
+<div class="max-w-4xl w-full grid grid-cols-1 md:grid-cols-12 gap-8 items-center z-10">
+<!-- Left Column: Visual & Status -->
+<div class="md:col-span-5 flex flex-col items-center justify-center space-y-8">
+<!-- Visual: Scanning Clock Animation Placeholder -->
+<div class="relative w-64 h-64 flex items-center justify-center">
+<!-- Outer Ring -->
+<div class="absolute inset-0 border-4 border-primary/20 rounded-full"></div>
+<!-- Scanning Effect -->
+<div class="absolute inset-0 border-t-4 border-primary rounded-full animate-[spin_4s_linear_infinite] neon-glow-primary"></div>
+<!-- Core Icon -->
+<div class="glass-panel w-48 h-48 rounded-full flex flex-col items-center justify-center shadow-[0_20px_40px_rgba(0,0,0,0.4),0_0_10px_rgba(129,236,255,0.05)] border border-outline-variant/15">
+<span class="material-symbols-outlined text-6xl text-primary neon-glow-primary" style="font-variation-settings: 'FILL' 1;">schedule</span>
+<div class="mt-4 text-center">
+<p class="text-[10px] font-bold tracking-[0.2em] text-primary/60 uppercase">System Status</p>
+<p class="text-xs font-mono text-primary">MONITORING_ACTIVE</p>
+</div>
+</div>
+</div>
+<!-- Metadata Readout -->
+<div class="w-full space-y-2 opacity-60">
+<div class="flex justify-between text-[10px] font-bold tracking-widest uppercase text-on-surface-variant">
+<span>Latency</span>
+<span>0.04ms</span>
+</div>
+<div class="h-1 w-full bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full w-3/4 bg-primary rounded-full"></div>
+</div>
+<div class="flex justify-between text-[10px] font-bold tracking-widest uppercase text-on-surface-variant">
+<span>Sync Ratio</span>
+<span>98.2%</span>
+</div>
+</div>
+</div>
+<!-- Right Column: Content & Interaction -->
+<div class="md:col-span-7 flex flex-col space-y-10">
+<!-- Header Section -->
+<div class="space-y-4">
+<div class="flex items-center gap-3">
+<span class="px-3 py-1 bg-primary/10 border border-primary/20 rounded-lg text-[10px] font-black tracking-widest text-primary uppercase">Step 05</span>
+<div class="h-px flex-grow bg-outline-variant/20"></div>
+</div>
+<h1 class="text-4xl md:text-6xl font-black tracking-tighter text-on-surface leading-none uppercase italic">
+            The Pact of <br/>
+<span class="text-primary italic">Discipline.</span>
+</h1>
+<p class="text-on-surface-variant text-lg md:text-xl font-medium leading-relaxed max-w-lg">
+            Je serai ton ombre. Si tu dévies, je te ramènerai. Autorise-moi à te questionner sur ton temps.
+          </p>
+</div>
+<!-- Interaction Card -->
+<div class="glass-panel p-8 rounded-xl border border-outline-variant/15 space-y-8 relative overflow-hidden">
+<!-- Glass Reflection Decor -->
+<div class="absolute -top-24 -right-24 w-48 h-48 bg-primary/5 rounded-full blur-3xl"></div>
+<div class="flex items-center justify-between">
+<div class="space-y-1">
+<h3 class="text-xl font-bold text-on-surface">Neural Integration</h3>
+<p class="text-sm text-on-surface-variant">Autoriser les notifications tactiques</p>
+</div>
+<!-- Large Tactical Toggle -->
+<label class="relative inline-flex items-center cursor-pointer group">
+<input checked="" class="sr-only peer" type="checkbox" value=""/>
+<div class="w-16 h-8 bg-surface-container-highest peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[4px] after:left-[4px] after:bg-on-surface-variant after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-primary/20 peer-checked:after:bg-primary peer-checked:after:shadow-[0_0_10px_rgba(129,236,255,0.6)]"></div>
+</label>
+</div>
+<!-- Tactics Details -->
+<div class="grid grid-cols-2 gap-4">
+<div class="p-4 rounded-lg bg-surface-container-low border border-outline-variant/10">
+<span class="material-symbols-outlined text-primary mb-2">emergency</span>
+<p class="text-[10px] font-black uppercase tracking-widest text-on-surface-variant mb-1">Frequency</p>
+<p class="text-sm font-bold text-on-surface">Immediate</p>
+</div>
+<div class="p-4 rounded-lg bg-surface-container-low border border-outline-variant/10">
+<span class="material-symbols-outlined text-primary mb-2">radar</span>
+<p class="text-[10px] font-black uppercase tracking-widest text-on-surface-variant mb-1">Precision</p>
+<p class="text-sm font-bold text-on-surface">Targeted</p>
+</div>
+</div>
+</div>
+<!-- CTA Section -->
+<div class="flex flex-col sm:flex-row items-center gap-6">
+<button class="w-full sm:w-auto px-10 py-5 rounded-xl bg-tertiary text-on-tertiary font-black uppercase tracking-widest text-sm shadow-[0_10px_20px_rgba(184,255,185,0.2)] hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-3">
+            Entrer dans la bataille
+            <span class="material-symbols-outlined font-bold">bolt</span>
+</button>
+<button class="text-[10px] font-black uppercase tracking-widest text-on-surface-variant hover:text-on-surface transition-colors">
+            Refuser l'engagement (Déconseillé)
+          </button>
+</div>
+</div>
+</div>
+<!-- Decorative Elements (No Borders Sectioning) -->
+<div class="fixed top-0 left-0 w-full h-full pointer-events-none overflow-hidden -z-10">
+<!-- Asymmetrical Weight: Left-side Texture -->
+<div class="absolute top-1/4 -left-20 w-96 h-96 bg-primary/5 rounded-full blur-[120px]"></div>
+<!-- Right-side Texture -->
+<div class="absolute bottom-1/4 -right-40 w-[30rem] h-[30rem] bg-tertiary/5 rounded-full blur-[150px]"></div>
+<!-- Ghost Background Image -->
+<div class="absolute inset-0 opacity-[0.03] grayscale contrast-150">
+<img class="w-full h-full object-cover" data-alt="abstract mathematical fractal geometry patterns representing complexity and discipline in high contrast black and white" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBXV4lqHUrUQ_Z3k7Xl2yI03sOwR9gTsod202UC1gictFvPNElDMzKQNb1V-u0HHlXScEa_4eJ3E31xUYT8FSUoV092lbjohQrepe1yUetDYzNS-g3dc1nuV5MokjpCD6XWOyuC6vEnYbeRtjZ-WEUlC5JjDQSJdFwWZmYrmD4Cthdlk7iXHWAdVT7yZYlAZezI2TdzO8w3uUuRkKnmTEXgFkWr-U5xdC22RodTU9WVpCbLysYxLuRZ75MzvJXYeWnTMyLm6Co1Dvc"/>
+</div>
+</div>
+</main>
+<!-- BottomNavBar Suppression as per Transactional/Onboarding Rule -->
+<!-- Utility: Material Symbol Icons Helper -->
+<script>
+    // Placeholder for any interactive state logic if needed, 
+    // though the instructions prohibit script-driven logic for behavior.
+  </script>
+</body></html>
+
+<!-- Onboarding 5: Le Pacte de Discipline -->
+<!DOCTYPE html>
+
+<html class="dark" lang="fr"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>GBECHE - Declaration of War</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "tertiary-dim": "#60ec79",
+                    "secondary": "#ff7162",
+                    "inverse-primary": "#006976",
+                    "on-background": "#f6f6fc",
+                    "on-error": "#490006",
+                    "secondary-fixed": "#ffc3bb",
+                    "on-secondary": "#4a0001",
+                    "surface-variant": "#23262c",
+                    "surface-container-high": "#1d2025",
+                    "primary-dim": "#00d4ec",
+                    "primary-container": "#00e3fd",
+                    "tertiary-container": "#6ffb85",
+                    "inverse-on-surface": "#53555a",
+                    "on-secondary-container": "#fff6f4",
+                    "background": "#0c0e12",
+                    "surface-tint": "#81ecff",
+                    "primary-fixed": "#00e3fd",
+                    "secondary-container": "#c0000a",
+                    "primary": "#81ecff",
+                    "surface-container-lowest": "#000000",
+                    "on-tertiary": "#006725",
+                    "surface-container-low": "#111318",
+                    "error": "#ff716c",
+                    "on-primary-fixed": "#003840",
+                    "error-dim": "#d7383b",
+                    "error-container": "#9f0519",
+                    "on-tertiary-fixed": "#004818",
+                    "primary-fixed-dim": "#00d4ec",
+                    "surface-dim": "#0c0e12",
+                    "outline-variant": "#46484d",
+                    "surface-container": "#171a1f",
+                    "secondary-dim": "#e2241f",
+                    "on-primary-container": "#004d57",
+                    "tertiary-fixed-dim": "#60ec79",
+                    "surface": "#0c0e12",
+                    "inverse-surface": "#f9f9ff",
+                    "tertiary": "#b8ffb9",
+                    "on-tertiary-container": "#005d21",
+                    "on-surface-variant": "#aaabb0",
+                    "on-secondary-fixed": "#700003",
+                    "on-secondary-fixed-variant": "#a60007",
+                    "on-surface": "#f6f6fc",
+                    "on-primary": "#005762",
+                    "surface-bright": "#292c33",
+                    "secondary-fixed-dim": "#ffb0a5",
+                    "on-primary-fixed-variant": "#005762",
+                    "on-tertiary-fixed-variant": "#006826",
+                    "surface-container-highest": "#23262c",
+                    "on-error-container": "#ffa8a3",
+                    "outline": "#74757a",
+                    "tertiary-fixed": "#6ffb85"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "fontFamily": {
+                    "headline": ["Inter"],
+                    "body": ["Inter"],
+                    "label": ["Inter"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .neon-glow-primary {
+            filter: drop-shadow(0 0 2px #81ecff);
+        }
+        .neon-glow-tertiary {
+            filter: drop-shadow(0 0 2px #b8ffb9);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background font-body selection:bg-primary-container selection:text-on-primary-container min-h-screen flex flex-col overflow-x-hidden">
+<!-- Header Block (Transactional Onboarding - Simplified/Suppressed Global Shell) -->
+<header class="fixed top-0 w-full z-50 bg-slate-900/60 backdrop-blur-xl shadow-[0_20px_40px_rgba(0,0,0,0.4)] px-6 py-4 flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="text-xl font-black tracking-tighter text-cyan-400 uppercase Inter">GBECHE</span>
+</div>
+<div class="flex items-center gap-4">
+<div class="h-1 w-24 bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full w-3/4 bg-primary rounded-full"></div>
+</div>
+<span class="text-xs font-bold tracking-widest text-primary uppercase">Step 04</span>
+</div>
+</header>
+<!-- Main Content Area -->
+<main class="flex-1 mt-20 px-6 pb-24 max-w-5xl mx-auto w-full flex flex-col items-center">
+<!-- Tactical Intro Section -->
+<section class="w-full text-center mb-12 space-y-4">
+<div class="inline-block px-3 py-1 bg-secondary/10 border border-secondary/20 rounded-lg mb-2">
+<span class="text-[10px] font-bold uppercase tracking-[0.2em] text-secondary">Operational Phase: Conflict Initiation</span>
+</div>
+<h1 class="text-4xl md:text-5xl font-black tracking-tighter text-on-surface">Choisis ta première Guerre.</h1>
+<p class="text-on-surface-variant text-lg max-w-2xl mx-auto">
+                Quel domaine de ta vie vas-tu conquérir aujourd'hui ? Sélectionne un secteur stratégique pour déployer tes forces.
+            </p>
+</section>
+<!-- Bento Grid: Domain Selection -->
+<section class="grid grid-cols-1 md:grid-cols-12 gap-6 w-full mb-16">
+<!-- Health Domain -->
+<div class="md:col-span-8 group cursor-pointer relative overflow-hidden bg-surface-container-low rounded-xl p-8 hover:bg-surface-container-high transition-all duration-300">
+<div class="absolute top-0 right-0 p-6 opacity-10 group-hover:opacity-30 transition-opacity">
+<span class="material-symbols-outlined text-8xl text-tertiary">fitness_center</span>
+</div>
+<div class="relative z-10 flex flex-col h-full justify-between">
+<div>
+<span class="material-symbols-outlined text-tertiary text-4xl mb-6 neon-glow-tertiary" data-icon="fitness_center">fitness_center</span>
+<h3 class="text-2xl font-bold tracking-tight mb-2">Health / Vitalité</h3>
+<p class="text-on-surface-variant text-sm max-w-sm">Optimisation biologique, force physique et résilience énergétique. Préparez votre temple pour le combat.</p>
+</div>
+<div class="mt-8 flex items-center gap-3">
+<div class="px-3 py-1 rounded-md bg-tertiary/20 text-tertiary-dim text-[10px] font-black uppercase tracking-widest">Active Zone</div>
+<span class="text-xs text-on-surface-variant">4 Objectives available</span>
+</div>
+</div>
+</div>
+<!-- Career Domain -->
+<div class="md:col-span-4 group cursor-pointer relative bg-surface-container-low rounded-xl p-8 hover:bg-surface-container-high transition-all duration-300">
+<div class="relative z-10 flex flex-col h-full items-start">
+<span class="material-symbols-outlined text-primary text-4xl mb-6 neon-glow-primary" data-icon="terminal">terminal</span>
+<h3 class="text-2xl font-bold tracking-tight mb-2">Career</h3>
+<p class="text-on-surface-variant text-sm">Domination professionnelle et expansion stratégique.</p>
+<div class="mt-auto pt-8">
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary transition-colors">arrow_forward</span>
+</div>
+</div>
+</div>
+<!-- Spirituality Domain -->
+<div class="md:col-span-4 group cursor-pointer relative bg-surface-container-low rounded-xl p-8 hover:bg-surface-container-high transition-all duration-300">
+<div class="relative z-10 flex flex-col h-full items-start">
+<span class="material-symbols-outlined text-primary text-4xl mb-6 neon-glow-primary" data-icon="auto_awesome">auto_awesome</span>
+<h3 class="text-2xl font-bold tracking-tight mb-2">Spirituality</h3>
+<p class="text-on-surface-variant text-sm">Clarté mentale, discipline stoïcienne et ancrage profond.</p>
+<div class="mt-auto pt-8">
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-primary transition-colors">arrow_forward</span>
+</div>
+</div>
+</div>
+<!-- Custom Domain CTA -->
+<div class="md:col-span-8 group cursor-pointer relative bg-surface-container-low/50 border border-outline-variant/10 rounded-xl p-8 flex items-center justify-between hover:border-primary/30 transition-all">
+<div class="flex items-center gap-6">
+<div class="w-16 h-16 rounded-full bg-surface-container-highest flex items-center justify-center border border-outline-variant/20">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="add">add</span>
+</div>
+<div>
+<h4 class="font-bold text-lg">Define Custom Sector</h4>
+<p class="text-on-surface-variant text-sm">Create a unique battleground for your specific mission.</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-outline" data-icon="settings_input_component">settings_input_component</span>
+</div>
+</section>
+<!-- The Adversary Input: Tactical Task -->
+<section class="w-full max-w-2xl bg-surface-container-low rounded-xl p-1 overflow-hidden relative shadow-[0_20px_40px_rgba(0,0,0,0.4)]">
+<!-- Glass Header -->
+<div class="bg-surface-bright/50 px-6 py-4 border-b border-outline-variant/10 flex justify-between items-center">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary text-sm" data-icon="radar">radar</span>
+<span class="text-[10px] font-black uppercase tracking-[0.2em] text-on-surface">Target Acquisition</span>
+</div>
+<div class="flex gap-1">
+<div class="w-2 h-2 rounded-full bg-secondary"></div>
+<div class="w-2 h-2 rounded-full bg-outline-variant"></div>
+<div class="w-2 h-2 rounded-full bg-outline-variant"></div>
+</div>
+</div>
+<!-- Input Body -->
+<div class="p-8 space-y-6">
+<div>
+<label class="block text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-3">Identification de l'Adversaire</label>
+<div class="relative">
+<input class="w-full bg-surface-container-lowest border-outline-variant/20 rounded-lg px-4 py-4 text-on-surface focus:ring-1 focus:ring-primary focus:border-primary placeholder:text-outline/50 transition-all" placeholder="Ex: Terminer le dossier client Alpha..." type="text"/>
+<div class="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2 pointer-events-none">
+<span class="text-[10px] font-bold text-outline uppercase">Priority: High</span>
+</div>
+</div>
+</div>
+<div class="flex flex-col md:flex-row gap-4 pt-4">
+<button class="flex-1 bg-tertiary text-on-tertiary font-black py-4 rounded-lg uppercase tracking-widest text-sm shadow-[0_0_15px_rgba(184,255,185,0.2)] hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-lg" data-icon="gavel">gavel</span>
+                        Déclarer la Guerre
+                    </button>
+<button class="px-8 bg-primary-container/10 backdrop-blur text-primary border border-primary/20 font-bold py-4 rounded-lg uppercase tracking-widest text-xs hover:bg-primary-container/20 transition-all">
+                        Skip for now
+                    </button>
+</div>
+</div>
+<!-- Decorative Glow -->
+<div class="absolute -bottom-12 -right-12 w-32 h-32 bg-primary/10 blur-[60px] pointer-events-none"></div>
+</section>
+<!-- Technical Metadata Footer -->
+<footer class="mt-16 grid grid-cols-2 md:grid-cols-4 gap-8 w-full max-w-4xl text-center border-t border-outline-variant/10 pt-12">
+<div class="space-y-1">
+<p class="text-[10px] font-bold uppercase tracking-widest text-outline">Network Status</p>
+<p class="text-xs font-mono text-tertiary-dim">ENCRYPTED // ACTIVE</p>
+</div>
+<div class="space-y-1">
+<p class="text-[10px] font-bold uppercase tracking-widest text-outline">Strategic Sync</p>
+<p class="text-xs font-mono text-on-surface">LOCAL NODE 04</p>
+</div>
+<div class="space-y-1">
+<p class="text-[10px] font-bold uppercase tracking-widest text-outline">Latency</p>
+<p class="text-xs font-mono text-on-surface">14ms</p>
+</div>
+<div class="space-y-1">
+<p class="text-[10px] font-bold uppercase tracking-widest text-outline">Threat Level</p>
+<p class="text-xs font-mono text-secondary">ELEVATED</p>
+</div>
+</footer>
+</main>
+<!-- Navigation Shell (Suppressed as per rules for Transactional Onboarding) -->
+<!-- The BottomNavBar is only for top-level destinations. Onboarding is a focused journey. -->
+<!-- Image for ambient tactical feel -->
+<div class="fixed inset-0 -z-10 opacity-20 pointer-events-none overflow-hidden">
+<div class="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_20%_30%,rgba(129,236,255,0.08)_0%,transparent_50%)]"></div>
+<div class="absolute bottom-0 right-0 w-full h-full bg-[radial-gradient(circle_at_80%_70%,rgba(184,255,185,0.05)_0%,transparent_50%)]"></div>
+<div class="w-full h-full bg-[url('https://www.transparenttextures.com/patterns/stardust.png')]"></div>
+</div>
+</body></html>
+
+<!-- Onboarding 4: Déclaration de Guerre -->
+<!DOCTYPE html>
+
+<html class="dark" lang="fr"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-background": "#f6f6fc",
+                    "secondary": "#ff7162",
+                    "on-secondary-fixed": "#700003",
+                    "inverse-surface": "#f9f9ff",
+                    "on-tertiary": "#006725",
+                    "background": "#0c0e12",
+                    "on-primary": "#005762",
+                    "tertiary": "#b8ffb9",
+                    "primary-dim": "#00d4ec",
+                    "secondary-container": "#c0000a",
+                    "surface-container": "#171a1f",
+                    "tertiary-dim": "#60ec79",
+                    "surface": "#0c0e12",
+                    "error-container": "#9f0519",
+                    "on-primary-fixed-variant": "#005762",
+                    "surface-bright": "#292c33",
+                    "on-secondary-fixed-variant": "#a60007",
+                    "primary-fixed-dim": "#00d4ec",
+                    "surface-tint": "#81ecff",
+                    "primary": "#81ecff",
+                    "on-surface-variant": "#aaabb0",
+                    "tertiary-fixed": "#6ffb85",
+                    "on-tertiary-container": "#005d21",
+                    "on-tertiary-fixed-variant": "#006826",
+                    "on-primary-container": "#004d57",
+                    "on-surface": "#f6f6fc",
+                    "on-primary-fixed": "#003840",
+                    "inverse-on-surface": "#53555a",
+                    "surface-variant": "#23262c",
+                    "surface-container-highest": "#23262c",
+                    "tertiary-container": "#6ffb85",
+                    "secondary-dim": "#e2241f",
+                    "surface-container-low": "#111318",
+                    "on-tertiary-fixed": "#004818",
+                    "surface-dim": "#0c0e12",
+                    "secondary-fixed-dim": "#ffb0a5",
+                    "surface-container-high": "#1d2025",
+                    "on-error-container": "#ffa8a3",
+                    "on-error": "#490006",
+                    "surface-container-lowest": "#000000",
+                    "outline-variant": "#46484d",
+                    "on-secondary": "#4a0001",
+                    "error": "#ff716c",
+                    "secondary-fixed": "#ffc3bb",
+                    "primary-fixed": "#00e3fd",
+                    "inverse-primary": "#006976",
+                    "outline": "#74757a",
+                    "tertiary-fixed-dim": "#60ec79",
+                    "primary-container": "#00e3fd",
+                    "error-dim": "#d7383b",
+                    "on-secondary-container": "#fff6f4"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "fontFamily": {
+                    "headline": ["Inter"],
+                    "body": ["Inter"],
+                    "label": ["Inter"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-panel {
+            background: rgba(35, 38, 44, 0.5);
+            backdrop-filter: blur(20px);
+        }
+        .victory-glow {
+            filter: drop-shadow(0 0 8px rgba(184, 255, 185, 0.4));
+        }
+        .tactical-cyan-glow {
+            filter: drop-shadow(0 0 8px rgba(129, 236, 255, 0.3));
+        }
+        .failed-dim {
+            background: linear-gradient(135deg, rgba(255, 113, 98, 0.1) 0%, rgba(12, 14, 18, 0.5) 100%);
+        }
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #23262c; border-radius: 10px; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-surface font-body min-h-screen pb-24">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 bg-slate-950/60 backdrop-blur-xl shadow-[0_4px_30px_rgba(0,0,0,0.5)]">
+<div class="flex justify-between items-center px-6 h-16 w-full max-w-screen-2xl mx-auto">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-cyan-400">grid_view</span>
+<h1 class="text-lg font-black tracking-widest text-cyan-400 drop-shadow-[0_0_8px_rgba(0,204,255,0.5)] uppercase Inter">STRAT-OPS 2024</h1>
+</div>
+<div class="flex items-center gap-6">
+<nav class="hidden md:flex gap-8">
+<span class="text-cyan-400 font-bold tracking-tight uppercase Inter text-sm cursor-pointer transition-colors hover:text-cyan-300">CALENDRIER</span>
+<span class="text-slate-400 font-bold tracking-tight uppercase Inter text-sm cursor-pointer transition-colors hover:text-cyan-300">RAPPORT</span>
+</nav>
+<div class="w-10 h-10 rounded-full overflow-hidden border border-cyan-500/30">
+<img alt="User Profile" data-alt="Close up portrait of a futuristic command center operator with holographic interface reflections on their face, cinematic lighting." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDau7zDXXRB6RVBHo5ZUM6T1dHN2HFP3Jt_SQp0-dPlmGNWcRHve_Q2eQU6a8ofDaaot3HrpQVdt3h0EFoOE6Dy_DmFQIdnWzDy8Jtbaq0b1tKjkPPPDqY_tLYXeWK__bY0rvYLbesHQvw-Fnj3vjVV0SxrA29OrlsJn1UyELs4_U8uVV4Q9ApWmC24bM-oiQTi3H7RrwltxvtmPl8zhS1OWC5F1zSc-iboCjpI4dL34PaUy2tg00cYYuyG8lXf_ybNwT355Ovn3ag"/>
+</div>
+</div>
+</div>
+<div class="h-[1px] w-full bg-gradient-to-r from-transparent via-cyan-500/20 to-transparent"></div>
+</header>
+<main class="pt-24 px-4 md:px-8 max-w-5xl mx-auto">
+<!-- Horizontal Date Picker -->
+<section class="mb-8">
+<div class="flex justify-between items-center mb-4">
+<h2 class="label-md uppercase font-bold tracking-[0.1em] text-on-surface-variant">LOG DE MISSION / 7 DERNIERS JOURS</h2>
+<div class="flex gap-2">
+<button class="w-8 h-8 flex items-center justify-center rounded-lg bg-surface-container-high hover:bg-surface-bright transition-all">
+<span class="material-symbols-outlined text-sm">chevron_left</span>
+</button>
+<button class="w-8 h-8 flex items-center justify-center rounded-lg bg-surface-container-high hover:bg-surface-bright transition-all">
+<span class="material-symbols-outlined text-sm">chevron_right</span>
+</button>
+</div>
+</div>
+<div class="grid grid-cols-7 gap-2">
+<!-- Date Items -->
+<div class="flex flex-col items-center p-3 rounded-xl bg-surface-container-low opacity-50 border border-transparent">
+<span class="text-[10px] font-bold tracking-widest opacity-60">LUN</span>
+<span class="text-lg font-black">18</span>
+</div>
+<div class="flex flex-col items-center p-3 rounded-xl bg-surface-container-low opacity-50 border border-transparent">
+<span class="text-[10px] font-bold tracking-widest opacity-60">MAR</span>
+<span class="text-lg font-black">19</span>
+</div>
+<div class="flex flex-col items-center p-3 rounded-xl bg-surface-container-low opacity-50 border border-transparent">
+<span class="text-[10px] font-bold tracking-widest opacity-60">MER</span>
+<span class="text-lg font-black">20</span>
+</div>
+<div class="flex flex-col items-center p-3 rounded-xl bg-surface-container-low border border-tertiary/20 victory-glow">
+<span class="text-[10px] font-bold tracking-widest text-tertiary">JEU</span>
+<span class="text-lg font-black text-tertiary">21</span>
+</div>
+<div class="flex flex-col items-center p-3 rounded-xl bg-surface-container-low opacity-50 border border-transparent">
+<span class="text-[10px] font-bold tracking-widest opacity-60">VEN</span>
+<span class="text-lg font-black">22</span>
+</div>
+<div class="flex flex-col items-center p-3 rounded-xl bg-surface-container-low opacity-50 border border-transparent">
+<span class="text-[10px] font-bold tracking-widest opacity-60">SAM</span>
+<span class="text-lg font-black">23</span>
+</div>
+<div class="flex flex-col items-center p-3 rounded-xl glass-panel border border-cyan-500/50 tactical-cyan-glow">
+<span class="text-[10px] font-bold tracking-widest text-cyan-400">DIM</span>
+<span class="text-lg font-black text-cyan-400">24</span>
+</div>
+</div>
+</section>
+<!-- Stats Overview -->
+<section class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+<div class="md:col-span-2 glass-panel p-6 rounded-2xl flex items-center justify-between overflow-hidden relative">
+<div class="relative z-10">
+<p class="label-md uppercase font-bold tracking-[0.1em] text-on-surface-variant mb-1">TOTAL VICTORY RATIO</p>
+<p class="text-4xl font-black text-tertiary drop-shadow-[0_0_10px_rgba(184,255,185,0.4)]">84.2%</p>
+<p class="text-xs text-on-surface-variant mt-2 italic">+12% vs hier</p>
+</div>
+<div class="w-32 h-32 relative">
+<svg class="w-full h-full transform -rotate-90">
+<circle class="text-surface-container-highest" cx="64" cy="64" fill="transparent" r="50" stroke="currentColor" stroke-width="8"></circle>
+<circle class="text-tertiary victory-glow" cx="64" cy="64" fill="transparent" r="50" stroke="currentColor" stroke-dasharray="314" stroke-dashoffset="50" stroke-width="8"></circle>
+</svg>
+<div class="absolute inset-0 flex items-center justify-center">
+<span class="material-symbols-outlined text-tertiary text-3xl" style="font-variation-settings: 'FILL' 1;">military_tech</span>
+</div>
+</div>
+<!-- Background visual element -->
+<div class="absolute -right-4 -bottom-4 w-32 h-32 bg-tertiary/5 blur-3xl rounded-full"></div>
+</div>
+<div class="glass-panel p-6 rounded-2xl border border-outline-variant/10">
+<p class="label-md uppercase font-bold tracking-[0.1em] text-on-surface-variant mb-4">ÉTAT DES FORCES</p>
+<div class="space-y-3">
+<div class="flex justify-between items-center text-sm">
+<span class="flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-tertiary"></div> Terminé</span>
+<span class="font-bold">12</span>
+</div>
+<div class="flex justify-between items-center text-sm">
+<span class="flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-primary"></div> En attente</span>
+<span class="font-bold">3</span>
+</div>
+<div class="flex justify-between items-center text-sm">
+<span class="flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-secondary"></div> Échecs</span>
+<span class="font-bold">1</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Vertical Timeline -->
+<section class="space-y-1 relative before:absolute before:left-[47px] md:before:left-[63px] before:top-0 before:bottom-0 before:w-[1px] before:bg-gradient-to-b before:from-transparent before:via-outline-variant/30 before:to-transparent">
+<!-- 08:00 - Completed -->
+<div class="flex gap-4 md:gap-8 items-start group">
+<div class="w-12 md:w-16 pt-4 text-right">
+<span class="text-xs font-bold text-on-surface-variant tracking-tighter">08:00</span>
+</div>
+<div class="flex-1 pb-4">
+<div class="glass-panel p-4 rounded-xl border-l-4 border-tertiary victory-glow transition-all hover:translate-x-1">
+<div class="flex justify-between items-start mb-2">
+<h3 class="font-bold text-on-surface tracking-tight uppercase text-sm">ENTRAÎNEMENT PHYSIQUE MATINAL</h3>
+<span class="material-symbols-outlined text-tertiary text-lg" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+<p class="text-xs text-on-surface-variant">Mission accomplie : 45 min HIIT complétée avec intensité maximale.</p>
+</div>
+</div>
+</div>
+<!-- 09:00 - Failed -->
+<div class="flex gap-4 md:gap-8 items-start">
+<div class="w-12 md:w-16 pt-4 text-right">
+<span class="text-xs font-bold text-on-surface-variant tracking-tighter">09:30</span>
+</div>
+<div class="flex-1 pb-4">
+<div class="failed-dim p-4 rounded-xl border border-secondary/20 transition-all">
+<div class="flex justify-between items-start mb-2">
+<h3 class="font-bold text-secondary tracking-tight uppercase text-sm">REVUE TACTIQUE S1</h3>
+<span class="material-symbols-outlined text-secondary text-lg">cancel</span>
+</div>
+<p class="text-xs text-on-surface-variant line-through opacity-50">Analyse des rapports hebdomadaires.</p>
+<p class="text-[10px] text-secondary mt-2 uppercase font-bold tracking-widest">ÉCHEC : Délai de réponse expiré</p>
+</div>
+</div>
+</div>
+<!-- Tactical Gap -->
+<div class="flex gap-4 md:gap-8 items-center py-4">
+<div class="w-12 md:w-16 text-right">
+<span class="text-xs font-bold text-on-surface-variant tracking-tighter opacity-30">11:00</span>
+</div>
+<div class="flex-1">
+<div class="h-12 border-2 border-dashed border-outline-variant/10 rounded-xl flex items-center justify-center gap-3 group cursor-pointer hover:border-cyan-500/30 transition-all">
+<span class="text-[10px] font-black text-on-surface-variant tracking-[0.3em] group-hover:text-cyan-400">??? TACTICAL GAP ???</span>
+<span class="material-symbols-outlined text-sm text-on-surface-variant group-hover:text-cyan-400">add_circle</span>
+</div>
+</div>
+</div>
+<!-- 12:00 - Pending -->
+<div class="flex gap-4 md:gap-8 items-start">
+<div class="w-12 md:w-16 pt-4 text-right">
+<span class="text-xs font-bold text-on-surface-variant tracking-tighter">12:15</span>
+</div>
+<div class="flex-1 pb-4">
+<div class="glass-panel p-4 rounded-xl border border-cyan-500/40 tactical-cyan-glow relative overflow-hidden">
+<!-- Scanning line effect -->
+<div class="absolute top-0 left-0 w-full h-[1px] bg-cyan-400/20 shadow-[0_0_10px_rgba(0,204,255,0.5)] animate-pulse"></div>
+<div class="flex justify-between items-start mb-2">
+<h3 class="font-bold text-cyan-400 tracking-tight uppercase text-sm">SYNCHRONISATION DES UNITÉS</h3>
+<span class="material-symbols-outlined text-cyan-400 text-lg animate-spin" style="animation-duration: 4s">sync</span>
+</div>
+<p class="text-xs text-on-surface-variant">En attente de confirmation du secteur 4. Déploiement prévu à 14h00.</p>
+<div class="mt-3 h-1 w-full bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-cyan-400 w-1/3 shadow-[0_0_8px_rgba(0,204,255,0.8)]"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- 15:00 - Completed -->
+<div class="flex gap-4 md:gap-8 items-start">
+<div class="w-12 md:w-16 pt-4 text-right">
+<span class="text-xs font-bold text-on-surface-variant tracking-tighter">15:00</span>
+</div>
+<div class="flex-1 pb-4">
+<div class="glass-panel p-4 rounded-xl border-l-4 border-tertiary victory-glow">
+<div class="flex justify-between items-start mb-2">
+<h3 class="font-bold text-on-surface tracking-tight uppercase text-sm">DEBRIEFING OPÉRATIONNEL</h3>
+<span class="material-symbols-outlined text-tertiary text-lg" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+<p class="text-xs text-on-surface-variant">Optimisation des protocoles de communication terminée.</p>
+</div>
+</div>
+</div>
+<!-- Tactical Gap -->
+<div class="flex gap-4 md:gap-8 items-center py-4">
+<div class="w-12 md:w-16 text-right">
+<span class="text-xs font-bold text-on-surface-variant tracking-tighter opacity-30">17:00</span>
+</div>
+<div class="flex-1">
+<div class="h-12 border-2 border-dashed border-outline-variant/10 rounded-xl flex items-center justify-center gap-3 group cursor-pointer hover:border-cyan-500/30 transition-all">
+<span class="text-[10px] font-black text-on-surface-variant tracking-[0.3em] group-hover:text-cyan-400">??? TACTICAL GAP ???</span>
+<span class="material-symbols-outlined text-sm text-on-surface-variant group-hover:text-cyan-400">add_circle</span>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- FAB -->
+<button class="fixed bottom-24 right-6 w-14 h-14 rounded-full bg-tertiary text-on-tertiary shadow-[0_0_20px_rgba(184,255,185,0.4)] flex items-center justify-center z-50 hover:scale-110 active:scale-95 transition-all">
+<span class="material-symbols-outlined text-3xl font-bold">add</span>
+</button>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full h-20 bg-slate-900/40 backdrop-blur-2xl border-t border-cyan-500/10 flex justify-around items-center px-4 pb-4 z-50">
+<div class="flex flex-col items-center justify-center text-slate-500 p-3 hover:bg-slate-800/50 transition-all rounded-xl cursor-pointer">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="text-[10px] font-bold uppercase tracking-widest mt-1">Status</span>
+</div>
+<div class="flex flex-col items-center justify-center text-slate-500 p-3 hover:bg-slate-800/50 transition-all rounded-xl cursor-pointer">
+<span class="material-symbols-outlined">military_tech</span>
+<span class="text-[10px] font-bold uppercase tracking-widest mt-1">Ranks</span>
+</div>
+<div class="flex flex-col items-center justify-center text-cyan-400 drop-shadow-[0_0_10px_rgba(0,204,255,0.6)] bg-cyan-500/10 rounded-xl p-3">
+<span class="material-symbols-outlined">calendar_today</span>
+<span class="text-[10px] font-bold uppercase tracking-widest mt-1">Plan</span>
+</div>
+<div class="flex flex-col items-center justify-center text-slate-500 p-3 hover:bg-slate-800/50 transition-all rounded-xl cursor-pointer">
+<span class="material-symbols-outlined">smart_toy</span>
+<span class="text-[10px] font-bold uppercase tracking-widest mt-1">AI-Ops</span>
+</div>
+<div class="flex flex-col items-center justify-center text-slate-500 p-3 hover:bg-slate-800/50 transition-all rounded-xl cursor-pointer">
+<span class="material-symbols-outlined">payments</span>
+<span class="text-[10px] font-bold uppercase tracking-widest mt-1">Assets</span>
+</div>
+</nav>
+</body></html>
+
+<!-- Calendrier de Tracking -->
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-surface-variant": "#aaabb0",
+                    "primary": "#81ecff",
+                    "surface-tint": "#81ecff",
+                    "primary-fixed-dim": "#00d4ec",
+                    "on-secondary-fixed-variant": "#a60007",
+                    "surface-bright": "#292c33",
+                    "on-primary-fixed-variant": "#005762",
+                    "error-container": "#9f0519",
+                    "surface": "#0c0e12",
+                    "tertiary-dim": "#60ec79",
+                    "surface-container": "#171a1f",
+                    "secondary-container": "#c0000a",
+                    "primary-dim": "#00d4ec",
+                    "tertiary": "#b8ffb9",
+                    "on-primary": "#005762",
+                    "background": "#0c0e12",
+                    "on-tertiary": "#006725",
+                    "inverse-surface": "#f9f9ff",
+                    "on-secondary-fixed": "#700003",
+                    "secondary": "#ff7162",
+                    "on-background": "#f6f6fc",
+                    "on-secondary-container": "#fff6f4",
+                    "error-dim": "#d7383b",
+                    "primary-container": "#00e3fd",
+                    "tertiary-fixed-dim": "#60ec79",
+                    "outline": "#74757a",
+                    "inverse-primary": "#006976",
+                    "primary-fixed": "#00e3fd",
+                    "secondary-fixed": "#ffc3bb",
+                    "error": "#ff716c",
+                    "on-secondary": "#4a0001",
+                    "outline-variant": "#46484d",
+                    "surface-container-lowest": "#000000",
+                    "on-error": "#490006",
+                    "on-error-container": "#ffa8a3",
+                    "surface-container-high": "#1d2025",
+                    "secondary-fixed-dim": "#ffb0a5",
+                    "surface-dim": "#0c0e12",
+                    "on-tertiary-fixed": "#004818",
+                    "surface-container-low": "#111318",
+                    "secondary-dim": "#e2241f",
+                    "tertiary-container": "#6ffb85",
+                    "surface-container-highest": "#23262c",
+                    "surface-variant": "#23262c",
+                    "inverse-on-surface": "#53555a",
+                    "on-surface": "#f6f6fc",
+                    "on-primary-fixed": "#003840",
+                    "on-primary-container": "#004d57",
+                    "on-tertiary-fixed-variant": "#006826",
+                    "on-tertiary-container": "#005d21",
+                    "tertiary-fixed": "#6ffb85"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "fontFamily": {
+                    "headline": ["Inter"],
+                    "body": ["Inter"],
+                    "label": ["Inter"],
+                    "mono": ["JetBrains Mono", "monospace"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glow-icon {
+            filter: drop-shadow(0 0 2px currentColor);
+        }
+        .brain-pulse {
+            background: radial-gradient(circle, rgba(129,236,255,0.1) 0%, rgba(12,14,18,0) 70%);
+        }
+        .tactical-border {
+            position: relative;
+        }
+        .tactical-border::after {
+            content: '';
+            position: absolute;
+            inset: -1px;
+            border: 1px solid rgba(129, 236, 255, 0.3);
+            border-radius: inherit;
+            pointer-events: none;
+            box-shadow: 0 0 10px rgba(129, 236, 255, 0.1);
+        }
+        .glass-card {
+            background: rgba(23, 26, 31, 0.6);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+        .military-label {
+            font-family: 'JetBrains Mono', monospace;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+        }
+    </style>
+<style>
+        body {
+            min-height: max(884px, 100dvh);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body selection:bg-primary/30 min-h-screen flex flex-col">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 bg-slate-900/60 backdrop-blur-xl shadow-[0_20px_40px_rgba(0,0,0,0.4)]">
+<div class="flex items-center justify-between px-6 py-4 w-full">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-surface-container-highest flex items-center justify-center border border-primary/20">
+<span class="material-symbols-outlined text-cyan-400 glow-icon">security</span>
+</div>
+<div class="flex flex-col">
+<h1 class="text-xl font-black tracking-tighter text-cyan-400 uppercase font-headline">GBECHE</h1>
+<span class="text-[10px] military-label font-bold text-on-surface-variant">L'Assistant Stratégique</span>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<button class="p-2 rounded-xl hover:bg-white/10 transition-colors scale-95 active:duration-100 text-slate-400">
+<span class="material-symbols-outlined">settings</span>
+</button>
+</div>
+</div>
+</header>
+<!-- Main Content: Chat Interface -->
+<main class="flex-1 pt-24 pb-48 px-4 md:px-8 max-w-4xl mx-auto w-full relative overflow-hidden">
+<!-- The "Brain" Ambient Background -->
+<div class="fixed inset-0 pointer-events-none z-0 flex items-center justify-center">
+<div class="w-[500px] h-[500px] brain-pulse rounded-full blur-[100px]"></div>
+</div>
+<div class="relative z-10 space-y-8">
+<!-- AI Message -->
+<div class="flex flex-col gap-2 items-start max-w-[85%]">
+<div class="flex items-center gap-2 mb-1">
+<span class="text-[10px] military-label font-bold text-primary">System Core</span>
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary shadow-[0_0_8px_rgba(184,255,185,0.8)]"></span>
+</div>
+<div class="bg-surface-variant/40 backdrop-blur-xl border border-primary/20 rounded-2xl p-4 rounded-tl-none shadow-[0_10px_30px_rgba(0,0,0,0.2)]">
+<p class="text-on-background body-lg leading-relaxed">
+                    En attente d'instructions. Le périmètre opérationnel est sécurisé. Souhaitez-vous une analyse des flux de trésorerie ou l'enregistrement d'un nouvel engagement financier ?
+                </p>
+</div>
+</div>
+<!-- User Message -->
+<div class="flex flex-col gap-2 items-end max-w-[85%] ml-auto">
+<div class="bg-surface-container-highest rounded-2xl p-4 rounded-tr-none shadow-lg">
+<p class="text-on-background body-lg">
+                    Enregistrer une dépense de 5000 pour la maintenance des serveurs et programmer l'audit de sécurité trimestriel pour demain.
+                </p>
+</div>
+</div>
+<!-- AI Message with Strategic Briefing -->
+<div class="flex flex-col gap-6 items-start w-full">
+<div class="flex items-center gap-2 mb-1">
+<span class="text-[10px] military-label font-bold text-primary">Strategic Response</span>
+</div>
+<div class="bg-surface-variant/40 backdrop-blur-xl border border-primary/20 rounded-2xl p-4 rounded-tl-none shadow-[0_10px_30px_rgba(0,0,0,0.2)] w-full max-w-[85%]">
+<p class="text-on-background body-lg">
+                    Instructions reçues. Deux segments opérationnels détectés. Veuillez valider les paramètres du briefing tactique :
+                </p>
+</div>
+<!-- TACTICAL CARDS CONTAINER -->
+<div class="w-full space-y-4">
+<!-- Card 1: Financial Engagement -->
+<div class="tactical-border glass-card rounded-xl overflow-hidden shadow-2xl border border-cyan-500/20">
+<div class="bg-cyan-500/10 px-5 py-3 flex items-center justify-between border-b border-cyan-500/20">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-sm glow-icon">account_balance_wallet</span>
+<span class="military-label text-primary font-bold text-xs">Engagement Financier #FE-902</span>
+</div>
+<button class="text-[10px] military-label font-bold text-primary hover:underline transition-all">Modifier</button>
+</div>
+<div class="p-5 grid grid-cols-2 gap-y-4 gap-x-6 font-mono">
+<div class="flex flex-col">
+<span class="text-[10px] text-on-surface-variant uppercase tracking-widest mb-1">Montant</span>
+<span class="text-secondary font-black text-lg">-5,000.00 EUR</span>
+</div>
+<div class="flex flex-col">
+<span class="text-[10px] text-on-surface-variant uppercase tracking-widest mb-1">Compte Source</span>
+<span class="text-on-surface text-sm font-bold">OPEX-MAIN-01</span>
+</div>
+<div class="flex flex-col">
+<span class="text-[10px] text-on-surface-variant uppercase tracking-widest mb-1">Catégorie</span>
+<span class="text-on-surface text-sm font-bold">Infrastructures Ops</span>
+</div>
+<div class="flex flex-col">
+<span class="text-[10px] text-on-surface-variant uppercase tracking-widest mb-1">Impact Budget</span>
+<span class="text-on-surface text-sm font-bold">Minor (0.4%)</span>
+</div>
+</div>
+</div>
+<!-- Card 2: Mission Order -->
+<div class="tactical-border glass-card rounded-xl overflow-hidden shadow-2xl border border-tertiary/20">
+<div class="bg-tertiary/10 px-5 py-3 flex items-center justify-between border-b border-tertiary/20">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-tertiary text-sm glow-icon">assignment_turned_in</span>
+<span class="military-label text-tertiary font-bold text-xs">Ordre de Mission #OM-114</span>
+</div>
+<button class="text-[10px] military-label font-bold text-tertiary hover:underline transition-all">Modifier</button>
+</div>
+<div class="p-5 grid grid-cols-2 gap-y-4 gap-x-6 font-mono">
+<div class="flex flex-col">
+<span class="text-[10px] text-on-surface-variant uppercase tracking-widest mb-1">Objet</span>
+<span class="text-on-surface text-sm font-bold">Audit Sécurité Q3</span>
+</div>
+<div class="flex flex-col">
+<span class="text-[10px] text-on-surface-variant uppercase tracking-widest mb-1">Priorité</span>
+<span class="text-tertiary font-black text-sm">CRITIQUE / ALPHA</span>
+</div>
+<div class="flex flex-col">
+<span class="text-[10px] text-on-surface-variant uppercase tracking-widest mb-1">Catégorie</span>
+<span class="text-on-surface text-sm font-bold">Compliance-Sec</span>
+</div>
+<div class="flex flex-col">
+<span class="text-[10px] text-on-surface-variant uppercase tracking-widest mb-1">Exécution</span>
+<span class="text-on-surface text-sm font-bold">DEMAIN T0800</span>
+</div>
+</div>
+</div>
+<!-- Confirm All Action -->
+<div class="pt-4 flex justify-center">
+<button class="w-full bg-primary text-on-primary py-4 rounded-xl font-black military-label shadow-[0_0_20px_rgba(129,236,255,0.4)] hover:brightness-110 active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+<span class="material-symbols-outlined">done_all</span>
+                        Confirmer Toutes les Instructions
+                    </button>
+</div>
+</div>
+</div>
+<!-- Visualization Bento Card -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+<div class="md:col-span-2 bg-surface-container-low rounded-xl p-6 border border-outline-variant/10">
+<h3 class="military-label font-bold text-primary mb-4 text-[10px]">Projection des Ressources (Post-Action)</h3>
+<div class="h-32 flex items-end gap-2 px-2">
+<div class="flex-1 bg-primary/20 rounded-t-sm h-[40%]"></div>
+<div class="flex-1 bg-primary/20 rounded-t-sm h-[60%]"></div>
+<div class="flex-1 bg-primary/40 rounded-t-sm h-[85%] border-t-2 border-primary"></div>
+<div class="flex-1 bg-primary/20 rounded-t-sm h-[50%]"></div>
+<div class="flex-1 bg-primary/20 rounded-t-sm h-[30%]"></div>
+</div>
+</div>
+<div class="bg-surface-container-highest rounded-xl p-6 flex flex-col justify-center items-center text-center gap-2">
+<span class="material-symbols-outlined text-tertiary text-4xl glow-icon" style="font-variation-settings: 'FILL' 1;">smart_toy</span>
+<span class="text-[10px] military-label text-on-surface-variant">System Status</span>
+<span class="text-tertiary font-black text-lg military-label">OPTIMAL</span>
+</div>
+</div>
+</div>
+</main>
+<!-- Floating Input Bar -->
+<div class="fixed bottom-24 left-1/2 -translate-x-1/2 w-full max-w-2xl px-4 z-50">
+<div class="bg-slate-900/80 backdrop-blur-2xl rounded-2xl p-2 shadow-[0_-10px_30px_rgba(0,0,0,0.5)] border border-outline-variant/15 flex items-center gap-2">
+<button class="p-3 text-slate-500 hover:text-primary transition-colors">
+<span class="material-symbols-outlined">add_circle</span>
+</button>
+<input class="flex-1 bg-transparent border-none focus:ring-0 text-on-background placeholder:text-slate-600 font-body py-3" placeholder="Entrez vos ordres..." type="text"/>
+<button class="w-12 h-12 flex items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-400 shadow-[0_0_12px_rgba(129,236,255,0.3)] hover:bg-cyan-500/20 transition-all active:scale-90">
+<span class="material-symbols-outlined glow-icon" style="font-variation-settings: 'FILL' 1;">mic</span>
+</button>
+</div>
+</div>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 w-full z-50 bg-slate-900/80 backdrop-blur-2xl rounded-t-2xl shadow-[0_-10px_30px_rgba(0,0,0,0.5)]">
+<div class="fixed bottom-0 left-0 w-full flex justify-around items-center px-4 pb-6 pt-2">
+<a class="flex flex-col items-center justify-center text-slate-500 p-3 hover:text-cyan-200 transition-all active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined">terminal</span>
+</a>
+<a class="flex flex-col items-center justify-center text-slate-500 p-3 hover:text-cyan-200 transition-all active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined">swords</span>
+</a>
+<a class="flex flex-col items-center justify-center bg-cyan-500/20 text-cyan-400 rounded-xl p-3 drop-shadow-[0_0_8px_rgba(129,236,255,0.5)] active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">smart_toy</span>
+</a>
+<a class="flex flex-col items-center justify-center text-slate-500 p-3 hover:text-cyan-200 transition-all active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined">account_balance_wallet</span>
+</a>
+<a class="flex flex-col items-center justify-center text-slate-500 p-3 hover:text-cyan-200 transition-all active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined">calendar_month</span>
+</a>
+</div>
+</nav>
+</body></html>
+
+<!-- Assistant Stratégique : Saisie Tactique -->
+<!DOCTYPE html>
+
+<html class="dark" lang="fr"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-surface-variant": "#aaabb0",
+                    "primary": "#81ecff",
+                    "surface-tint": "#81ecff",
+                    "primary-fixed-dim": "#00d4ec",
+                    "on-secondary-fixed-variant": "#a60007",
+                    "surface-bright": "#292c33",
+                    "on-primary-fixed-variant": "#005762",
+                    "error-container": "#9f0519",
+                    "surface": "#0c0e12",
+                    "tertiary-dim": "#60ec79",
+                    "surface-container": "#171a1f",
+                    "secondary-container": "#c0000a",
+                    "primary-dim": "#00d4ec",
+                    "tertiary": "#b8ffb9",
+                    "on-primary": "#005762",
+                    "background": "#0c0e12",
+                    "on-tertiary": "#006725",
+                    "inverse-surface": "#f9f9ff",
+                    "on-secondary-fixed": "#700003",
+                    "secondary": "#ff7162",
+                    "on-background": "#f6f6fc",
+                    "on-secondary-container": "#fff6f4",
+                    "error-dim": "#d7383b",
+                    "primary-container": "#00e3fd",
+                    "tertiary-fixed-dim": "#60ec79",
+                    "outline": "#74757a",
+                    "inverse-primary": "#006976",
+                    "primary-fixed": "#00e3fd",
+                    "secondary-fixed": "#ffc3bb",
+                    "error": "#ff716c",
+                    "on-secondary": "#4a0001",
+                    "outline-variant": "#46484d",
+                    "surface-container-lowest": "#000000",
+                    "on-error": "#490006",
+                    "on-error-container": "#ffa8a3",
+                    "surface-container-high": "#1d2025",
+                    "secondary-fixed-dim": "#ffb0a5",
+                    "surface-dim": "#0c0e12",
+                    "on-tertiary-fixed": "#004818",
+                    "surface-container-low": "#111318",
+                    "secondary-dim": "#e2241f",
+                    "tertiary-container": "#6ffb85",
+                    "surface-container-highest": "#23262c",
+                    "surface-variant": "#23262c",
+                    "inverse-on-surface": "#53555a",
+                    "on-surface": "#f6f6fc",
+                    "on-primary-fixed": "#003840",
+                    "on-primary-container": "#004d57",
+                    "on-tertiary-fixed-variant": "#006826",
+                    "on-tertiary-container": "#005d21",
+                    "tertiary-fixed": "#6ffb85"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "fontFamily": {
+                    "headline": ["Inter"],
+                    "body": ["Inter"],
+                    "label": ["Inter"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .radar-grid {
+            clip-path: polygon(50% 0%, 100% 38%, 81% 100%, 19% 100%, 0% 38%);
+        }
+        .neon-glow-cyan {
+            filter: drop-shadow(0 0 8px rgba(129, 236, 255, 0.4));
+        }
+        .neon-glow-purple {
+            filter: drop-shadow(0 0 8px rgba(160, 32, 240, 0.4));
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background font-body selection:bg-primary/30">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 bg-slate-900/60 backdrop-blur-xl shadow-[0_20px_40px_rgba(0,0,0,0.4)] flex items-center justify-between px-6 py-4">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-surface-container-highest flex items-center justify-center overflow-hidden border border-primary/20">
+<img class="w-full h-full object-cover" data-alt="Cyberpunk style female profile avatar with neon lighting accents on hair and skin" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBUOJYCTeR8Kz-CoKnV6CgPD0YogtPUYgodoqky-BUijvP2k-xMWUOSFHROWZx-iK5p9FMlqOjZ781Fx3e9phYPegqAWoXge1yIejXogpPLqkd0SJ4MLYqhVl7tfkVcAzbv8ZWeGHwVw9xq7-Ioh1TPSFfE20jR-CrX24YQvQW267-VFF1-xzIdQOvFPlwdAt4Mpi9_toRMbsiIoZfcqxofimsttjUkx0ognDPO-SyFwe4eY9W2GROTcRsfbEeL78VmLpiKCubbZkU"/>
+</div>
+<h1 class="text-xl font-black tracking-tighter text-cyan-400 uppercase font-headline">GBECHE</h1>
+</div>
+<div class="flex items-center gap-2">
+<span class="text-slate-400 font-label label-md uppercase tracking-widest px-3 py-1 bg-slate-800/40 rounded-lg">Santé &amp; Physique</span>
+<button class="p-2 hover:bg-white/10 transition-colors rounded-full active:duration-100 scale-95">
+<span class="material-symbols-outlined text-cyan-400">security</span>
+</button>
+</div>
+</header>
+<main class="pt-24 pb-32 px-6 max-w-7xl mx-auto space-y-8">
+<!-- Top Hero Grid: AI Summary & Daily Circular Trackers -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+<!-- AI Summary - Glassmorphism -->
+<div class="lg:col-span-8 p-8 rounded-xl bg-surface-variant/40 backdrop-blur-2xl border border-outline-variant/15 relative overflow-hidden group">
+<div class="absolute -top-24 -right-24 w-64 h-64 bg-primary/10 rounded-full blur-[100px] group-hover:bg-primary/20 transition-all duration-700"></div>
+<div class="relative z-10 space-y-4">
+<div class="flex items-center gap-2 text-primary neon-glow-cyan">
+<span class="material-symbols-outlined">smart_toy</span>
+<span class="font-label label-md uppercase tracking-widest font-bold">Analyse Tactique IA</span>
+</div>
+<h2 class="text-3xl font-black tracking-tight text-on-surface leading-tight">Optimisation du Sommeil vs Performance</h2>
+<p class="text-on-surface-variant leading-relaxed max-w-2xl">
+                        Vos données indiquent une corrélation de <span class="text-tertiary font-bold">87%</span> entre vos phases de sommeil profond et votre pic de force en séance. Une dette de repos de 45min réduit votre précision cognitive de 12%. Priorité tactique : décalage du coucher à 22h30 pour maximiser la récupération neuronale.
+                    </p>
+<div class="flex gap-4 pt-2">
+<span class="px-3 py-1 bg-surface-container-highest rounded-lg text-xs font-bold text-tertiary border border-tertiary/20">STATUS: RÉCUPÉRATION OPTIMALE</span>
+</div>
+</div>
+</div>
+<!-- Daily Trackers - Vertical Bento Stack -->
+<div class="lg:col-span-4 grid grid-cols-1 gap-4">
+<div class="flex items-center justify-between p-6 rounded-xl bg-surface-container-low border border-outline-variant/10">
+<div class="space-y-1">
+<span class="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Eau</span>
+<div class="text-2xl font-black text-primary">2.4 / 3.0 L</div>
+</div>
+<div class="relative w-16 h-16">
+<svg class="w-full h-full transform -rotate-90">
+<circle class="text-surface-container-highest" cx="32" cy="32" fill="transparent" r="28" stroke="currentColor" stroke-width="4"></circle>
+<circle class="text-primary neon-glow-cyan" cx="32" cy="32" fill="transparent" r="28" stroke="currentColor" stroke-dasharray="175" stroke-dashoffset="35" stroke-width="4"></circle>
+</svg>
+<span class="absolute inset-0 flex items-center justify-center text-[10px] font-bold">80%</span>
+</div>
+</div>
+<div class="flex items-center justify-between p-6 rounded-xl bg-surface-container-low border border-outline-variant/10">
+<div class="space-y-1">
+<span class="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Pas</span>
+<div class="text-2xl font-black text-tertiary">8,432</div>
+</div>
+<div class="relative w-16 h-16">
+<svg class="w-full h-full transform -rotate-90">
+<circle class="text-surface-container-highest" cx="32" cy="32" fill="transparent" r="28" stroke="currentColor" stroke-width="4"></circle>
+<circle class="text-tertiary shadow-[0_0_8px_rgba(184,255,185,0.4)]" cx="32" cy="32" fill="transparent" r="28" stroke="currentColor" stroke-dasharray="175" stroke-dashoffset="60" stroke-width="4"></circle>
+</svg>
+<span class="absolute inset-0 flex items-center justify-center text-[10px] font-bold">65%</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Middle Section: Heatmap & Radar -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+<!-- Consistency Heatmap -->
+<div class="p-8 rounded-xl bg-surface-container-low flex flex-col h-full">
+<div class="flex justify-between items-center mb-8">
+<div>
+<h3 class="text-lg font-black tracking-tight uppercase">Discipline mensuelle</h3>
+<p class="text-sm text-on-surface-variant">Fréquence d'entraînement</p>
+</div>
+<div class="text-right">
+<div class="text-2xl font-black text-primary">22</div>
+<div class="text-[10px] font-bold uppercase tracking-tighter opacity-60">Jours actifs</div>
+</div>
+</div>
+<div class="flex-grow flex items-center justify-center">
+<div class="grid grid-cols-7 gap-2 w-full max-w-sm">
+<!-- Simulated Heatmap Grid -->
+<div class="aspect-square rounded bg-primary/80 neon-glow-cyan"></div>
+<div class="aspect-square rounded bg-surface-container-highest"></div>
+<div class="aspect-square rounded bg-primary/40"></div>
+<div class="aspect-square rounded bg-primary/90 neon-glow-cyan"></div>
+<div class="aspect-square rounded bg-primary/20"></div>
+<div class="aspect-square rounded bg-primary/60"></div>
+<div class="aspect-square rounded bg-primary/10"></div>
+<div class="aspect-square rounded bg-surface-container-highest"></div>
+<div class="aspect-square rounded bg-primary/70"></div>
+<div class="aspect-square rounded bg-primary/90 neon-glow-cyan"></div>
+<div class="aspect-square rounded bg-primary/40"></div>
+<div class="aspect-square rounded bg-primary/100 neon-glow-cyan"></div>
+<div class="aspect-square rounded bg-primary/30"></div>
+<div class="aspect-square rounded bg-primary/50"></div>
+<div class="aspect-square rounded bg-primary/20"></div>
+<div class="aspect-square rounded bg-primary/60"></div>
+<div class="aspect-square rounded bg-surface-container-highest"></div>
+<div class="aspect-square rounded bg-primary/80 neon-glow-cyan"></div>
+<div class="aspect-square rounded bg-primary/90 neon-glow-cyan"></div>
+<div class="aspect-square rounded bg-primary/40"></div>
+<div class="aspect-square rounded bg-primary/10"></div>
+<div class="aspect-square rounded bg-primary/100 neon-glow-cyan"></div>
+<div class="aspect-square rounded bg-primary/70"></div>
+<div class="aspect-square rounded bg-primary/30"></div>
+<div class="aspect-square rounded bg-surface-container-highest"></div>
+<div class="aspect-square rounded bg-primary/50"></div>
+<div class="aspect-square rounded bg-primary/90 neon-glow-cyan"></div>
+<div class="aspect-square rounded bg-primary/20"></div>
+</div>
+</div>
+<div class="mt-8 flex justify-between text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
+<span>Moins</span>
+<div class="flex gap-1">
+<div class="w-2 h-2 rounded-sm bg-surface-container-highest"></div>
+<div class="w-2 h-2 rounded-sm bg-primary/20"></div>
+<div class="w-2 h-2 rounded-sm bg-primary/50"></div>
+<div class="w-2 h-2 rounded-sm bg-primary/80"></div>
+<div class="w-2 h-2 rounded-sm bg-primary/100"></div>
+</div>
+<span>Plus</span>
+</div>
+</div>
+<!-- Radar Chart: Physical Balance -->
+<div class="p-8 rounded-xl bg-surface-container-high border border-outline-variant/10 relative overflow-hidden group">
+<div class="relative z-10 flex flex-col h-full">
+<h3 class="text-lg font-black tracking-tight uppercase mb-2">Profil Biométrique</h3>
+<p class="text-sm text-on-surface-variant mb-8">Équilibre des attributs de guerre</p>
+<div class="relative flex-grow flex items-center justify-center py-10">
+<!-- Radar Lines -->
+<div class="absolute inset-0 flex items-center justify-center opacity-20 pointer-events-none">
+<div class="w-48 h-48 border border-primary radar-grid rotate-[36deg]"></div>
+<div class="absolute w-32 h-32 border border-primary radar-grid rotate-[36deg]"></div>
+<div class="absolute w-16 h-16 border border-primary radar-grid rotate-[36deg]"></div>
+</div>
+<!-- Radar Core Data Shape (Simulated) -->
+<svg class="w-48 h-48 drop-shadow-[0_0_15px_rgba(129,236,255,0.4)]" viewbox="0 0 100 100">
+<polygon fill="rgba(129, 236, 255, 0.4)" points="50,10 90,40 75,90 25,90 15,35" stroke="#81ecff" stroke-width="1.5"></polygon>
+</svg>
+<!-- Axis Labels -->
+<div class="absolute top-2 left-1/2 -translate-x-1/2 font-label text-[10px] tracking-widest uppercase text-primary font-black">Force</div>
+<div class="absolute top-1/3 right-0 font-label text-[10px] tracking-widest uppercase text-on-surface-variant">Cardio</div>
+<div class="absolute bottom-4 right-1/4 font-label text-[10px] tracking-widest uppercase text-on-surface-variant">Nutrition</div>
+<div class="absolute bottom-4 left-1/4 font-label text-[10px] tracking-widest uppercase text-on-surface-variant">Souplesse</div>
+<div class="absolute top-1/3 left-0 font-label text-[10px] tracking-widest uppercase text-on-surface-variant">Mental</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Action Grid: Victory Buttons -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+<button class="flex items-center justify-center gap-3 bg-tertiary text-on-tertiary px-8 py-4 rounded-xl font-black uppercase tracking-tighter hover:opacity-90 transition-all active:scale-95 shadow-[0_0_20px_rgba(184,255,185,0.2)]">
+<span class="material-symbols-outlined">fitness_center</span>
+                Démarrer Session Combat
+            </button>
+<button class="flex items-center justify-center gap-3 bg-primary-container/20 backdrop-blur text-primary border border-primary/20 px-8 py-4 rounded-xl font-black uppercase tracking-tighter hover:bg-primary-container/30 transition-all active:scale-95">
+<span class="material-symbols-outlined">menu_book</span>
+                Journal d'Alimentation
+            </button>
+</div>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full flex justify-around items-center px-4 pb-6 pt-2 bg-slate-900/80 backdrop-blur-2xl shadow-[0_-10px_30px_rgba(0,0,0,0.5)] z-50 rounded-t-2xl">
+<a class="flex flex-col items-center justify-center text-slate-500 p-3 hover:text-cyan-200 transition-all active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined">terminal</span>
+</a>
+<a class="flex flex-col items-center justify-center text-slate-500 p-3 hover:text-cyan-200 transition-all active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined">swords</span>
+</a>
+<a class="flex flex-col items-center justify-center bg-cyan-500/20 text-cyan-400 rounded-xl p-3 drop-shadow-[0_0_8px_rgba(129,236,255,0.5)]" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">smart_toy</span>
+</a>
+<a class="flex flex-col items-center justify-center text-slate-500 p-3 hover:text-cyan-200 transition-all active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined">account_balance_wallet</span>
+</a>
+<a class="flex flex-col items-center justify-center text-slate-500 p-3 hover:text-cyan-200 transition-all active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined">calendar_month</span>
+</a>
+</nav>
+<!-- Decorative Glow Element -->
+<div class="fixed bottom-0 left-1/2 -translate-x-1/2 w-[80vw] h-1 bg-gradient-to-r from-transparent via-cyan-400 to-transparent blur-md opacity-30 pointer-events-none"></div>
+</body></html>
+
+<!-- Guerre : Santé & Physique -->
+<!DOCTYPE html>
+
+<html class="dark" lang="fr"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "tertiary-dim": "#60ec79",
+                    "secondary": "#ff7162",
+                    "inverse-primary": "#006976",
+                    "on-background": "#f6f6fc",
+                    "on-error": "#490006",
+                    "secondary-fixed": "#ffc3bb",
+                    "on-secondary": "#4a0001",
+                    "surface-variant": "#23262c",
+                    "surface-container-high": "#1d2025",
+                    "primary-dim": "#00d4ec",
+                    "primary-container": "#00e3fd",
+                    "tertiary-container": "#6ffb85",
+                    "inverse-on-surface": "#53555a",
+                    "on-secondary-container": "#fff6f4",
+                    "background": "#0c0e12",
+                    "surface-tint": "#81ecff",
+                    "primary-fixed": "#00e3fd",
+                    "secondary-container": "#c0000a",
+                    "primary": "#81ecff",
+                    "surface-container-lowest": "#000000",
+                    "on-tertiary": "#006725",
+                    "surface-container-low": "#111318",
+                    "error": "#ff716c",
+                    "on-primary-fixed": "#003840",
+                    "error-dim": "#d7383b",
+                    "error-container": "#9f0519",
+                    "on-tertiary-fixed": "#004818",
+                    "primary-fixed-dim": "#00d4ec",
+                    "surface-dim": "#0c0e12",
+                    "outline-variant": "#46484d",
+                    "surface-container": "#171a1f",
+                    "secondary-dim": "#e2241f",
+                    "on-primary-container": "#004d57",
+                    "tertiary-fixed-dim": "#60ec79",
+                    "surface": "#0c0e12",
+                    "inverse-surface": "#f9f9ff",
+                    "tertiary": "#b8ffb9",
+                    "on-tertiary-container": "#005d21",
+                    "on-surface-variant": "#aaabb0",
+                    "on-secondary-fixed": "#700003",
+                    "on-secondary-fixed-variant": "#a60007",
+                    "on-surface": "#f6f6fc",
+                    "on-primary": "#005762",
+                    "surface-bright": "#292c33",
+                    "secondary-fixed-dim": "#ffb0a5",
+                    "on-primary-fixed-variant": "#005762",
+                    "on-tertiary-fixed-variant": "#006826",
+                    "surface-container-highest": "#23262c",
+                    "on-error-container": "#ffa8a3",
+                    "outline": "#74757a",
+                    "tertiary-fixed": "#6ffb85"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "fontFamily": {
+                    "headline": ["Inter"],
+                    "body": ["Inter"],
+                    "label": ["Inter"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .neon-glow-primary {
+            filter: drop-shadow(0 0 8px rgba(129, 236, 255, 0.4));
+        }
+        .neon-glow-tertiary {
+            filter: drop-shadow(0 0 12px rgba(184, 255, 185, 0.3));
+        }
+        .glass-panel {
+            backdrop-filter: blur(20px);
+            background: rgba(35, 38, 44, 0.5);
+        }
+        .radial-bloom {
+            background: radial-gradient(circle at center, rgba(129, 236, 255, 0.08) 0%, transparent 70%);
+        }
+        .particle-bg {
+            background-image: radial-gradient(circle at 2px 2px, rgba(129, 236, 255, 0.05) 1px, transparent 0);
+            background-size: 40px 40px;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background font-body selection:bg-primary/30 min-h-screen flex flex-col items-center justify-center overflow-hidden">
+<!-- Ambient Background Layers -->
+<div class="fixed inset-0 z-0 overflow-hidden pointer-events-none">
+<div class="absolute inset-0 particle-bg"></div>
+<div class="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-primary/10 rounded-full blur-[120px]"></div>
+<div class="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-tertiary/5 rounded-full blur-[120px]"></div>
+</div>
+<!-- Onboarding Shell - Navigation Suppressed as per Task-Focused/Linear Rule -->
+<main class="relative z-10 w-full max-w-4xl px-6 flex flex-col items-center gap-12">
+<!-- Brand Identity Header -->
+<header class="flex flex-col items-center gap-2">
+<span class="label-md uppercase tracking-[0.2em] text-primary font-bold opacity-80">Phase 01 — Mobilisation</span>
+<h1 class="text-4xl md:text-6xl font-black tracking-tighter text-on-surface uppercase text-center">GBECHE</h1>
+</header>
+<!-- Central Tactical Visual: The Compass-Sword Morph -->
+<div class="relative w-64 h-64 md:w-80 md:h-80 flex items-center justify-center">
+<!-- Background Radial Glow -->
+<div class="absolute inset-0 radial-bloom scale-150"></div>
+<!-- Stylized Visual Container -->
+<div class="relative w-full h-full flex items-center justify-center">
+<!-- Visual representation of the Sword/Compass hybrid -->
+<div class="absolute inset-0 glass-panel rounded-full border border-outline-variant/15 flex items-center justify-center">
+<div class="relative w-3/4 h-3/4 border-2 border-dashed border-primary/20 rounded-full flex items-center justify-center">
+<!-- Neon Sword Core -->
+<div class="w-1 h-3/4 bg-primary neon-glow-primary rounded-full relative">
+<!-- Sword Guard/Compass Needle -->
+<div class="absolute top-1/3 left-1/2 -translate-x-1/2 w-20 h-1 bg-primary neon-glow-primary rounded-full"></div>
+<!-- Point -->
+<div class="absolute top-0 left-1/2 -translate-x-1/2 w-4 h-4 bg-primary rotate-45 neon-glow-primary"></div>
+</div>
+</div>
+</div>
+<!-- Floating HUD Elements -->
+<div class="absolute top-4 left-4 w-12 h-0.5 bg-tertiary neon-glow-tertiary"></div>
+<div class="absolute bottom-4 right-4 w-12 h-0.5 bg-primary-dim neon-glow-primary"></div>
+<div class="absolute top-1/2 -right-8 -translate-y-1/2 flex flex-col gap-1">
+<div class="w-2 h-2 rounded-full bg-primary/40"></div>
+<div class="w-2 h-2 rounded-full bg-primary"></div>
+<div class="w-2 h-2 rounded-full bg-primary/40"></div>
+</div>
+</div>
+</div>
+<!-- Manifesto Content -->
+<section class="max-w-2xl text-center space-y-8 glass-panel p-8 md:p-12 rounded-xl border border-outline-variant/15 shadow-[0_20px_40px_rgba(0,0,0,0.4)]">
+<div class="space-y-4">
+<h2 class="text-2xl md:text-4xl font-bold tracking-tight text-on-surface">
+                    Le chaos s'arrête ici.
+                </h2>
+<p class="text-lg md:text-xl text-on-surface-variant font-light leading-relaxed">
+<span class="text-on-surface font-bold">GBECHE</span> n'est pas un outil, c'est ton quartier général. 
+                    Tes objectifs sont tes <span class="text-secondary italic">Guerres</span>. 
+                    Tes tâches sont tes <span class="text-primary italic">Adversaires</span>.
+                </p>
+</div>
+<!-- Action Button -->
+<div class="pt-4">
+<button class="group relative px-10 py-5 bg-tertiary text-on-tertiary rounded-lg font-black uppercase tracking-widest text-sm shadow-[0_0_20px_rgba(184,255,185,0.2)] hover:shadow-[0_0_30px_rgba(184,255,185,0.4)] hover:scale-105 active:scale-95 transition-all duration-300">
+<span class="relative z-10 flex items-center gap-3">
+                        Prendre le commandement
+                        <span class="material-symbols-outlined text-xl">arrow_forward</span>
+</span>
+<!-- Button Glow Effect -->
+<div class="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg"></div>
+</button>
+</div>
+</section>
+<!-- Tactical Metadata -->
+<footer class="flex gap-8 text-[10px] uppercase tracking-[0.2em] font-bold text-on-surface-variant/40">
+<div class="flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary animate-pulse"></span>
+                Système Prêt
+            </div>
+<div class="flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-primary/50"></span>
+                Vector: 45.2° N
+            </div>
+<div class="flex items-center gap-2">
+<span class="w-1.5 h-1.5 rounded-full bg-primary/50"></span>
+                Encodage: Tactical_Obsidian
+            </div>
+</footer>
+</main>
+<!-- Contextual Decorative Elements -->
+<div class="absolute top-24 right-12 hidden lg:block opacity-20 pointer-events-none">
+<div class="text-right">
+<p class="text-xs font-mono text-primary">STRAT_COORD_X: 492.22</p>
+<p class="text-xs font-mono text-primary">STRAT_COORD_Y: 104.99</p>
+</div>
+</div>
+<div class="absolute bottom-24 left-12 hidden lg:block opacity-20 pointer-events-none">
+<div class="flex gap-4">
+<div class="w-12 h-32 border border-outline-variant rounded flex flex-col items-center justify-between p-2">
+<div class="w-full h-1/2 bg-primary/40 rounded-sm"></div>
+<div class="w-full h-1/4 bg-primary rounded-sm"></div>
+</div>
+<div class="flex flex-col justify-end">
+<span class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Analyse de Menace</span>
+</div>
+</div>
+</div>
+</body></html>
+
+<!-- Onboarding 1: Le Manifeste -->
+<!DOCTYPE html>
+
+<html class="dark" lang="fr"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "tertiary-dim": "#60ec79",
+                    "secondary": "#ff7162",
+                    "inverse-primary": "#006976",
+                    "on-background": "#f6f6fc",
+                    "on-error": "#490006",
+                    "secondary-fixed": "#ffc3bb",
+                    "on-secondary": "#4a0001",
+                    "surface-variant": "#23262c",
+                    "surface-container-high": "#1d2025",
+                    "primary-dim": "#00d4ec",
+                    "primary-container": "#00e3fd",
+                    "tertiary-container": "#6ffb85",
+                    "inverse-on-surface": "#53555a",
+                    "on-secondary-container": "#fff6f4",
+                    "background": "#0c0e12",
+                    "surface-tint": "#81ecff",
+                    "primary-fixed": "#00e3fd",
+                    "secondary-container": "#c0000a",
+                    "primary": "#81ecff",
+                    "surface-container-lowest": "#000000",
+                    "on-tertiary": "#006725",
+                    "surface-container-low": "#111318",
+                    "error": "#ff716c",
+                    "on-primary-fixed": "#003840",
+                    "error-dim": "#d7383b",
+                    "error-container": "#9f0519",
+                    "on-tertiary-fixed": "#004818",
+                    "primary-fixed-dim": "#00d4ec",
+                    "surface-dim": "#0c0e12",
+                    "outline-variant": "#46484d",
+                    "surface-container": "#171a1f",
+                    "secondary-dim": "#e2241f",
+                    "on-primary-container": "#004d57",
+                    "tertiary-fixed-dim": "#60ec79",
+                    "surface": "#0c0e12",
+                    "inverse-surface": "#f9f9ff",
+                    "tertiary": "#b8ffb9",
+                    "on-tertiary-container": "#005d21",
+                    "on-surface-variant": "#aaabb0",
+                    "on-secondary-fixed": "#700003",
+                    "on-secondary-fixed-variant": "#a60007",
+                    "on-surface": "#f6f6fc",
+                    "on-primary": "#005762",
+                    "surface-bright": "#292c33",
+                    "secondary-fixed-dim": "#ffb0a5",
+                    "on-primary-fixed-variant": "#005762",
+                    "on-tertiary-fixed-variant": "#006826",
+                    "surface-container-highest": "#23262c",
+                    "on-error-container": "#ffa8a3",
+                    "outline": "#74757a",
+                    "tertiary-fixed": "#6ffb85"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "fontFamily": {
+                    "headline": ["Inter"],
+                    "body": ["Inter"],
+                    "label": ["Inter"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .glass-panel {
+            background: rgba(35, 38, 44, 0.5);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+        }
+        .neon-glow-primary {
+            filter: drop-shadow(0 0 2px #81ecff);
+        }
+        .neon-glow-tertiary {
+            filter: drop-shadow(0 0 2px #b8ffb9);
+        }
+        .tactical-shadow {
+            box-shadow: 0px 20px 40px rgba(0, 0, 0, 0.4), 0px 0px 10px rgba(129, 236, 255, 0.05);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-surface font-body min-h-screen flex flex-col items-center justify-center p-6 md:p-12 selection:bg-primary/30">
+<!-- Background Atmospheric Bloom -->
+<div class="fixed top-0 left-1/4 w-96 h-96 bg-primary/10 blur-[120px] rounded-full -z-10"></div>
+<div class="fixed bottom-0 right-1/4 w-[500px] h-[500px] bg-tertiary/5 blur-[150px] rounded-full -z-10"></div>
+<!-- Onboarding Progress Header -->
+<header class="w-full max-w-4xl flex items-center justify-between mb-12">
+<div class="flex flex-col">
+<span class="label-md uppercase tracking-[0.2em] text-primary font-bold text-xs mb-1">Phase 03</span>
+<h1 class="text-3xl md:text-5xl font-black tracking-tighter text-on-surface italic">LE CENSUS</h1>
+</div>
+<div class="flex gap-2">
+<div class="h-1 w-8 rounded-full bg-surface-container-highest"></div>
+<div class="h-1 w-8 rounded-full bg-surface-container-highest"></div>
+<div class="h-1 w-12 rounded-full bg-primary shadow-[0_0_8px_rgba(129,236,255,0.6)]"></div>
+</div>
+</header>
+<main class="w-full max-w-4xl grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+<!-- Left: Context & Instructions -->
+<section class="lg:col-span-5 flex flex-col gap-6">
+<div class="flex flex-col gap-4">
+<h2 class="text-2xl font-bold text-on-surface-variant leading-tight">Quelles sont tes réserves ?</h2>
+<p class="text-on-surface-variant/80 body-lg">Configure tes premiers portefeuilles pour initialiser ton tableau de bord stratégique. Chaque unité compte dans l'architecture de ton capital.</p>
+</div>
+<!-- Technical Specs Display -->
+<div class="glass-panel p-6 rounded-xl border border-white/5 tactical-shadow">
+<div class="flex items-center gap-3 mb-4">
+<span class="material-symbols-outlined text-primary neon-glow-primary">security_update_good</span>
+<span class="label-md uppercase tracking-widest text-[10px] font-bold text-primary">Status: Financial Initialization</span>
+</div>
+<div class="space-y-3">
+<div class="flex justify-between items-center text-xs uppercase tracking-tighter opacity-60">
+<span>Encryption</span>
+<span>AES-256 Active</span>
+</div>
+<div class="flex justify-between items-center text-xs uppercase tracking-tighter opacity-60">
+<span>Sync Mode</span>
+<span>Real-time Tactical</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Right: Wallet Configuration Grid -->
+<section class="lg:col-span-7 grid grid-cols-1 gap-4">
+<!-- Wallet Card: MTN Momo -->
+<div class="glass-panel p-6 rounded-xl tactical-shadow border border-white/5 flex flex-col gap-6 group hover:bg-surface-variant/70 transition-all duration-300">
+<div class="flex justify-between items-center">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-lg bg-surface-container-high flex items-center justify-center border border-white/10">
+<span class="material-symbols-outlined text-primary scale-110">account_balance_wallet</span>
+</div>
+<div>
+<h3 class="font-bold text-lg leading-none">MTN Momo</h3>
+<span class="text-xs text-on-surface-variant uppercase tracking-widest font-semibold">Mobile Wallet</span>
+</div>
+</div>
+<div class="bg-primary/10 px-3 py-1 rounded-full">
+<span class="text-[10px] font-black uppercase text-primary tracking-widest">Active</span>
+</div>
+</div>
+<div class="relative">
+<div class="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+<span class="text-primary font-bold neon-glow-primary tracking-widest">XOF</span>
+</div>
+<input class="w-full bg-surface-container-lowest border border-outline-variant/15 rounded-lg py-4 pl-16 pr-4 focus:ring-1 focus:ring-primary focus:border-primary text-xl font-mono text-on-surface placeholder:text-outline transition-all" placeholder="0.00" type="number"/>
+</div>
+</div>
+<!-- Wallet Card: Wave -->
+<div class="glass-panel p-6 rounded-xl tactical-shadow border border-white/5 flex flex-col gap-6 group hover:bg-surface-variant/70 transition-all duration-300">
+<div class="flex justify-between items-center">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-lg bg-surface-container-high flex items-center justify-center border border-white/10">
+<span class="material-symbols-outlined text-primary scale-110">payments</span>
+</div>
+<div>
+<h3 class="font-bold text-lg leading-none">Wave</h3>
+<span class="text-xs text-on-surface-variant uppercase tracking-widest font-semibold">Mobile Wallet</span>
+</div>
+</div>
+<div class="bg-surface-container-highest px-3 py-1 rounded-full">
+<span class="text-[10px] font-black uppercase text-on-surface-variant tracking-widest">Pending</span>
+</div>
+</div>
+<div class="relative">
+<div class="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+<span class="text-primary font-bold neon-glow-primary tracking-widest">XOF</span>
+</div>
+<input class="w-full bg-surface-container-lowest border border-outline-variant/15 rounded-lg py-4 pl-16 pr-4 focus:ring-1 focus:ring-primary focus:border-primary text-xl font-mono text-on-surface placeholder:text-outline transition-all" placeholder="0.00" type="number"/>
+</div>
+</div>
+<!-- Wallet Card: Cash -->
+<div class="glass-panel p-6 rounded-xl tactical-shadow border border-white/5 flex flex-col gap-6 group hover:bg-surface-variant/70 transition-all duration-300">
+<div class="flex justify-between items-center">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-lg bg-surface-container-high flex items-center justify-center border border-white/10">
+<span class="material-symbols-outlined text-tertiary scale-110">savings</span>
+</div>
+<div>
+<h3 class="font-bold text-lg leading-none">Espèces</h3>
+<span class="text-xs text-on-surface-variant uppercase tracking-widest font-semibold">Cold Storage</span>
+</div>
+</div>
+<div class="bg-tertiary/10 px-3 py-1 rounded-full">
+<span class="text-[10px] font-black uppercase text-tertiary tracking-widest">Victory Path</span>
+</div>
+</div>
+<div class="relative">
+<div class="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+<span class="text-tertiary font-bold neon-glow-tertiary tracking-widest">XOF</span>
+</div>
+<input class="w-full bg-surface-container-lowest border border-outline-variant/15 rounded-lg py-4 pl-16 pr-4 focus:ring-1 focus:ring-tertiary focus:border-tertiary text-xl font-mono text-on-surface placeholder:text-outline transition-all" placeholder="0.00" type="number"/>
+</div>
+</div>
+<!-- CTA Footer -->
+<div class="mt-8 flex items-center justify-between w-full">
+<button class="bg-surface-container-high text-on-surface-variant px-8 py-4 rounded-xl font-bold uppercase tracking-widest text-sm hover:bg-surface-bright transition-all">
+                    Précédent
+                </button>
+<button class="bg-tertiary text-on-tertiary px-10 py-4 rounded-xl font-black uppercase tracking-widest text-sm tactical-shadow drop-shadow-[0_0_10px_rgba(184,255,185,0.2)] hover:scale-[1.02] active:scale-95 transition-all">
+                    Finaliser l'Initialisation
+                </button>
+</div>
+</section>
+</main>
+<!-- Side Data Visualization (Abstract) -->
+<div class="hidden xl:block fixed left-12 bottom-12 w-48 space-y-4 opacity-40">
+<div class="h-1 w-full bg-surface-container-highest overflow-hidden">
+<div class="h-full bg-primary w-2/3"></div>
+</div>
+<div class="h-1 w-3/4 bg-surface-container-highest overflow-hidden">
+<div class="h-full bg-tertiary w-1/2"></div>
+</div>
+<div class="h-1 w-1/2 bg-surface-container-highest overflow-hidden">
+<div class="h-full bg-primary w-1/4"></div>
+</div>
+<p class="label-md text-[8px] uppercase tracking-widest font-black">System Pulse Monitor: Operational</p>
+</div>
+<!-- Right Data Stream (Abstract) -->
+<div class="hidden xl:block fixed right-12 bottom-12 text-right opacity-30">
+<div class="text-[10px] font-mono leading-tight space-y-1">
+<p>ALLOC_BLOCK_0xFA2</p>
+<p>SYNCING_TX_LEDGER...</p>
+<p>MAPPING_CORE_NODES</p>
+<p>ENCRYPTING_VAULT_01</p>
+</div>
+</div>
+</body></html>
+
+<!-- Onboarding 3: Le Recensement -->
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-surface-variant": "#aaabb0",
+                    "primary": "#81ecff",
+                    "surface-tint": "#81ecff",
+                    "primary-fixed-dim": "#00d4ec",
+                    "on-secondary-fixed-variant": "#a60007",
+                    "surface-bright": "#292c33",
+                    "on-primary-fixed-variant": "#005762",
+                    "error-container": "#9f0519",
+                    "surface": "#0c0e12",
+                    "tertiary-dim": "#60ec79",
+                    "surface-container": "#171a1f",
+                    "secondary-container": "#c0000a",
+                    "primary-dim": "#00d4ec",
+                    "tertiary": "#b8ffb9",
+                    "on-primary": "#005762",
+                    "background": "#0c0e12",
+                    "on-tertiary": "#006725",
+                    "inverse-surface": "#f9f9ff",
+                    "on-secondary-fixed": "#700003",
+                    "secondary": "#ff7162",
+                    "on-background": "#f6f6fc",
+                    "on-secondary-container": "#fff6f4",
+                    "error-dim": "#d7383b",
+                    "primary-container": "#00e3fd",
+                    "tertiary-fixed-dim": "#60ec79",
+                    "outline": "#74757a",
+                    "inverse-primary": "#006976",
+                    "primary-fixed": "#00e3fd",
+                    "secondary-fixed": "#ffc3bb",
+                    "error": "#ff716c",
+                    "on-secondary": "#4a0001",
+                    "outline-variant": "#46484d",
+                    "surface-container-lowest": "#000000",
+                    "on-error": "#490006",
+                    "on-error-container": "#ffa8a3",
+                    "surface-container-high": "#1d2025",
+                    "secondary-fixed-dim": "#ffb0a5",
+                    "surface-dim": "#0c0e12",
+                    "on-tertiary-fixed": "#004818",
+                    "surface-container-low": "#111318",
+                    "secondary-dim": "#e2241f",
+                    "tertiary-container": "#6ffb85",
+                    "surface-container-highest": "#23262c",
+                    "surface-variant": "#23262c",
+                    "inverse-on-surface": "#53555a",
+                    "on-surface": "#f6f6fc",
+                    "on-primary-fixed": "#003840",
+                    "on-primary-container": "#004d57",
+                    "on-tertiary-fixed-variant": "#006826",
+                    "on-tertiary-container": "#005d21",
+                    "tertiary-fixed": "#6ffb85"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "fontFamily": {
+                    "headline": ["Inter"],
+                    "body": ["Inter"],
+                    "label": ["Inter"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glow-icon {
+            filter: drop-shadow(0 0 2px currentColor);
+        }
+        .brain-pulse {
+            background: radial-gradient(circle, rgba(129,236,255,0.15) 0%, rgba(12,14,18,0) 70%);
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background font-body selection:bg-primary/30 min-h-screen flex flex-col">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 bg-slate-900/60 backdrop-blur-xl shadow-[0_20px_40px_rgba(0,0,0,0.4)]">
+<div class="flex items-center justify-between px-6 py-4 w-full">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 rounded-full bg-surface-container-highest flex items-center justify-center border border-primary/20">
+<span class="material-symbols-outlined text-cyan-400 glow-icon">security</span>
+</div>
+<div class="flex flex-col">
+<h1 class="text-xl font-black tracking-tighter text-cyan-400 uppercase font-headline">GBECHE</h1>
+<span class="text-[10px] label-md uppercase tracking-widest font-bold text-on-surface-variant">L'Assistant Stratégique</span>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<button class="p-2 rounded-xl hover:bg-white/10 transition-colors scale-95 active:duration-100 text-slate-400">
+<span class="material-symbols-outlined">settings</span>
+</button>
+</div>
+</div>
+</header>
+<!-- Main Content: Chat Interface -->
+<main class="flex-1 pt-24 pb-32 px-4 md:px-8 max-w-4xl mx-auto w-full relative overflow-hidden">
+<!-- The "Brain" Ambient Background -->
+<div class="fixed inset-0 pointer-events-none z-0 flex items-center justify-center">
+<div class="w-[500px] h-[500px] brain-pulse rounded-full blur-[100px]"></div>
+</div>
+<div class="relative z-10 space-y-8">
+<!-- AI Message -->
+<div class="flex flex-col gap-2 items-start max-w-[85%]">
+<div class="flex items-center gap-2 mb-1">
+<span class="text-[10px] label-md uppercase tracking-widest font-bold text-primary">System Core</span>
+<span class="w-1.5 h-1.5 rounded-full bg-tertiary shadow-[0_0_8px_rgba(184,255,185,0.8)]"></span>
+</div>
+<div class="bg-surface-variant/40 backdrop-blur-xl border border-primary/20 rounded-2xl p-4 rounded-tl-none shadow-[0_10px_30px_rgba(0,0,0,0.2)]">
+<p class="text-on-background body-lg leading-relaxed">
+                        En attente d'instructions. Le périmètre opérationnel est sécurisé. Souhaitez-vous une analyse des flux de trésorerie ou l'enregistrement d'un nouvel engagement financier ?
+                    </p>
+</div>
+</div>
+<!-- User Message -->
+<div class="flex flex-col gap-2 items-end max-w-[85%] ml-auto">
+<div class="bg-surface-container-highest rounded-2xl p-4 rounded-tr-none shadow-lg">
+<p class="text-on-background body-lg">
+                        Enregistrer une dépense de 5000 pour la maintenance des serveurs.
+                    </p>
+</div>
+</div>
+<!-- AI Message with Tactical Card -->
+<div class="flex flex-col gap-2 items-start max-w-[85%]">
+<div class="flex items-center gap-2 mb-1">
+<span class="text-[10px] label-md uppercase tracking-widest font-bold text-primary">Strategic Response</span>
+</div>
+<div class="bg-surface-variant/40 backdrop-blur-xl border border-primary/20 rounded-2xl p-4 rounded-tl-none shadow-[0_10px_30px_rgba(0,0,0,0.2)] mb-4">
+<p class="text-on-background body-lg">
+                        Instruction reçue. Préparation de la transaction logistique. Veuillez valider les paramètres de l'engagement ci-dessous :
+                    </p>
+</div>
+<!-- Interactive Action Card -->
+<div class="w-full bg-surface-container-high rounded-xl overflow-hidden border border-outline-variant/15 shadow-2xl">
+<div class="bg-surface-bright px-6 py-3 flex items-center justify-between">
+<span class="label-md uppercase tracking-widest font-bold text-on-surface-variant text-xs">Ordre de Mission #882</span>
+<span class="material-symbols-outlined text-primary text-sm glow-icon">terminal</span>
+</div>
+<div class="p-6 space-y-4">
+<div class="flex justify-between items-center">
+<span class="text-on-surface-variant body-sm">Objet</span>
+<span class="text-on-surface font-bold">Record 5000 Expense</span>
+</div>
+<div class="flex justify-between items-center">
+<span class="text-on-surface-variant body-sm">Catégorie</span>
+<span class="text-on-surface font-bold">Infrastructure Ops</span>
+</div>
+<div class="h-[1px] bg-outline-variant/10 w-full"></div>
+<div class="flex justify-between items-center">
+<span class="text-on-surface-variant body-sm">Impact Budgétaire</span>
+<span class="text-secondary font-black text-xl">-5,000.00</span>
+</div>
+</div>
+<div class="p-4 grid grid-cols-2 gap-3 bg-surface-container-lowest">
+<button class="bg-surface-container-highest text-primary-fixed-dim px-4 py-3 rounded-lg font-bold hover:bg-white/5 transition-all active:scale-95 text-sm uppercase tracking-widest">
+                            Modifier
+                        </button>
+<button class="bg-tertiary text-on-tertiary px-4 py-3 rounded-lg font-bold shadow-[0_0_15px_rgba(184,255,185,0.2)] hover:brightness-110 transition-all active:scale-95 text-sm uppercase tracking-widest">
+                            Confirmer
+                        </button>
+</div>
+</div>
+</div>
+<!-- Visualization Bento Card (AI reasoning) -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+<div class="md:col-span-2 bg-surface-container-low rounded-xl p-6 border border-outline-variant/10">
+<h3 class="label-md uppercase tracking-widest font-bold text-primary mb-4 text-xs">Projection des Ressources</h3>
+<div class="h-32 flex items-end gap-2 px-2">
+<div class="flex-1 bg-primary/20 rounded-t-sm h-[40%]"></div>
+<div class="flex-1 bg-primary/20 rounded-t-sm h-[60%]"></div>
+<div class="flex-1 bg-primary/40 rounded-t-sm h-[85%] border-t-2 border-primary"></div>
+<div class="flex-1 bg-primary/20 rounded-t-sm h-[50%]"></div>
+<div class="flex-1 bg-primary/20 rounded-t-sm h-[30%]"></div>
+</div>
+</div>
+<div class="bg-surface-container-highest rounded-xl p-6 flex flex-col justify-center items-center text-center gap-2">
+<span class="material-symbols-outlined text-tertiary text-4xl glow-icon" style="font-variation-settings: 'FILL' 1;">smart_toy</span>
+<span class="text-xs label-md uppercase tracking-tighter text-on-surface-variant">Status</span>
+<span class="text-tertiary font-black text-lg">OPTIMAL</span>
+</div>
+</div>
+</div>
+</main>
+<!-- Floating Input Bar -->
+<div class="fixed bottom-24 left-1/2 -translate-x-1/2 w-full max-w-2xl px-4 z-50">
+<div class="bg-slate-900/80 backdrop-blur-2xl rounded-2xl p-2 shadow-[0_-10px_30px_rgba(0,0,0,0.5)] border border-outline-variant/15 flex items-center gap-2">
+<button class="p-3 text-slate-500 hover:text-primary transition-colors">
+<span class="material-symbols-outlined">add_circle</span>
+</button>
+<input class="flex-1 bg-transparent border-none focus:ring-0 text-on-background placeholder:text-slate-600 font-body py-3" placeholder="Entrez vos ordres..." type="text"/>
+<button class="w-12 h-12 flex items-center justify-center rounded-xl bg-cyan-500/10 text-cyan-400 shadow-[0_0_12px_rgba(129,236,255,0.3)] hover:bg-cyan-500/20 transition-all active:scale-90">
+<span class="material-symbols-outlined glow-icon" style="font-variation-settings: 'FILL' 1;">mic</span>
+</button>
+</div>
+</div>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 w-full z-50 bg-slate-900/80 backdrop-blur-2xl rounded-t-2xl shadow-[0_-10px_30px_rgba(0,0,0,0.5)]">
+<div class="fixed bottom-0 left-0 w-full flex justify-around items-center px-4 pb-6 pt-2">
+<a class="flex flex-col items-center justify-center text-slate-500 p-3 hover:text-cyan-200 transition-all active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined">terminal</span>
+</a>
+<a class="flex flex-col items-center justify-center text-slate-500 p-3 hover:text-cyan-200 transition-all active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined">swords</span>
+</a>
+<a class="flex flex-col items-center justify-center bg-cyan-500/20 text-cyan-400 rounded-xl p-3 drop-shadow-[0_0_8px_rgba(129,236,255,0.5)] active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">smart_toy</span>
+</a>
+<a class="flex flex-col items-center justify-center text-slate-500 p-3 hover:text-cyan-200 transition-all active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined">account_balance_wallet</span>
+</a>
+<a class="flex flex-col items-center justify-center text-slate-500 p-3 hover:text-cyan-200 transition-all active:scale-90 duration-200" href="#">
+<span class="material-symbols-outlined">calendar_month</span>
+</a>
+</div>
+</nav>
+</body></html>
