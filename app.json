@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "GBECHE",
-    "slug": "GBECHE",
+    "slug": "gbeche",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -20,7 +20,7 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.espritropic.GBECHE"
+      "package": "com.espritropic.gbeche"
     },
     "web": {
       "output": "static",
@@ -28,6 +28,7 @@
     },
     "plugins": [
       "expo-router",
+      "expo-notifications",
       [
         "expo-splash-screen",
         {
@@ -39,7 +40,9 @@
             "backgroundColor": "#000000"
           }
         }
-      ]
+      ],
+      "expo-secure-store",
+      "expo-local-authentication"
     ],
     "experiments": {
       "typedRoutes": true,
@@ -48,7 +51,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "d94ea448-0d7a-49ac-af8f-6af36b7517ec"
+        "projectId": "b783683a-12f2-4d44-b4b0-9e31a1ab2f64"
       }
     }
   }
