@@ -77,6 +77,11 @@ version est **locale** (`cli.appVersionSource: "local"`) : le `android.versionCo
 vit dans `app.json` et doit être incrémenté manuellement avant chaque publication
 sur le Play Store (le store refuse un versionCode déjà utilisé).
 
+Le build de l'AAB lui-même ne nécessite aucun compte Play Store. L'étape de
+soumission (`eas submit`, ou l'option *Submit to Google Play Store* du site Expo)
+est distincte et exigera plus tard une clé de compte de service Google Play ;
+elle n'est pas utilisée en Phase 1.
+
 ## 7. Profils EAS (rappel)
 
 | Profil | Usage | Sortie Android | Distribution |
@@ -108,11 +113,17 @@ sur le Play Store (le store refuse un versionCode déjà utilisé).
   EAS le reprend automatiquement.
 - **Base corrompue pendant un test** : Réglages → Réinitialiser l'application.
 - **`Google Service Account Keys cannot be set up in --non-interactive mode`** :
-  cette erreur apparaît quand `expo-notifications` est installé sans clé FCM v1
-  configurée (les builds déclenchés depuis GitHub ne peuvent pas demander la clé
-  interactivement). La Phase 1 n'envoie aucune notification : la dépendance et son
-  plugin ont donc été retirés. À la Phase 2, il faudra créer un projet Firebase,
-  ajouter `google-services.json`, uploader la clé de service via
-  `eas credentials` (Android → *Google Service Account Key for Push Notifications
-  (FCM V1)*), puis réinstaller `expo-notifications`. Voir
-  https://docs.expo.dev/push-notifications/fcm-credentials/
+  deux causes possibles, le message est le même dans eas-cli.
+  1. **Soumission Play Store activée sur le build (cas Phase 1)** — dans le
+     formulaire « Create build » d'expo.dev, l'option *Submit to Google Play
+     Store* (ou auto-submit) doit rester sur **No / désactivée**. Un build
+     `preview` produit un APK interne à installer manuellement : il ne se soumet
+     pas au Play Store. La section `submit` a été retirée de `eas.json` pour
+     l'empêcher côté dépôt. La soumission Play Store ne sera configurée qu'avec
+     un compte Google Play Console et une clé de compte de service.
+  2. **Notifications push (FCM v1)** — se déclenche uniquement si
+     `expo-notifications` est réinstallé sans clé Firebase. En Phase 2, créer un
+     projet Firebase, ajouter `google-services.json`, uploader la clé de service
+     via `eas credentials` (Android → *Google Service Account Key for Push
+     Notifications (FCM V1)*), puis réinstaller `expo-notifications`. Voir
+     https://docs.expo.dev/push-notifications/fcm-credentials/
