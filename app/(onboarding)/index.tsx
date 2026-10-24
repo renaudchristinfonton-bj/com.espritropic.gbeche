@@ -4,7 +4,7 @@
  *  1. Manifeste      2. Forteresse (PIN + biométrie)
  *  3. Recensement (comptes + soldes initiaux)
  *  4. Déclaration de guerre (domaines actifs + custom)
- *  5. Pacte (notifications) → finalisation
+ *  5. Pacte (préférence de notifications) → finalisation
  */
 
 import React, { useMemo, useState } from 'react';
@@ -24,7 +24,6 @@ import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import * as Notifications from 'expo-notifications';
 
 import { useTheme } from '@/src/theme/ThemeContext';
 import { Button } from '@/src/components/ui/Button';
@@ -146,13 +145,8 @@ export default function Onboarding() {
         });
       }
 
-      if (notifEnabled) {
-        try {
-          await Notifications.requestPermissionsAsync();
-        } catch {
-          // Les notifications deviennent pleinement fonctionnelles en Phase 2.
-        }
-      }
+      // La préférence est conservée ; la permission système et les
+      // notifications locales seront activées en Phase 2 (setup FCM v1).
       await setSettingBool(SETTING_KEYS.notificationsEnabled, notifEnabled);
       await setSetting(SETTING_KEYS.warriorName, 'Guerrier');
       await setSettingBool(SETTING_KEYS.onboardingDone, true);
@@ -488,8 +482,8 @@ function StepCovenant({
       </Animated.View>
       <Text style={[styles.title, { color: colors.text }]}>Le pacte de discipline</Text>
       <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-        « Je serai ton ombre. Si tu dévies, je te ramènerai. » Autorise GBECHE à te rappeler
-        tes engagements.
+        « Je serai ton ombre. Si tu dévies, je te ramènerai. » Active les rappels de
+        discipline : la permission système te sera demandée à l'arrivée des notifications.
       </Text>
 
       <Pressable

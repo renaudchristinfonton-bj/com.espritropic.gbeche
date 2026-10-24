@@ -107,3 +107,12 @@ sur le Play Store (le store refuse un versionCode déjà utilisé).
 - **Build EAS qui échoue à l'install npm** : le `.npmrc` est versionné,
   EAS le reprend automatiquement.
 - **Base corrompue pendant un test** : Réglages → Réinitialiser l'application.
+- **`Google Service Account Keys cannot be set up in --non-interactive mode`** :
+  cette erreur apparaît quand `expo-notifications` est installé sans clé FCM v1
+  configurée (les builds déclenchés depuis GitHub ne peuvent pas demander la clé
+  interactivement). La Phase 1 n'envoie aucune notification : la dépendance et son
+  plugin ont donc été retirés. À la Phase 2, il faudra créer un projet Firebase,
+  ajouter `google-services.json`, uploader la clé de service via
+  `eas credentials` (Android → *Google Service Account Key for Push Notifications
+  (FCM V1)*), puis réinstaller `expo-notifications`. Voir
+  https://docs.expo.dev/push-notifications/fcm-credentials/

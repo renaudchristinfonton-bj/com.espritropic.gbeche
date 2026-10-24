@@ -55,13 +55,6 @@
         {
           "faceIDPermission": "GBECHE utilise Face ID pour vérifier ton identité avant d'ouvrir ton Quartier Général."
         }
-      ],
-      [
-        "expo-notifications",
-        {
-          "icon": "./assets/images/splash-icon.png",
-          "color": "#00E5FF"
-        }
       ]
     ],
     "experiments": {

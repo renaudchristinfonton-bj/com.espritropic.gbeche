@@ -52,7 +52,10 @@ Socle technique complet + boucle centrale de valeur, tout branché sur de vraies
 - Réajustement automatique des adversaires manqués
 - Agent conversationnel NLP local (parser d'intentions en français, cartes de validation)
 - Export/import CSV, sauvegardes chiffrées
-- Notifications de rappels, résumé du soir, streaks en danger
+- Notifications de rappels, résumé du soir, streaks en danger — **nécessite alors la
+  réactivation d'`expo-notifications` avec un projet Firebase** : `google-services.json`
+  + clé de service FCM v1 uploadée via `eas credentials` (depuis le SDK 54, les builds
+  non-interactifs l'exigent ; voir `docs/BUILD.md`, dépannage)
 - Mode clair parfait, santé (sommeil, eau, sport), humeur
 - Rapports textuels générés à partir des graphes
 
@@ -246,7 +249,7 @@ Direction retenue : **sublimer l'identité néon militaire** (glassmorphism somb
 2. **Forteresse** — création du PIN (confirmation saisies) et proposition biométrie.
 3. **Recensement** — création de comptes financiers (MTN MoMo, Wave, Cash, Banque) avec soldes initiaux ; possibilité de passer.
 4. **Déclaration de guerre** — sélection des domaines actifs parmi les 6 guerres par défaut, création possible d'une guerre custom.
-5. **Pacte** — préférences de notifications (permission demandée, réglages effectifs en Phase 2) puis finalisation : `settings.onboarding_done = 1`.
+5. **Pacte** — préférence de notifications enregistrée en base (la permission système et les notifications réelles arrivent en Phase 2 avec le setup FCM v1) puis finalisation : `settings.onboarding_done = 1`.
 
 ### 7.3 Dashboard — Quartier Général (`home.tsx`)
 
