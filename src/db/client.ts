@@ -109,6 +109,57 @@ export async function resetDatabase(): Promise<void> {
   notifyChange();
 }
 
+// ─── Sauvegarde / restauration génériques ─────────────────
+// Ordre parent → enfant : l'insertion respecte les clés étrangères,
+// la suppression se fait en ordre inverse.
+export const BACKUP_TABLES = [
+  'settings',
+  'wars',
+  'accounts',
+  'battles',
+  'adversary_templates',
+  'adversaries',
+  'transactions',
+  'budgets',
+  'gamification',
+] as const;
+
+export type TableName = (typeof BACKUP_TABLES)[number];
+export type BackupPayload = Partial<Record<TableName, Record<string, unknown>[]>>;
+
+export async function exportTables(): Promise<BackupPayload> {
+  const database = getDb();
+  const payload: BackupPayload = {};
+  for (const table of BACKUP_TABLES) {
+    payload[table] = await database.getAllAsync<Record<string, unknown>>(`SELECT * FROM ${table};`);
+  }
+  return payload;
+}
+
+export async function importTables(payload: BackupPayload): Promise<void> {
+  const database = getDb();
+  await database.withTransactionAsync(async () => {
+    // Suppression enfant → parent.
+    for (const table of [...BACKUP_TABLES].reverse()) {
+      await database.execAsync(`DELETE FROM ${table};`);
+    }
+    // Réinsertion parent → enfant, en reconstruisant les colonnes depuis
+    // les lignes elles-mêmes (le schéma est donc toujours synchronisé).
+    for (const table of BACKUP_TABLES) {
+      const rows = payload[table] ?? [];
+      for (const row of rows) {
+        const columns = Object.keys(row);
+        const placeholders = columns.map(() => '?').join(', ');
+        await database.runAsync(
+          `INSERT INTO ${table} (${columns.join(', ')}) VALUES (${placeholders});`,
+          columns.map((column) => row[column]) as SQLite.SQLiteBindParams,
+        );
+      }
+    }
+  });
+  notifyChange();
+}
+
 // ─── Primitives d'accès ───────────────────────────────────
 export async function all<T>(sql: string, params: SQLite.SQLiteBindParams = []): Promise<T[]> {
   return getDb().getAllAsync<T>(sql, params);

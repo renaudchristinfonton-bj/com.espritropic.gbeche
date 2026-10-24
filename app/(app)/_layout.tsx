@@ -12,6 +12,8 @@ import { BlurView } from 'expo-blur';
 
 import { useTheme } from '@/src/theme/ThemeContext';
 import { FeedbackHost } from '@/src/components/ui/FeedbackHost';
+import { NotificationHost } from '@/src/components/ui/NotificationHost';
+import { StorageWarning } from '@/src/components/ui/StorageWarning';
 import { centeredPanelStyle } from '@/src/theme/layout';
 import { typography } from '@/src/theme';
 
@@ -75,6 +77,15 @@ export default function AppTabsLayout() {
           }}
         />
         <Tabs.Screen
+          name="calendar"
+          options={{
+            title: 'Agenda',
+            tabBarIcon: ({ focused, color }) => (
+              <TabIcon name={focused ? 'calendar' : 'calendar-outline'} focused={focused} color={color} />
+            ),
+          }}
+        />
+        <Tabs.Screen
           name="wars"
           options={{
             title: 'Guerres',
@@ -102,6 +113,8 @@ export default function AppTabsLayout() {
           }}
         />
       </Tabs>
+      <StorageWarning />
+      <NotificationHost />
       <FeedbackHost />
     </>
   );

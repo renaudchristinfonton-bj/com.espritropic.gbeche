@@ -14,6 +14,7 @@ export const SETTING_KEYS = {
   notificationsEnabled: 'notifications_enabled',
   biometricEnabled: 'biometric_enabled',
   seeded: 'seeded',
+  notifiedInstanceIds: 'notified_instance_ids',
 } as const;
 
 export type SettingKey = (typeof SETTING_KEYS)[keyof typeof SETTING_KEYS];

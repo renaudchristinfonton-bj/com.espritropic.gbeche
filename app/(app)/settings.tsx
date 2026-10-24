@@ -196,15 +196,23 @@ export default function SettingsScreen() {
       {/* Phase 2 */}
       <Text style={[styles.section, { color: colors.textMuted }]}>Bientôt</Text>
       <GlassCard style={{ gap: spacing[2] }}>
-        <SoonRow icon="calendar" label="Calendrier & suivi horaire" />
-        <View style={[styles.divider, { backgroundColor: colors.separator }]} />
         <SoonRow icon="chatbubbles" label="Agent conversationnel local" />
-        <View style={[styles.divider, { backgroundColor: colors.separator }]} />
-        <SoonRow icon="download" label="Export / import CSV" />
+      </GlassCard>
+
+      {/* Données */}
+      <Text style={[styles.section, { color: colors.textMuted }]}>Données</Text>
+      <GlassCard style={{ gap: spacing[2] }}>
+        <SettingsRow
+          icon="download"
+          color={colors.primary}
+          label="Importer / exporter"
+          value="CSV · sauvegarde"
+          onPress={() => router.push('/(app)/data')}
+        />
       </GlassCard>
 
       {/* Zone dangereuse */}
-      <Text style={[styles.section, { color: colors.textMuted }]}>Données</Text>
+      <Text style={[styles.section, { color: colors.textMuted }]}>Zone dangereuse</Text>
       <Button
         label="Réinitialiser l'application"
         variant="danger"

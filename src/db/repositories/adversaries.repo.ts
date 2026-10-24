@@ -195,6 +195,16 @@ export async function listInstancesForDay(reference: number | Date): Promise<Adv
   );
 }
 
+/** Toutes les instances d'une plage [from, to] (bornes epoch ms incluses). */
+export async function listInstancesInRange(from: number, to: number): Promise<AdversaryRow[]> {
+  return all<AdversaryRow>(
+    `SELECT * FROM adversaries
+     WHERE scheduled_at BETWEEN ? AND ?
+     ORDER BY scheduled_at ASC;`,
+    [from, to],
+  );
+}
+
 export async function listUpcoming(limit = 5): Promise<AdversaryRow[]> {
   return all<AdversaryRow>(
     `SELECT * FROM adversaries
