@@ -5,7 +5,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import Constants from 'expo-constants';
@@ -22,7 +22,6 @@ import { useTranslation, type Language } from '@/src/i18n';
 import { getSetting, loadSettingsCache, SETTING_KEYS } from '@/src/db/settings';
 import { resetDatabase } from '@/src/db/client';
 import {
-  clearPin,
   getBiometricAvailability,
   hasPin,
   setPin,
@@ -30,6 +29,7 @@ import {
   wipeAllSecrets,
 } from '@/src/services/security';
 import { seedDefaults } from '@/src/services/seed';
+import { useAppStore } from '@/src/store/useAppStore';
 import { radius, spacing, typography } from '@/src/theme';
 
 export default function SettingsScreen() {
@@ -44,6 +44,9 @@ export default function SettingsScreen() {
   const [newPin, setNewPin] = useState('');
   const [pinError, setPinError] = useState(false);
   const [biometricSupported, setBiometricSupported] = useState(false);
+  const [confirmSheet, setConfirmSheet] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const lock = useAppStore((state) => state.lock);
 
   useEffect(() => {
     // Sur web (et sur tout appareil sans capteur), la biométrie n'existe pas :
@@ -96,26 +99,23 @@ export default function SettingsScreen() {
     setPinSheet(false);
   };
 
-  const confirmReset = () => {
-    Alert.alert(
-      'Tout effacer',
-      'Toutes tes données locales (guerres, finances, progression) seront supprimées définitivement. Cette action est irréversible.',
-      [
-        { text: 'Annuler', style: 'cancel' },
-        {
-          text: 'Tout effacer',
-          style: 'destructive',
-          onPress: async () => {
-            await wipeAllSecrets();
-            await resetDatabase();
-            await clearPin();
-            await loadSettingsCache();
-            await seedDefaults();
-            router.replace('/(onboarding)');
-          },
-        },
-      ],
-    );
+  // Feuille de confirmation maison : Alert.alert et ses boutons ne sont pas
+  // supportés par react-native-web (les callbacks n'y seraient jamais appelés).
+  const performReset = async () => {
+    if (resetting) return;
+    setResetting(true);
+    try {
+      await wipeAllSecrets();
+      await resetDatabase();
+      await loadSettingsCache();
+      await seedDefaults();
+      lock();
+      setConfirmSheet(false);
+      router.replace('/(onboarding)');
+    } catch (error) {
+      console.error('[reset]', error);
+      setResetting(false);
+    }
   };
 
   return (
@@ -205,7 +205,12 @@ export default function SettingsScreen() {
 
       {/* Zone dangereuse */}
       <Text style={[styles.section, { color: colors.textMuted }]}>Données</Text>
-      <Button label="Réinitialiser l'application" variant="danger" fullWidth onPress={confirmReset} />
+      <Button
+        label="Réinitialiser l'application"
+        variant="danger"
+        fullWidth
+        onPress={() => setConfirmSheet(true)}
+      />
 
       <Text style={[styles.version, { color: colors.textTertiary }]}>
         GBECHE v{version} · Hors-ligne · Aucun serveur
@@ -218,6 +223,30 @@ export default function SettingsScreen() {
         onClose={() => setPinSheet(false)}
       >
         <PinPad value={pinValue} onChange={setPinValue} onFull={handlePinFull} error={pinError} />
+      </Sheet>
+
+      {/* Sheet confirmation de réinitialisation (cross-plateforme, web inclus) */}
+      <Sheet visible={confirmSheet} title="Tout effacer ?" onClose={() => !resetting && setConfirmSheet(false)}>
+        <Text style={[styles.confirmText, { color: colors.textMuted }]}>
+          Toutes tes données locales (guerres, batailles, finances, progression) seront
+          supprimées définitivement. Cette action est irréversible.
+        </Text>
+        <View style={{ flexDirection: 'row', gap: spacing[3], marginTop: spacing[4] }}>
+          <Button
+            label="Annuler"
+            variant="glass"
+            onPress={() => setConfirmSheet(false)}
+            disabled={resetting}
+            style={{ flex: 1 }}
+          />
+          <Button
+            label="Tout effacer"
+            variant="danger"
+            onPress={performReset}
+            loading={resetting}
+            style={{ flex: 1 }}
+          />
+        </View>
       </Sheet>
     </Screen>
   );
@@ -283,6 +312,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing[2.5],
   },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
+  confirmText: { fontSize: typography.sizes.md, lineHeight: 23 },
   settingRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], paddingVertical: spacing[2] },
   rowIcon: { width: 42, height: 42, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
   rowLabel: { fontSize: typography.sizes.md, fontWeight: '700' },

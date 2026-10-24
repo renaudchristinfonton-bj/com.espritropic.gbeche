@@ -12,6 +12,7 @@ import { BlurView } from 'expo-blur';
 
 import { useTheme } from '@/src/theme/ThemeContext';
 import { FeedbackHost } from '@/src/components/ui/FeedbackHost';
+import { centeredPanelStyle } from '@/src/theme/layout';
 import { typography } from '@/src/theme';
 
 function TabIcon({
@@ -51,6 +52,8 @@ export default function AppTabsLayout() {
             paddingTop: 10,
             backgroundColor: colors.tabBarBg,
             borderTopColor: colors.tabBarBorder,
+            // Sur web, la barre reste dans la colonne téléphone centrée.
+            ...(Platform.OS === 'web' ? centeredPanelStyle : {}),
           },
           tabBarBackground: () =>
             Platform.OS === 'ios' ? (

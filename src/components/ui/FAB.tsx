@@ -15,6 +15,7 @@ import * as Haptics from '@/src/services/haptics';
 
 import { useTheme } from '../../theme/ThemeContext';
 import { radius, spacing, typography } from '../../theme';
+import { floatingRightStyle } from '../../theme/layout';
 
 export interface FabAction {
   key: string;
@@ -55,7 +56,7 @@ export function FAB({ actions, onSelect }: FABProps) {
         <Pressable style={StyleSheet.absoluteFill} onPress={toggle}>
           <View style={[styles.backdrop, { backgroundColor: colors.overlay }]} />
         </Pressable>
-        <View style={styles.menu} pointerEvents="box-none">
+        <View style={[styles.menu, floatingRightStyle]} pointerEvents="box-none">
           <Animated.View style={menuStyle}>
             {actions.map((action, index) => (
               <Pressable
@@ -88,6 +89,7 @@ export function FAB({ actions, onSelect }: FABProps) {
         onPress={toggle}
         style={[
           styles.fab,
+          floatingRightStyle,
           { backgroundColor: colors.primary, shadowColor: colors.primary },
         ]}
       >
@@ -102,7 +104,6 @@ export function FAB({ actions, onSelect }: FABProps) {
 const styles = StyleSheet.create({
   fab: {
     position: 'absolute',
-    right: spacing[5],
     bottom: spacing[6],
     width: 60,
     height: 60,
@@ -118,7 +119,6 @@ const styles = StyleSheet.create({
   backdrop: { flex: 1 },
   menu: {
     position: 'absolute',
-    right: spacing[5],
     bottom: 130,
     gap: spacing[3],
   },

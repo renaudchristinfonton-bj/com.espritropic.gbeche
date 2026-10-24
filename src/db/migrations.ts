@@ -15,8 +15,8 @@ export const MIGRATIONS: Migration[] = [
     version: 1,
     name: 'schema_initial',
     sql: /* sql */ `
-      PRAGMA journal_mode = WAL;
-      PRAGMA foreign_keys = ON;
+      -- Les PRAGMA journal_mode/foreign_keys sont posés par db/client.ts
+      -- avant les migrations (le WAL natif n'existe pas sur le SQLite WASM web).
 
       -- ─── Système ────────────────────────────────────────
       CREATE TABLE IF NOT EXISTS app_meta (

@@ -65,6 +65,8 @@ export const darkColors = {
   surface:           palette.dark700,
   surfaceHigh:       palette.dark600,
   overlay:           'rgba(0,0,0,0.72)',
+  // Fond ambiant autour de la colonne téléphone sur le web (desktop)
+  webBackdrop:       '#02030A',
 
   // Glass
   glass:             'rgba(255,255,255,0.055)',
@@ -118,6 +120,8 @@ export const lightColors = {
   surface:           '#FFFFFF',
   surfaceHigh:       '#F0F2FF',
   overlay:           'rgba(10,12,40,0.60)',
+  // Fond ambiant autour de la colonne téléphone sur le web (desktop)
+  webBackdrop:       '#DDE1F0',
 
   // Glass
   glass:             'rgba(255,255,255,0.80)',

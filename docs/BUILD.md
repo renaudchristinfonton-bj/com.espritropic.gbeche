@@ -26,8 +26,35 @@ c'est une configuration Expo courante et reproductible, y compris sur EAS.
 ```bash
 npm run typecheck      # TypeScript strict
 npx eslint .           # 0 erreur (des warnings peuvent subsister)
+npm test               # 47 tests unitaires Jest (logique métier + composant PIN)
 npx expo export --platform android --output-dir /tmp/gbeche-export
 ```
+
+## 3 bis. Tests unitaires
+
+Le projet utilise **Jest** avec le preset `jest-expo` (configuration dans
+`jest.config.js`, préparation globale dans `jest.setup.ts`). Lancer :
+
+```bash
+npm test               # toutes les suites
+npm run test:coverage  # avec couverture
+```
+
+Couverture actuelle (sous `src/**/__tests__/`) :
+
+| Suite | Ce qui est protégé |
+| --- | --- |
+| `routing.test.ts` | matrice de décision du BootGate (onboarding / PIN / app), garde-fou anti-boucle de navigation |
+| `PinPad.test.tsx` | saisie chiffre par chiffre, plafond à 4, retour arrière, déclenchement de `onFull` (non-régression du bug de saisie PIN) |
+| `security.test.ts` | PIN haché (jamais en clair), rejet des codes non conformes, cycle de vie, biométrie absente |
+| `gamification.test.ts` | XP, multiplicateurs de combo, montée de niveau, streaks, défaite |
+| `recurrence.test.ts` | moteur d'occurrences quotidiennes/hebdo/mensuelles/jours choisis, bornes et heures |
+| `settings.test.ts` | cache de préférences et valeurs par défaut |
+| `wars.repo.test.ts` | création de guerres, ordre de tri, activation, suppression |
+| `format.test.ts` | devises FCFA, dates, clés de mois, formule de politesse |
+
+Les modules natifs (SQLite, stockage sûr, haptiques, icônes) sont mockés :
+les tests ne dépendent d'aucun appareil ni réseau.
 
 La dernière commande compile le bundle Hermes complet sans machine native :
 si elle réussit, le build EAS part sur une base saine.

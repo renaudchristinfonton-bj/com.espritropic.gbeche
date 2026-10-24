@@ -95,7 +95,6 @@ export default function WarsScreen() {
     if (params.action === 'battle' && selectedWarId) {
       setBattleSheetOpen(true);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.action, selectedWarId]);
 
   const selectedWar = wars.find((w) => w.id === selectedWarId) ?? null;

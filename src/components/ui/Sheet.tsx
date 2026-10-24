@@ -24,6 +24,7 @@ import * as Haptics from '@/src/services/haptics';
 
 import { useTheme } from '../../theme/ThemeContext';
 import { radius, spacing, typography } from '../../theme';
+import { centeredPanelStyle } from '../../theme/layout';
 
 interface SheetProps {
   visible: boolean;
@@ -61,6 +62,7 @@ export function Sheet({ visible, title, onClose, children, style }: SheetProps) 
         <Animated.View
           style={[
             styles.sheet,
+            centeredPanelStyle,
             animatedStyle,
             {
               backgroundColor: colors.backgroundElevated,
