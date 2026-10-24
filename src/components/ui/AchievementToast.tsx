@@ -25,7 +25,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
+import * as Haptics from '@/src/services/haptics';
 import { useTheme } from '@/src/theme/ThemeContext';
 import { XPBar } from './XPBar';
 

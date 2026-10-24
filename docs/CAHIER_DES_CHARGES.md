@@ -41,10 +41,15 @@ Socle technique complet + boucle centrale de valeur, tout branché sur de vraies
 - Sécurité : PIN 4 chiffres haché (SHA-256 + sel PBKDF2-like) + biométrie
 - Onboarding 5 étapes fonctionnel (crée réellement comptes, guerres et préférences)
 - Dashboard « Quartier Général » avec statistiques et adversaires du jour
-- module **Guerres** : guerres, batailles, adversaires + moteur de récurrence
+- module **Guerres** : guerres, batailles, adversaires + moteur de récurrence ;
+  l'utilisateur crée lui-même ses **guerres personnalisées** (icône, couleur, nom),
+  peut les mettre en pause et les réactiver
 - module **Finances** : comptes, transactions, budgets, soldes calculés, graphes
 - Paramètres essentiels : profil, thème, langue, sécurité, réinitialisation
 - Configuration EAS Build prête à produire un **APK Android testable**
+- **Version web statique** (même code source, React Native Web) déployable sur
+  **Netlify** pour les utilisateurs iOS : 100 % hors-ligne, SQLite WASM persisté
+  via OPFS, PIN uniquement (pas de biométrie navigateur) — voir `docs/WEB_NETLIFY.md`
 
 ### 2.2 Phase 2 — « Agent & vigilance » (roadmap)
 
@@ -82,6 +87,7 @@ Socle technique complet + boucle centrale de valeur, tout branché sur de vraies
 | Graphes | react-native-svg + composants maison (Donut, Bar, Radar, Heatmap) | Contrôle pixel parfait, zéro dépendance chart lourde |
 | Icônes | @expo/vector-icons (Ionicons) | Cohérence, aucun emoji dans l'UI |
 | Build | EAS Build (`preview` → APK interne, `production` → AAB) | Distribution directe via expo.dev |
+| Web | React Native Web + expo-sqlite WASM (OPFS), export statique Expo Router, hébergement Netlify | Alternative iOS sans App Store ; zéro serveur, données locales navigateur, abstractions `.web.ts` (haptiques, secure store) |
 
 ### Dépendances supprimées lors de la refonte
 
@@ -262,6 +268,7 @@ Direction retenue : **sublimer l'identité néon militaire** (glassmorphism somb
 ### 7.4 Guerres (`wars.tsx`)
 
 - Sélecteur horizontal de guerres (couleur/icône dédiées), vue détaillée : batailles avec progression (`instances gagnées / instances à ce jour`), échéance, priorité.
+- Bouton **Nouvelle guerre** dans le sélecteur : `Sheet` de création (nom, icône parmi une liste curatée, couleur) via `createWar` (`domain_type = 'custom'`) ; la même feuille liste les guerres en pause et permet leur réactivation (`setWarActive`).
 - Création de bataille via `Sheet` (titre, description, échéance, priorité, XP).
 - Détail bataille : templates d'adversaires + instances planifiées ; création d'adversaire avec fréquence (`once, daily, weekly, specific_days, monthly, yearly`), heure, durée ; les instances sont matérialisées immédiatement pour les 45 jours glissants.
 - Tap sur une instance → victoire (gamification) ; statut `lost` traité par le service de réajustement en Phase 2.

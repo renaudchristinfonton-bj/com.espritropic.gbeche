@@ -1,12 +1,13 @@
 /**
  * GBECHE — Sécurité : PIN haché + biométrie.
  * Le PIN en clair n'est jamais persisté. Sel aléatoire + SHA-256,
- * stockage dans expo-secure-store (Keystore Android / Keychain iOS).
+ * stockage sûr : expo-secure-store sur mobile (Keystore/Keychain),
+ * localStorage navigateur sur web via l'abstraction secureStorage.
  */
 
 import * as Crypto from 'expo-crypto';
 import * as LocalAuthentication from 'expo-local-authentication';
-import * as SecureStore from 'expo-secure-store';
+import * as SecureStore from './secureStorage';
 
 import { setSettingBool, SETTING_KEYS } from '../db/settings';
 

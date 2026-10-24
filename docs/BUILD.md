@@ -102,7 +102,21 @@ elle n'est pas utilisée en Phase 1.
    l'application → retour à l'onboarding, base vidée.
 6. Mode avion activé pendant tout le parcours : l'app fonctionne intégralement.
 
-## 9. Dépannage
+## 9. Version web (utilisateurs iOS / navigateur)
+
+Le même code source se compile en site statique déployable sur Netlify :
+
+```bash
+npx expo export --platform web   # sortie dans dist/
+```
+
+La base tourne dans SQLite compilé WASM (persistance OPFS), le PIN remplace
+la biométrie (indisponible dans un navigateur) et les secrets vont en
+`localStorage`. La procédure Netlify complète, les en-têtes COOP/COEP requis
+et les abstractions `.web.ts` sont documentées dans
+[`docs/WEB_NETLIFY.md`](./WEB_NETLIFY.md).
+
+## 10. Dépannage
 
 - **Erreur de plugin Babel** : vérifie que `babel-preset-expo` et
   `react-native-worklets` sont bien installés (ils sont dans `package.json`).

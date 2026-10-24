@@ -10,7 +10,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import * as Haptics from 'expo-haptics';
+import * as Haptics from '@/src/services/haptics';
 
 import { useTheme } from '@/src/theme/ThemeContext';
 import { PinPad } from '@/src/components/ui/PinPad';

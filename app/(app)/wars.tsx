@@ -8,7 +8,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
-import * as Haptics from 'expo-haptics';
+import * as Haptics from '@/src/services/haptics';
 
 import { Screen } from '@/src/components/ui/Screen';
 import { GlassCard } from '@/src/components/ui/GlassCard';
@@ -21,7 +21,7 @@ import { ProgressBar } from '@/src/components/ui/ProgressBar';
 import { EmptyState } from '@/src/components/ui/EmptyState';
 import { useTheme } from '@/src/theme/ThemeContext';
 import { useRepoQuery } from '@/src/db/useRepoQuery';
-import { listWars } from '@/src/db/repositories/wars.repo';
+import { createWar, listWars, setWarActive } from '@/src/db/repositories/wars.repo';
 import {
   getBattleProgress,
   listBattlesByWar,
@@ -46,6 +46,33 @@ import { radius, spacing, typography } from '@/src/theme';
 
 const HOUR_CHOICES = [6, 8, 12, 18, 21];
 
+// Choix proposés à l'utilisateur pour créer sa propre guerre.
+const WAR_ICON_CHOICES = [
+  'flame',
+  'trophy',
+  'shield-checkmark',
+  'star',
+  'heart',
+  'rocket',
+  'moon',
+  'hammer',
+  'musical-notes',
+  'globe',
+  'camera',
+  'code-slash',
+] as const;
+
+const WAR_COLOR_CHOICES = [
+  '#FFD700',
+  '#00FF88',
+  '#00E5FF',
+  '#A78BFA',
+  '#FF6B35',
+  '#FF9F43',
+  '#6366F1',
+  '#FF4757',
+] as const;
+
 export default function WarsScreen() {
   const { colors } = useTheme().theme;
   const params = useLocalSearchParams<{ action?: string }>();
@@ -55,6 +82,7 @@ export default function WarsScreen() {
   const [selectedWarId, setSelectedWarId] = useState<string | null>(null);
 
   const [battleSheetOpen, setBattleSheetOpen] = useState(false);
+  const [warSheetOpen, setWarSheetOpen] = useState(false);
   const [detailBattle, setDetailBattle] = useState<BattleRow | null>(null);
   const [templateBattle, setTemplateBattle] = useState<BattleRow | null>(null);
   const [quickBattle, setQuickBattle] = useState<BattleRow | null>(null);
@@ -113,6 +141,16 @@ export default function WarsScreen() {
             </Pressable>
           );
         })}
+        <Pressable
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            setWarSheetOpen(true);
+          }}
+          style={[styles.warTab, { backgroundColor: colors.glass, borderColor: colors.glassBorder }]}
+        >
+          <Ionicons name="add" size={20} color={colors.primary} />
+          <Text style={[styles.warTabLabel, { color: colors.primary }]}>Nouvelle guerre</Text>
+        </Pressable>
       </ScrollView>
 
       <ScrollView
@@ -130,6 +168,12 @@ export default function WarsScreen() {
       </ScrollView>
 
       {/* Feuilles */}
+      <CreateWarSheet
+        visible={warSheetOpen}
+        onClose={() => setWarSheetOpen(false)}
+        onCreated={(id) => setSelectedWarId(id)}
+      />
+
       {selectedWar ? (
         <CreateBattleSheet
           visible={battleSheetOpen}
@@ -232,6 +276,154 @@ function BattleCard({ battle, onPress }: { battle: BattleRow; onPress: () => voi
       </View>
       <ProgressBar progress={ratio} color={done ? colors.success : colors.primary} height={7} />
     </GlassCard>
+  );
+}
+
+// ─── Sheet : création / gestion des guerres ──────────────
+function CreateWarSheet({
+  visible,
+  onClose,
+  onCreated,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  onCreated: (warId: string) => void;
+}) {
+  const { colors } = useTheme().theme;
+  const allWarsQuery = useRepoQuery(() => listWars(false), []);
+  const allWars = allWarsQuery.data ?? [];
+  const inactiveWars = allWars.filter((war) => !war.is_active);
+
+  const [title, setTitle] = useState('');
+  const [icon, setIcon] = useState<string>(WAR_ICON_CHOICES[0]);
+  const [color, setColor] = useState<string>(WAR_COLOR_CHOICES[0]);
+  const [saving, setSaving] = useState(false);
+
+  const save = async () => {
+    if (!title.trim()) return;
+    setSaving(true);
+    try {
+      const id = await createWar({
+        title,
+        icon,
+        color,
+        domainType: 'custom',
+      });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setTitle('');
+      setIcon(WAR_ICON_CHOICES[0]);
+      setColor(WAR_COLOR_CHOICES[0]);
+      setSaving(false);
+      onCreated(id);
+      onClose();
+    } catch (error) {
+      console.error(error);
+      setSaving(false);
+    }
+  };
+
+  const toggleActive = async (war: WarRow) => {
+    await setWarActive(war.id, !war.is_active);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
+  return (
+    <Sheet visible={visible} title="Nouvelle guerre" onClose={onClose}>
+      <ScrollView style={{ maxHeight: 480 }} showsVerticalScrollIndicator={false}>
+        <TextField
+          label="Nom de la guerre"
+          icon="shield"
+          placeholder="Ex : Projet immobilier"
+          value={title}
+          onChangeText={setTitle}
+        />
+
+        <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>Icône</Text>
+        <View style={styles.iconGrid}>
+          {WAR_ICON_CHOICES.map((name) => {
+            const selectedIcon = name === icon;
+            return (
+              <Pressable
+                key={name}
+                onPress={() => setIcon(name)}
+                style={[
+                  styles.iconCell,
+                  {
+                    backgroundColor: selectedIcon ? `${color}1F` : colors.glass,
+                    borderColor: selectedIcon ? color : colors.glassBorder,
+                  },
+                ]}
+              >
+                <Ionicons
+                  name={name as never}
+                  size={20}
+                  color={selectedIcon ? color : colors.textMuted}
+                />
+              </Pressable>
+            );
+          })}
+        </View>
+
+        <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>Couleur</Text>
+        <View style={styles.colorRow}>
+          {WAR_COLOR_CHOICES.map((value) => (
+            <Pressable
+              key={value}
+              onPress={() => setColor(value)}
+              style={[
+                styles.colorSwatch,
+                {
+                  backgroundColor: value,
+                  borderWidth: value === color ? 3 : 0,
+                  borderColor: colors.text,
+                },
+              ]}
+            >
+              {value === color ? (
+                <Ionicons name="checkmark" size={16} color="#0B0D12" />
+              ) : null}
+            </Pressable>
+          ))}
+        </View>
+
+        <Button
+          label="Créer la guerre"
+          onPress={save}
+          loading={saving}
+          disabled={!title.trim()}
+          fullWidth
+          style={{ marginTop: spacing[5] }}
+        />
+
+        {inactiveWars.length > 0 ? (
+          <>
+            <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>
+              Guerres en pause ({inactiveWars.length})
+            </Text>
+            {inactiveWars.map((war) => (
+              <View
+                key={war.id}
+                style={[styles.manageRow, { backgroundColor: colors.glass, borderColor: colors.glassBorder }]}
+              >
+                <Ionicons name={war.icon as never} size={18} color={war.color} />
+                <Text
+                  numberOfLines={1}
+                  style={[styles.manageRowTitle, { color: colors.textMuted }]}
+                >
+                  {war.title}
+                </Text>
+                <Button
+                  label="Réactiver"
+                  variant="glass"
+                  size="sm"
+                  onPress={() => toggleActive(war)}
+                />
+              </View>
+            ))}
+          </>
+        ) : null}
+      </ScrollView>
+    </Sheet>
   );
 }
 
@@ -700,4 +892,36 @@ const styles = StyleSheet.create({
   instanceMeta: { fontSize: typography.sizes.xs, marginTop: 2, fontWeight: '600' },
   instanceXp: { fontSize: typography.sizes.sm, fontWeight: '800' },
   detailActions: { flexDirection: 'row', gap: spacing[3], marginTop: spacing[4] },
+  iconGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing[2.5],
+    marginBottom: spacing[2],
+  },
+  iconCell: {
+    width: 52,
+    height: 52,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  colorRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[3], marginBottom: spacing[2] },
+  colorSwatch: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  manageRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[3],
+    borderWidth: 1,
+    borderRadius: radius.md,
+    padding: spacing[3],
+    marginBottom: spacing[2],
+  },
+  manageRowTitle: { flex: 1, fontSize: typography.sizes.base, fontWeight: '700' },
 });

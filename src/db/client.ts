@@ -6,6 +6,7 @@
 
 import * as SQLite from 'expo-sqlite';
 import * as Crypto from 'expo-crypto';
+import { Platform } from 'react-native';
 
 import { LATEST_SCHEMA_VERSION, MIGRATIONS } from './migrations';
 
@@ -39,7 +40,11 @@ export async function openDatabase(): Promise<SQLite.SQLiteDatabase> {
   if (db) return db;
 
   const database = await SQLite.openDatabaseAsync(DB_NAME);
-  await database.execAsync('PRAGMA journal_mode = WAL;');
+  // Le WAL est un mode fichier natif : le moteur web wa-sqlite (OPFS) ne
+  // l'expose pas. foreign_keys est standard et reste activé partout.
+  if (Platform.OS !== 'web') {
+    await database.execAsync('PRAGMA journal_mode = WAL;');
+  }
   await database.execAsync('PRAGMA foreign_keys = ON;');
 
   const versionRow = await database.getFirstAsync<{ user_version: number }>(

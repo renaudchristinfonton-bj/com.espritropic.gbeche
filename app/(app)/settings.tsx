@@ -4,12 +4,12 @@
  * Les fonctions Phase 2 sont affichées en état « Bientôt » (jamais de bouton factice).
  */
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import Constants from 'expo-constants';
-import * as Haptics from 'expo-haptics';
+import * as Haptics from '@/src/services/haptics';
 
 import { Screen } from '@/src/components/ui/Screen';
 import { GlassCard } from '@/src/components/ui/GlassCard';
@@ -43,6 +43,15 @@ export default function SettingsScreen() {
   const [pinValue, setPinValue] = useState('');
   const [newPin, setNewPin] = useState('');
   const [pinError, setPinError] = useState(false);
+  const [biometricSupported, setBiometricSupported] = useState(false);
+
+  useEffect(() => {
+    // Sur web (et sur tout appareil sans capteur), la biométrie n'existe pas :
+    // on masque la ligne plutôt que de proposer une option sans effet.
+    getBiometricAvailability().then((availability) => {
+      setBiometricSupported(availability.available);
+    });
+  }, []);
 
   const warriorName = getSetting(SETTING_KEYS.warriorName) ?? 'Guerrier';
   const version = Constants.expoConfig?.version ?? '1.0.0';
@@ -159,18 +168,22 @@ export default function SettingsScreen() {
           value="Modifié"
           onPress={openPinSheet}
         />
-        <View style={[styles.divider, { backgroundColor: colors.separator }]} />
-        <SettingsRow
-          icon="finger-print"
-          color={colors.success}
-          label="Biométrie"
-          value={
-            getSetting(SETTING_KEYS.biometricEnabled) === '1'
-              ? 'Activée'
-              : 'Disponible à la configuration'
-          }
-          onPress={openPinSheet}
-        />
+        {biometricSupported ? (
+          <>
+            <View style={[styles.divider, { backgroundColor: colors.separator }]} />
+            <SettingsRow
+              icon="finger-print"
+              color={colors.success}
+              label="Biométrie"
+              value={
+                getSetting(SETTING_KEYS.biometricEnabled) === '1'
+                  ? 'Activée'
+                  : 'Disponible à la configuration'
+              }
+              onPress={openPinSheet}
+            />
+          </>
+        ) : null}
         <View style={[styles.divider, { backgroundColor: colors.separator }]} />
         <SettingsRow
           icon="shield-checkmark-outline"
