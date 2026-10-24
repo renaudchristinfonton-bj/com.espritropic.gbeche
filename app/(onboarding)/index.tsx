@@ -198,6 +198,7 @@ export default function Onboarding() {
                 pin={pinMode === 'create' ? pin : pinConfirm}
                 error={pinError}
                 onPin={handlePinFull}
+                onPinChange={pinMode === 'create' ? setPinValue : setPinConfirm}
                 biometric={biometricAvailable}
                 onBiometric={enableBiometric}
                 onNext={next}
@@ -260,6 +261,7 @@ function StepFortress({
   pin,
   error,
   onPin,
+  onPinChange,
   biometric,
   onBiometric,
   onNext,
@@ -268,6 +270,7 @@ function StepFortress({
   pin: string;
   error: boolean;
   onPin: (pin: string) => void;
+  onPinChange: (pin: string) => void;
   biometric: Awaited<ReturnType<typeof getBiometricAvailability>> | null;
   onBiometric: () => void;
   onNext: () => void;
@@ -286,7 +289,7 @@ function StepFortress({
         4 chiffres. Ce qui se passe dans GBECHE reste dans GBECHE.
       </Text>
 
-      <PinPad value={pin} onChange={() => {}} onFull={onPin} error={error} />
+      <PinPad value={pin} onChange={onPinChange} onFull={onPin} error={error} />
 
       {biometric?.enrolled ? (
         <Pressable onPress={onBiometric} style={styles.biometricRow}>

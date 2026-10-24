@@ -26,7 +26,8 @@ passe par les extensions de modules Metro `.web.ts`.
 - `src/services/secureStorage.ts` / `secureStorage.web.ts` — même API
   (`setItemAsync`, `getItemAsync`, `deleteItemAsync`).
 - `metro.config.js` — déclare `.wasm` comme asset pour que le moteur SQLite
-  soit copié dans le build.
+  soit copié dans le build, et injecte COOP/COEP sur le serveur de dev web
+  pour que les tests locaux fonctionnent comme sur Netlify.
 
 ## 2. Build local
 
@@ -41,12 +42,27 @@ Le site statique est généré dans `dist/` (déjà ignoré par Git). On y trouv
 - `_expo/static/js/web/entry-*.js` (l'app) et `worker-*.js` (worker SQLite),
 - `assets/node_modules/expo-sqlite/.../wa-sqlite.*.wasm` (moteur SQLite).
 
-Test rapide du dossier `dist/` :
+### Test en mode développement (recommandé)
 
 ```bash
-npx serve dist
-# ou : python3 -m http.server --directory dist 8080
+npx expo start --web
 ```
+
+`metro.config.js` injecte déjà les en-têtes COOP/COEP sur toutes les
+réponses du serveur de dev : la base OPFS est donc pleinement fonctionnelle
+(vérifié sur la page, le bundle JS, le worker SQLite et le fichier `.wasm`).
+
+### Test du build statique
+
+Un simple serveur statique ne pose pas les en-têtes d'isolation : la base
+OPFS refuse alors de s'ouvrir. Pour tester `dist/` en local, utiliser un
+serveur qui les ajoute, par exemple :
+
+```bash
+npx serve dist --headers '{"Cross-Origin-Opener-Policy":"same-origin","Cross-Origin-Embedder-Policy":"require-corp"}'
+```
+
+À défaut, déployer sur Netlify (les en-têtes sont dans `netlify.toml`).
 
 > En environnement sans accès réseau aux serveurs Expo, préfixer la commande
 > avec `EXPO_OFFLINE=1`. Sur Netlify, aucune action n'est nécessaire.
