@@ -72,8 +72,10 @@ biométrie, Reanimated 4 / Worklets) sont tous disponibles.
 npx eas-cli build -p android --profile production
 ```
 
-Le profil `production` génère un **Android App Bundle** signé et incrémente
-automatiquement le numéro de version (`autoIncrement`).
+Le profil `production` génère un **Android App Bundle** signé. La source de
+version est **locale** (`cli.appVersionSource: "local"`) : le `android.versionCode`
+vit dans `app.json` et doit être incrémenté manuellement avant chaque publication
+sur le Play Store (le store refuse un versionCode déjà utilisé).
 
 ## 7. Profils EAS (rappel)
 
@@ -81,7 +83,7 @@ automatiquement le numéro de version (`autoIncrement`).
 |---|---|---|---|
 | `development` | Dev avec Metro / dev client | APK | interne |
 | `preview` | Tests QA / testeurs | **APK** | interne |
-| `production` | Publication | AAB signé | store |
+| `production` | Publication | AAB signé (versionCode manuel dans app.json) | store |
 
 ## 8. Que vérifier sur l'APK de test (cahier de recette Phase 1)
 

@@ -313,7 +313,7 @@ Profils `eas.json` :
 
 - `development` : dev client interne pour le débogage.
 - **`preview`** : build interne, `android.buildType = apk` → **APK directement installable** pour les tests.
-- `production` : AAB signé, `autoIncrement` de version.
+- `production` : AAB signé ; versionnement local (`android.versionCode` dans `app.json`, incrémenté manuellement avant publication).
 
 Commandes :
 
