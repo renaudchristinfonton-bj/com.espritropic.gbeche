@@ -1,343 +1,703 @@
 /**
- * GBECHE — Screen Guerres
- * ─────────────────────────────────────────────────────────
- * Vue arborescence : Guerres → Batailles → Adversaires
- * Système de territoires visuels avec progression.
+ * GBECHE — Écran Guerres.
+ * Guerres (domaines) → Batailles (objectifs) → Templates + Adversaires (tâches).
+ * Toutes les écritures passent par les services et persistent dans SQLite.
  */
 
-import React, { useState } from 'react';
-import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-  Modal,
-  TextInput,
-  Alert,
-} from 'react-native';
-import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
-import { LinearGradient } from 'expo-linear-gradient';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import { useAppStore } from '@/src/store';
-import { useTheme } from '@/src/theme/ThemeContext';
+
+import { Screen } from '@/src/components/ui/Screen';
 import { GlassCard } from '@/src/components/ui/GlassCard';
+import { Button } from '@/src/components/ui/Button';
+import { Chip } from '@/src/components/ui/Chip';
+import { Sheet } from '@/src/components/ui/Sheet';
+import { TextField } from '@/src/components/ui/TextField';
+import { SegmentedControl } from '@/src/components/ui/SegmentedControl';
+import { ProgressBar } from '@/src/components/ui/ProgressBar';
+import { EmptyState } from '@/src/components/ui/EmptyState';
+import { useTheme } from '@/src/theme/ThemeContext';
+import { useRepoQuery } from '@/src/db/useRepoQuery';
+import { listWars } from '@/src/db/repositories/wars.repo';
+import {
+  getBattleProgress,
+  listBattlesByWar,
+  type BattleProgress,
+} from '@/src/db/repositories/battles.repo';
+import type { AdversaryRow, BattleRow, Frequency, Priority, WarRow } from '@/src/db/types';
+import {
+  addBattle,
+  addQuickAdversary,
+  addTemplate,
+  getBattleDetail,
+} from '@/src/services/wars.service';
+import { winAdversary } from '@/src/services/gamification.service';
+import { useAppStore } from '@/src/store/useAppStore';
+import {
+  FREQUENCY_LABELS,
+  PRIORITY_META,
+  WEEKDAY_LABELS,
+} from '@/src/domain/catalog';
+import { formatDate, formatTime } from '@/src/services/format';
+import { radius, spacing, typography } from '@/src/theme';
 
-// ─── Types ────────────────────────────────────────────────
-interface War {
-  id:       string;
-  icon:     keyof typeof Ionicons.glyphMap;
-  title:    string;
-  color:    string;
-  battles:  number;
-  adversaries: number;
-  xpEarned: number;
-  territory: number; // 0-100
-  status:   'safe' | 'at_risk' | 'dominating';
-}
+const HOUR_CHOICES = [6, 8, 12, 18, 21];
 
-interface Battle {
-  id:       string;
-  warId:    string;
-  title:    string;
-  deadline: string;
-  done:     number;
-  total:    number;
-}
-
-// ─── Seed Data (remplacer par WatermelonDB) ───────────────
-const WARS: War[] = [
-  { id:'w1', icon:'cash',       title:'Guerre Financière',  color:'#FFD700', battles:3, adversaries:8,  xpEarned:1240, territory:72, status:'safe'      },
-  { id:'w2', icon:'fitness',    title:'Guerre Santé',        color:'#FF4757', battles:2, adversaries:6,  xpEarned:580,  territory:45, status:'at_risk'    },
-  { id:'w3', icon:'briefcase',  title:'Guerre Carrière',     color:'#00E5FF', battles:4, adversaries:12, xpEarned:2100, territory:88, status:'dominating' },
-  { id:'w4', icon:'leaf',       title:'Guerre Spirituelle',  color:'#A78BFA', battles:1, adversaries:4,  xpEarned:420,  territory:60, status:'safe'       },
-  { id:'w5', icon:'people',     title:'Guerre Familiale',    color:'#FF6B35', battles:2, adversaries:5,  xpEarned:350,  territory:55, status:'safe'       },
-];
-
-const BATTLES: Battle[] = [
-  { id:'b1', warId:'w1', title:'Économiser 500 000 FCFA',    deadline:'30 Juin',   done:3, total:5 },
-  { id:'b2', warId:'w1', title:'Éliminer toutes les dettes', deadline:'31 Déc',    done:1, total:3 },
-  { id:'b3', warId:'w3', title:'Lancer projet freelance',    deadline:'15 Mai',    done:4, total:4 },
-  { id:'b4', warId:'w3', title:'Obtenir certification RN',   deadline:'30 Juil',   done:2, total:6 },
-];
-
-const DOMAINS_PRESETS: Array<{ icon: keyof typeof Ionicons.glyphMap; name: string; color: string }> = [
-  { icon:'cash',         name:'Finance',      color:'#FFD700' },
-  { icon:'fitness',      name:'Santé',        color:'#FF4757' },
-  { icon:'briefcase',    name:'Carrière',     color:'#00E5FF' },
-  { icon:'leaf',         name:'Spirituel',    color:'#A78BFA' },
-  { icon:'people',       name:'Famille',      color:'#FF6B35' },
-  { icon:'school',       name:'Éducation',    color:'#00FF88' },
-  { icon:'game-controller', name:'Loisirs',   color:'#888'    },
-  { icon:'barbell',      name:'Sport',        color:'#FF4757' },
-];
-
-// ─── Composants ──────────────────────────────────────────
-
-function StatusBadge({ status }: { status: War['status'] }) {
-  const config = {
-    safe:       { label: 'STABLE',    icon: 'shield-checkmark' as const, bg: 'rgba(0,229,255,0.12)',  text: '#00E5FF', border: 'rgba(0,229,255,0.2)'  },
-    at_risk:    { label: 'RISQUE',    icon: 'warning' as const,          bg: 'rgba(255,71,87,0.12)',  text: '#FF4757', border: 'rgba(255,71,87,0.2)'  },
-    dominating: { label: 'EN FORCE',  icon: 'flame' as const,            bg: 'rgba(0,255,136,0.12)', text: '#00FF88', border: 'rgba(0,255,136,0.2)' },
-  }[status];
-
-  return (
-    <View style={[styles.badge, { backgroundColor: config.bg, borderColor: config.border, flexDirection: 'row', gap: 4, alignItems: 'center' }]}>
-      <Ionicons name={config.icon} size={10} color={config.text} />
-      <Text style={[styles.badgeText, { color: config.text }]}>{config.label}</Text>
-    </View>
-  );
-}
-
-function WarCard({ war, onPress }: { war: War; onPress: () => void }) {
-  const { theme } = useTheme();
-  return (
-    <Pressable onPress={onPress} style={({ pressed }) => [{ opacity: pressed ? 0.85 : 1 }]}>
-      <LinearGradient
-        colors={[war.color + '14', 'transparent']}
-        style={[styles.warCard, { borderColor: war.color + '30' }]}
-      >
-        {/* Glow */}
-        <View style={[styles.warGlow, { backgroundColor: war.color }]} />
-
-        <View style={styles.warTop}>
-          <View style={[styles.warIconWrap, { backgroundColor: war.color + '22' }]}>
-            <Ionicons name={war.icon} size={22} color={war.color} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.warTitle, { color: theme.colors.text }]}>{war.title}</Text>
-            <Text style={[styles.warSub, { color: theme.colors.textMuted }]}>
-              {war.battles} Batailles · {war.adversaries} Adversaires
-            </Text>
-          </View>
-          <StatusBadge status={war.status} />
-        </View>
-
-        <View style={styles.warMeta}>
-          <View style={[styles.badge, { backgroundColor: 'rgba(0,255,136,0.12)', borderColor: 'rgba(0,255,136,0.2)', flexDirection: 'row', gap: 4, alignItems: 'center' }]}>
-            <Ionicons name="star" size={10} color="#00FF88" />
-            <Text style={[styles.badgeText, { color: '#00FF88' }]}>+{war.xpEarned.toLocaleString('fr-FR')} XP</Text>
-          </View>
-        </View>
-
-        {/* Territory bar */}
-        <View style={[styles.progBarBg, { backgroundColor: theme.colors.glass }]}>
-          <View style={[styles.progBarFill, { width: `${war.territory}%`, backgroundColor: war.color }]} />
-        </View>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 }}>
-          {war.status === 'at_risk' && <Ionicons name="warning" size={11} color="#FF4757" />}
-          <Text style={[styles.terrText, { color: war.status === 'at_risk' ? '#FF4757' : war.color }]}>
-            {war.status === 'at_risk' ? `Territoire menacé — ${war.territory}%` : `${war.territory}% du territoire conquis`}
-          </Text>
-        </View>
-      </LinearGradient>
-    </Pressable>
-  );
-}
-
-function BattleCard({ battle }: { battle: Battle }) {
-  const pct = battle.done / battle.total;
-  return (
-    <View style={styles.battleCard}>
-      <View style={styles.battleLeft}>
-        <Text style={styles.battleTitle}>{battle.title}</Text>
-        <Text style={styles.battleDeadline}>Deadline : {battle.deadline}</Text>
-        <View style={{ flexDirection: 'row', gap: 6, marginTop: 6 }}>
-          <View style={[styles.badge, { backgroundColor: 'rgba(0,255,136,0.12)', borderColor: 'rgba(0,255,136,0.2)' }]}>
-            <Text style={[styles.badgeText, { color: '#00FF88' }]}>{battle.done}/{battle.total} Adversaires</Text>
-          </View>
-        </View>
-      </View>
-      <View style={styles.battleProgress}>
-        <Text style={styles.battlePct}>{Math.round(pct * 100)}%</Text>
-        <View style={[styles.progBarBg, { height: 4, marginTop: 4 }]}>
-          <View style={[styles.progBarFill, { width: `${pct * 100}%`, backgroundColor: '#00E5FF' }]} />
-        </View>
-      </View>
-    </View>
-  );
-}
-
-// ─── Modal Nouvelle Guerre ────────────────────────────────
-function NewWarModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
-  const [selected, setSelected] = useState<number | null>(null);
-  const [customName, setCustomName] = useState('');
-
-  const handleCreate = () => {
-    if (selected === null && !customName.trim()) {
-      Alert.alert('Sélectionne un domaine ou entre un nom');
-      return;
-    }
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    onClose();
-    Alert.alert('Guerre déclarée !', 'Ton nouveau territoire est créé. À toi de le conquérir. ⚔️');
-  };
-
-  const { theme } = useTheme();
-  const { colors } = theme;
-
-  return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
-      <View style={[styles.modalContainer, { backgroundColor: colors.background }]}>
-        <View style={[styles.modalHandle, { backgroundColor: colors.glassBorder }]} />
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-          <Ionicons name="flag" size={22} color="#00E5FF" />
-          <Text style={[styles.modalTitle, { color: colors.text }]}>Déclarer une Guerre</Text>
-        </View>
-        <Text style={[styles.modalSub, { color: colors.textMuted }]}>Choisis un domaine de vie à conquérir</Text>
-
-        <View style={styles.domainGrid}>
-          {DOMAINS_PRESETS.map((d, i) => (
-            <Pressable
-              key={i}
-              onPress={() => { setSelected(i); Haptics.selectionAsync(); }}
-              style={[styles.domainCard, { borderColor: selected === i ? d.color : colors.glassBorder, backgroundColor: selected === i ? d.color + '15' : colors.glass }]}
-            >
-              <Ionicons name={d.icon} size={26} color={selected === i ? d.color : colors.textMuted} />
-              <Text style={[styles.domainName, { color: selected === i ? d.color : colors.textMuted }]}>{d.name}</Text>
-            </Pressable>
-          ))}
-        </View>
-
-        <Text style={[styles.orText, { color: colors.textDim }]}>— ou nomme la toi-même —</Text>
-        <TextInput
-          style={[styles.input, { color: colors.text, borderColor: colors.glassBorder, backgroundColor: colors.glass }]}
-          placeholder="Ex: Entrepreneuriat"
-          placeholderTextColor={colors.textDim}
-          value={customName}
-          onChangeText={setCustomName}
-        />
-
-        <Pressable onPress={handleCreate} style={styles.createBtn}>
-          <LinearGradient colors={['#00E5FF', '#0099FF']} start={{x:0,y:0}} end={{x:1,y:0}} style={styles.createBtnInner}>
-            <Ionicons name="flag" size={16} color="#000" />
-            <Text style={styles.createBtnText}>Déclarer cette Guerre</Text>
-          </LinearGradient>
-        </Pressable>
-
-        <Pressable onPress={onClose} style={styles.cancelBtn}>
-          <Text style={[styles.cancelBtnText, { color: colors.textMuted }]}>Annuler</Text>
-        </Pressable>
-      </View>
-    </Modal>
-  );
-}
-
-// ─── Écran principal ──────────────────────────────────────
 export default function WarsScreen() {
-  const { theme } = useTheme();
-  const { colors } = theme;
-  const [showNewWar, setShowNewWar] = useState(false);
-  const [selectedWar, setSelectedWar] = useState<War | null>(null);
+  const { colors } = useTheme().theme;
+  const params = useLocalSearchParams<{ action?: string }>();
 
-  const activeBattles = BATTLES.filter(b => selectedWar ? b.warId === selectedWar.id : true);
+  const warsQuery = useRepoQuery(() => listWars(true), []);
+  const wars = warsQuery.data ?? [];
+  const [selectedWarId, setSelectedWarId] = useState<string | null>(null);
+
+  const [battleSheetOpen, setBattleSheetOpen] = useState(false);
+  const [detailBattle, setDetailBattle] = useState<BattleRow | null>(null);
+  const [templateBattle, setTemplateBattle] = useState<BattleRow | null>(null);
+  const [quickBattle, setQuickBattle] = useState<BattleRow | null>(null);
+
+  useEffect(() => {
+    if (wars.length && !selectedWarId) setSelectedWarId(wars[0].id);
+  }, [wars, selectedWarId]);
+
+  useEffect(() => {
+    if (params.action === 'battle' && selectedWarId) {
+      setBattleSheetOpen(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.action, selectedWarId]);
+
+  const selectedWar = wars.find((w) => w.id === selectedWarId) ?? null;
+
+  return (
+    <Screen padded={false}>
+      <View style={{ padding: spacing[5], paddingBottom: spacing[3] }}>
+        <Text style={[styles.screenTitle, { color: colors.text }]}>Mes Guerres</Text>
+        <Text style={[styles.screenSub, { color: colors.textMuted }]}>
+          Tes domaines de vie, tes objectifs et tes missions quotidiennes.
+        </Text>
+      </View>
+
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.warScroller}
+      >
+        {wars.map((war) => {
+          const active = war.id === selectedWarId;
+          return (
+            <Pressable
+              key={war.id}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setSelectedWarId(war.id);
+              }}
+              style={[
+                styles.warTab,
+                {
+                  backgroundColor: active ? `${war.color}18` : colors.glass,
+                  borderColor: active ? war.color : colors.glassBorder,
+                },
+              ]}
+            >
+              <Ionicons name={war.icon as never} size={20} color={war.color} />
+              <Text
+                numberOfLines={1}
+                style={[styles.warTabLabel, { color: active ? colors.text : colors.textMuted }]}
+              >
+                {war.title}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+
+      <ScrollView
+        contentContainerStyle={{ padding: spacing[5], paddingBottom: 120, gap: spacing[3] }}
+        showsVerticalScrollIndicator={false}
+      >
+        {selectedWar ? <WarSection war={selectedWar} onOpenBattle={setDetailBattle} /> : null}
+
+        <Button
+          label="Nouvelle bataille"
+          icon={<Ionicons name="add-circle" size={18} color={colors.textInverse} />}
+          onPress={() => setBattleSheetOpen(true)}
+          fullWidth
+        />
+      </ScrollView>
+
+      {/* Feuilles */}
+      {selectedWar ? (
+        <CreateBattleSheet
+          visible={battleSheetOpen}
+          war={selectedWar}
+          onClose={() => setBattleSheetOpen(false)}
+        />
+      ) : null}
+
+      <BattleDetailSheet
+        battle={detailBattle}
+        onClose={() => setDetailBattle(null)}
+        onAddTemplate={(battle) => {
+          setDetailBattle(null);
+          setTemplateBattle(battle);
+        }}
+        onAddQuick={(battle) => {
+          setDetailBattle(null);
+          setQuickBattle(battle);
+        }}
+      />
+
+      <CreateTemplateSheet battle={templateBattle} onClose={() => setTemplateBattle(null)} />
+      <QuickAdversarySheet battle={quickBattle} onClose={() => setQuickBattle(null)} />
+    </Screen>
+  );
+}
+
+// ─── Section d'une guerre ─────────────────────────────────
+function WarSection({
+  war,
+  onOpenBattle,
+}: {
+  war: WarRow;
+  onOpenBattle: (battle: BattleRow) => void;
+}) {
+  const { colors } = useTheme().theme;
+  const battlesQuery = useRepoQuery(() => listBattlesByWar(war.id), [war.id]);
+  const battles = battlesQuery.data ?? [];
+
+  if (battles.length === 0) {
+    return (
+      <EmptyState
+        icon="flag-outline"
+        title="Aucune bataille pour l'instant"
+        description={`Définis ton premier objectif dans la guerre « ${war.title} ».`}
+        color={war.color}
+      />
+    );
+  }
 
   return (
     <>
-      <ScrollView style={[styles.container, { backgroundColor: colors.background }]} showsVerticalScrollIndicator={false}>
-        {/* Topbar */}
-        <LinearGradient
-          colors={['rgba(255,71,87,0.07)', 'transparent']}
-          style={styles.topbar}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Ionicons name="flame" size={24} color="#FF4757" />
-            <Text style={[styles.topTitle, { color: colors.text }]}>
-              Mes <Text style={{ color: '#00E5FF' }}>Guerres</Text>
-            </Text>
-          </View>
-          <Pressable onPress={() => setShowNewWar(true)} style={styles.newBtn}>
-            <LinearGradient colors={['#00E5FF', '#0099FF']} style={styles.newBtnInner}>
-              <Ionicons name="add" size={16} color="#000" />
-              <Text style={styles.newBtnText}>Nouvelle</Text>
-            </LinearGradient>
-          </Pressable>
-        </LinearGradient>
-
-        {/* Guerres */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Territoires Actifs</Text>
-          {WARS.map((w, i) => (
-            <Animated.View key={w.id} entering={FadeInDown.delay(i * 80).duration(400)}>
-              <WarCard war={w} onPress={() => setSelectedWar(w.id === selectedWar?.id ? null : w)} />
-            </Animated.View>
-          ))}
+      <GlassCard animated={false} style={styles.warSummary}>
+        <View style={[styles.warSummaryIcon, { backgroundColor: `${war.color}1A` }]}>
+          <Ionicons name={war.icon as never} size={24} color={war.color} />
         </View>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.warSummaryTitle, { color: colors.text }]}>{war.title}</Text>
+          <Text style={[styles.warSummaryXp, { color: colors.xp }]}>{war.xp_earned} XP gagnés</Text>
+        </View>
+      </GlassCard>
 
-        {/* Batailles de la guerre sélectionnée */}
-        {selectedWar && (
-          <Animated.View entering={FadeIn.duration(300)} style={styles.section}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-              <Ionicons name={selectedWar.icon} size={16} color={selectedWar.color} />
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>Batailles — {selectedWar.title}</Text>
-            </View>
-            {activeBattles.map(b => <BattleCard key={b.id} battle={b} />)}
-            <Pressable style={[styles.addBattleBtn, { borderColor: colors.glassBorder }]} onPress={() => Alert.alert('Nouvelle Bataille', 'Formulaire à brancher sur WatermelonDB')}>
-              <Ionicons name="add-circle-outline" size={16} color="#00E5FF" />
-              <Text style={styles.addBattleText}>Ajouter une Bataille</Text>
-            </Pressable>
-          </Animated.View>
-        )}
-
-        <View style={{ height: 100 }} />
-      </ScrollView>
-
-      <NewWarModal visible={showNewWar} onClose={() => setShowNewWar(false)} />
+      {battles.map((battle) => (
+        <BattleCard key={battle.id} battle={battle} onPress={() => onOpenBattle(battle)} />
+      ))}
     </>
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────
+function BattleCard({ battle, onPress }: { battle: BattleRow; onPress: () => void }) {
+  const { colors } = useTheme().theme;
+  const progressQuery = useRepoQuery(() => getBattleProgress(battle.id), [battle.id]);
+  const progress: BattleProgress = progressQuery.data ?? { total: 0, won: 0, pending: 0, lost: 0 };
+  const ratio = progress.total ? progress.won / progress.total : 0;
+  const priority = PRIORITY_META[battle.priority];
+  const done = battle.status === 'won';
+
+  return (
+    <GlassCard onPress={onPress} accentColor={done ? colors.success : colors.glassBorder}>
+      <View style={styles.battleHead}>
+        <Text
+          numberOfLines={1}
+          style={[
+            styles.battleTitle,
+            { color: done ? colors.textMuted : colors.text, textDecorationLine: done ? 'line-through' : 'none' },
+          ]}
+        >
+          {battle.title}
+        </Text>
+        <View style={[styles.priorityDot, { backgroundColor: priority.color }]} />
+      </View>
+      <View style={styles.battleMetaRow}>
+        <Ionicons name="calendar-outline" size={13} color={colors.textMuted} />
+        <Text style={[styles.battleMeta, { color: colors.textMuted }]}>
+          {battle.deadline ? formatDate(battle.deadline) : 'Sans échéance'}
+        </Text>
+        <Text style={[styles.battleCount, { color: colors.textMuted }]}>
+          {progress.won}/{progress.total} adversaires
+        </Text>
+      </View>
+      <ProgressBar progress={ratio} color={done ? colors.success : colors.primary} height={7} />
+    </GlassCard>
+  );
+}
+
+// ─── Sheet : création de bataille ─────────────────────────
+function CreateBattleSheet({
+  visible,
+  war,
+  onClose,
+}: {
+  visible: boolean;
+  war: WarRow;
+  onClose: () => void;
+}) {
+  const { colors } = useTheme().theme;
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [priority, setPriority] = useState<Priority>('medium');
+  const [deadlineDays, setDeadlineDays] = useState<number | null>(30);
+  const [saving, setSaving] = useState(false);
+
+  const reset = () => {
+    setTitle('');
+    setDescription('');
+    setPriority('medium');
+    setDeadlineDays(30);
+    setSaving(false);
+  };
+
+  const save = async () => {
+    if (!title.trim()) return;
+    setSaving(true);
+    try {
+      await addBattle({
+        warId: war.id,
+        title,
+        description,
+        priority,
+        deadline: deadlineDays ? new Date(Date.now() + deadlineDays * 86400000) : null,
+      });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      reset();
+      onClose();
+    } catch (error) {
+      console.error(error);
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Sheet visible={visible} title="Nouvelle bataille" onClose={onClose}>
+      <TextField
+        label="Titre de l'objectif"
+        icon="flag"
+        placeholder="Ex : Fonds d'urgence 300 000 FCFA"
+        value={title}
+        onChangeText={setTitle}
+      />
+      <TextField
+        label="Description (optionnel)"
+        icon="document-text"
+        placeholder="Pourquoi cette bataille ?"
+        value={description}
+        onChangeText={setDescription}
+      />
+
+      <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>Échéance</Text>
+      <View style={styles.chipRow}>
+        {[
+          { label: '7 jours', value: 7 },
+          { label: '30 jours', value: 30 },
+          { label: '90 jours', value: 90 },
+          { label: 'Aucune', value: 0 },
+        ].map((choice) => (
+          <Chip
+            key={choice.label}
+            label={choice.label}
+            selected={deadlineDays === choice.value}
+            onPress={() => setDeadlineDays(choice.value)}
+          />
+        ))}
+      </View>
+
+      <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>Priorité</Text>
+      <SegmentedControl<Priority>
+        segments={[
+          { value: 'low', label: 'Basse' },
+          { value: 'medium', label: 'Moyenne' },
+          { value: 'high', label: 'Haute' },
+        ]}
+        value={priority}
+        onChange={setPriority}
+      />
+
+      <Button
+        label="Créer la bataille"
+        onPress={save}
+        loading={saving}
+        disabled={!title.trim()}
+        fullWidth
+        style={{ marginTop: spacing[5] }}
+      />
+    </Sheet>
+  );
+}
+
+// ─── Sheet : détail d'une bataille ────────────────────────
+function BattleDetailSheet({
+  battle,
+  onClose,
+  onAddTemplate,
+  onAddQuick,
+}: {
+  battle: BattleRow | null;
+  onClose: () => void;
+  onAddTemplate: (battle: BattleRow) => void;
+  onAddQuick: (battle: BattleRow) => void;
+}) {
+  const { colors } = useTheme().theme;
+  const showXpFeedback = useAppStore((s) => s.showXpFeedback);
+  const detailQuery = useRepoQuery(
+    () => (battle ? getBattleDetail(battle.id) : Promise.resolve(null)),
+    [battle?.id],
+  );
+  const detail = detailQuery.data;
+
+  const handleWin = async (adversary: AdversaryRow) => {
+    if (adversary.status === 'won') return;
+    const result = await winAdversary(adversary.id);
+    showXpFeedback({
+      xpGained: result.xpGained,
+      multiplier: result.multiplier,
+      combo: result.combo,
+      leveledUp: result.leveledUp,
+    });
+  };
+
+  const upcoming = useMemo(
+    () =>
+      (detail?.instances ?? [])
+        .filter((instance) => instance.status !== 'won')
+        .sort((a, b) => a.scheduled_at - b.scheduled_at)
+        .slice(0, 8),
+    [detail],
+  );
+
+  return (
+    <Sheet visible={!!battle} title={battle?.title ?? ''} onClose={onClose}>
+      {detail ? (
+        <ScrollView style={{ maxHeight: 420 }} showsVerticalScrollIndicator={false}>
+          <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>
+            {detail.templates.length} routine(s) · {detail.progress.won}/{detail.progress.total} victoires
+          </Text>
+
+          {detail.templates.length === 0 && upcoming.length === 0 ? (
+            <Text style={[styles.emptyDetail, { color: colors.textMuted }]}>
+              Aucun adversaire programmé. Ajoute une routine récurrente ou une mission ponctuelle.
+            </Text>
+          ) : null}
+
+          {upcoming.map((adversary) => (
+            <Pressable
+              key={adversary.id}
+              onPress={() => handleWin(adversary)}
+              style={[
+                styles.instanceRow,
+                { backgroundColor: colors.glass, borderColor: colors.glassBorder },
+              ]}
+            >
+              <View style={[styles.instanceCheck, { borderColor: colors.success }]}>
+                <Ionicons name="checkmark" size={15} color={colors.success} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text numberOfLines={1} style={[styles.instanceTitle, { color: colors.text }]}>
+                  {adversary.title}
+                </Text>
+                <Text style={[styles.instanceMeta, { color: colors.textMuted }]}>
+                  {formatDate(adversary.scheduled_at)} · {formatTime(adversary.scheduled_at)}
+                </Text>
+              </View>
+              <Text style={[styles.instanceXp, { color: colors.xp }]}>
+                +{adversary.xp_reward}
+              </Text>
+            </Pressable>
+          ))}
+
+          <View style={styles.detailActions}>
+            <Button
+              label="Routine récurrente"
+              variant="glass"
+              size="sm"
+              icon={<Ionicons name="repeat" size={16} color={colors.primary} />}
+              onPress={() => battle && onAddTemplate(battle)}
+              style={{ flex: 1 }}
+            />
+            <Button
+              label="Mission ponctuelle"
+              variant="glass"
+              size="sm"
+              icon={<Ionicons name="flash" size={16} color={colors.accent} />}
+              onPress={() => battle && onAddQuick(battle)}
+              style={{ flex: 1 }}
+            />
+          </View>
+        </ScrollView>
+      ) : null}
+    </Sheet>
+  );
+}
+
+// ─── Sheet : routine récurrente ───────────────────────────
+function CreateTemplateSheet({
+  battle,
+  onClose,
+}: {
+  battle: BattleRow | null;
+  onClose: () => void;
+}) {
+  const { colors } = useTheme().theme;
+  const [title, setTitle] = useState('');
+  const [frequency, setFrequency] = useState<Frequency>('daily');
+  const [days, setDays] = useState<number[]>([1]);
+  const [hour, setHour] = useState(8);
+  const [xp, setXp] = useState('50');
+  const [saving, setSaving] = useState(false);
+
+  const toggleDay = (day: number) => {
+    setDays((current) =>
+      current.includes(day) ? current.filter((d) => d !== day) : [...current, day].sort(),
+    );
+  };
+
+  const save = async () => {
+    if (!battle || !title.trim()) return;
+    setSaving(true);
+    try {
+      await addTemplate({
+        battleId: battle.id,
+        title,
+        frequency,
+        specificDays: frequency === 'specific_days' ? days : undefined,
+        hour,
+        xpReward: Number(xp) || 50,
+      });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setTitle('');
+      setSaving(false);
+      onClose();
+    } catch (error) {
+      console.error(error);
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Sheet visible={!!battle} title="Routine récurrente" onClose={onClose}>
+      <TextField
+        label="Nom de l'adversaire"
+        icon="flash"
+        placeholder="Ex : Séance de sport 30 min"
+        value={title}
+        onChangeText={setTitle}
+      />
+
+      <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>Fréquence</Text>
+      <View style={styles.chipRow}>
+        {(Object.keys(FREQUENCY_LABELS) as Frequency[])
+          .filter((f) => f !== 'yearly')
+          .map((value) => (
+            <Chip
+              key={value}
+              label={FREQUENCY_LABELS[value]}
+              selected={frequency === value}
+              onPress={() => setFrequency(value)}
+            />
+          ))}
+      </View>
+
+      {frequency === 'specific_days' ? (
+        <>
+          <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>Jours</Text>
+          <View style={styles.chipRow}>
+            {WEEKDAY_LABELS.map((label, index) => (
+              <Chip
+                key={label}
+                label={label}
+                selected={days.includes(index + 1)}
+                onPress={() => toggleDay(index + 1)}
+              />
+            ))}
+          </View>
+        </>
+      ) : null}
+
+      <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>Heure</Text>
+      <View style={styles.chipRow}>
+        {HOUR_CHOICES.map((value) => (
+          <Chip
+            key={value}
+            label={`${value}h`}
+            selected={hour === value}
+            onPress={() => setHour(value)}
+          />
+        ))}
+      </View>
+
+      <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>Récompense XP</Text>
+      <TextInput
+        value={xp}
+        onChangeText={(text) => setXp(text.replace(/[^0-9]/g, ''))}
+        keyboardType="numeric"
+        style={[styles.numericInput, { color: colors.text, borderColor: colors.glassBorder, backgroundColor: colors.glass }]}
+      />
+
+      <Button
+        label="Programmer la routine"
+        onPress={save}
+        loading={saving}
+        disabled={!title.trim() || (frequency === 'specific_days' && days.length === 0)}
+        fullWidth
+        style={{ marginTop: spacing[5] }}
+      />
+    </Sheet>
+  );
+}
+
+// ─── Sheet : mission ponctuelle ───────────────────────────
+function QuickAdversarySheet({
+  battle,
+  onClose,
+}: {
+  battle: BattleRow | null;
+  onClose: () => void;
+}) {
+  const { colors } = useTheme().theme;
+  const [title, setTitle] = useState('');
+  const [dayOffset, setDayOffset] = useState(0);
+  const [hour, setHour] = useState(18);
+  const [saving, setSaving] = useState(false);
+
+  const save = async () => {
+    if (!battle || !title.trim()) return;
+    setSaving(true);
+    try {
+      const when = new Date();
+      when.setDate(when.getDate() + dayOffset);
+      when.setHours(hour, 0, 0, 0);
+      await addQuickAdversary({ battleId: battle.id, title, scheduledAt: when });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setTitle('');
+      setSaving(false);
+      onClose();
+    } catch (error) {
+      console.error(error);
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Sheet visible={!!battle} title="Mission ponctuelle" onClose={onClose}>
+      <TextField
+        label="Mission"
+        icon="flash"
+        placeholder="Ex : Appeler le client X"
+        value={title}
+        onChangeText={setTitle}
+      />
+      <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>Quand ?</Text>
+      <View style={styles.chipRow}>
+        {[
+          { label: "Aujourd'hui", value: 0 },
+          { label: 'Demain', value: 1 },
+          { label: 'Dans 3 j', value: 3 },
+          { label: 'Dans 7 j', value: 7 },
+        ].map((choice) => (
+          <Chip
+            key={choice.label}
+            label={choice.label}
+            selected={dayOffset === choice.value}
+            onPress={() => setDayOffset(choice.value)}
+          />
+        ))}
+      </View>
+      <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>Heure</Text>
+      <View style={styles.chipRow}>
+        {HOUR_CHOICES.map((value) => (
+          <Chip key={value} label={`${value}h`} selected={hour === value} onPress={() => setHour(value)} />
+        ))}
+      </View>
+      <Button
+        label="Ajouter la mission"
+        onPress={save}
+        loading={saving}
+        disabled={!title.trim()}
+        fullWidth
+        style={{ marginTop: spacing[5] }}
+      />
+    </Sheet>
+  );
+}
+
 const styles = StyleSheet.create({
-  container:   { flex: 1 },
-  topbar:      { paddingHorizontal: 16, paddingTop: 56, paddingBottom: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  topTitle:    { fontSize: 22, fontWeight: '900', letterSpacing: -0.5 },
-  newBtn:      { borderRadius: 12, overflow: 'hidden' },
-  newBtnInner: { paddingHorizontal: 14, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', gap: 4 },
-  newBtnText:  { fontSize: 13, fontWeight: '700', color: '#000' },
-
-  section:      { paddingHorizontal: 16, marginBottom: 8 },
-  sectionTitle: { fontSize: 12, fontWeight: '700', letterSpacing: 1.2, marginBottom: 12 },
-
-  warCard:     { borderRadius: 20, padding: 18, borderWidth: 1, marginBottom: 12, overflow: 'hidden' },
-  warGlow:     { position: 'absolute', top: -40, right: -40, width: 120, height: 120, borderRadius: 60, opacity: 0.4 },
-  warTop:      { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 12 },
-  warIconWrap: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  warTitle:    { fontSize: 16, fontWeight: '800' },
-  warSub:      { fontSize: 12, marginTop: 2 },
-  warMeta:     { flexDirection: 'row', gap: 8, marginBottom: 10 },
-
-  badge:       { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20, borderWidth: 1 },
-  badgeText:   { fontSize: 11, fontWeight: '700', letterSpacing: 0.3 },
-
-  progBarBg:   { height: 6, borderRadius: 3, overflow: 'hidden', marginBottom: 4 },
-  progBarFill: { height: '100%', borderRadius: 3 },
-  terrText:    { fontSize: 11, fontWeight: '700' },
-
-  battleCard:     { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.055)', borderRadius: 16, padding: 14, marginBottom: 8, borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)' },
-  battleLeft:     { flex: 1 },
-  battleTitle:    { fontSize: 14, fontWeight: '700', color: '#EEF0FF' },
-  battleDeadline: { fontSize: 11, color: 'rgba(238,240,255,0.5)', marginTop: 2 },
-  battleProgress: { alignItems: 'flex-end', width: 60 },
-  battlePct:      { fontSize: 18, fontWeight: '900', color: '#00E5FF' },
-
-  addBattleBtn:  { borderWidth: 1, borderStyle: 'dashed', borderRadius: 14, padding: 12, alignItems: 'center', marginTop: 4, flexDirection: 'row', gap: 6, justifyContent: 'center' },
-  addBattleText: { fontSize: 13, fontWeight: '700', color: '#00E5FF' },
-
-  // Modal
-  modalContainer: { flex: 1, padding: 20, paddingTop: 12 },
-  modalHandle:    { width: 40, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: 20 },
-  modalTitle:     { fontSize: 22, fontWeight: '900', marginBottom: 4 },
-  modalSub:       { fontSize: 14, marginBottom: 20 },
-  domainGrid:     { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 16 },
-  domainCard:     { width: '23%', padding: 12, borderRadius: 16, borderWidth: 1, alignItems: 'center', gap: 6 },
-  domainName:     { fontSize: 11, fontWeight: '700', textAlign: 'center' },
-  orText:         { textAlign: 'center', fontSize: 12, marginVertical: 12 },
-  input:          { borderWidth: 1, borderRadius: 14, padding: 14, fontSize: 14, marginBottom: 16 },
-  createBtn:      { borderRadius: 14, overflow: 'hidden', marginBottom: 10 },
-  createBtnInner: { padding: 15, alignItems: 'center', flexDirection: 'row', gap: 8, justifyContent: 'center' },
-  createBtnText:  { fontSize: 15, fontWeight: '800', color: '#000' },
-  cancelBtn:      { padding: 12, alignItems: 'center' },
-  cancelBtnText:  { fontSize: 14, fontWeight: '600' },
+  screenTitle: { fontSize: typography.sizes['3xl'], fontWeight: '800', letterSpacing: -0.5 },
+  screenSub: { fontSize: typography.sizes.md, marginTop: 4, lineHeight: 22 },
+  warScroller: { paddingHorizontal: spacing[5], gap: spacing[2.5], paddingBottom: spacing[2] },
+  warTab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderRadius: radius.full,
+    paddingHorizontal: spacing[4],
+    paddingVertical: spacing[2.5],
+  },
+  warTabLabel: { fontSize: typography.sizes.base, fontWeight: '700', maxWidth: 130 },
+  warSummary: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[4],
+    borderRadius: radius.lg,
+  },
+  warSummaryIcon: { width: 48, height: 48, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
+  warSummaryTitle: { fontSize: typography.sizes.lg, fontWeight: '800' },
+  warSummaryXp: { fontSize: typography.sizes.sm, fontWeight: '700', marginTop: 2 },
+  battleHead: { flexDirection: 'row', alignItems: 'center', gap: spacing[2] },
+  battleTitle: { flex: 1, fontSize: typography.sizes.md, fontWeight: '800' },
+  priorityDot: { width: 10, height: 10, borderRadius: 5 },
+  battleMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginVertical: 8 },
+  battleMeta: { fontSize: typography.sizes.sm, fontWeight: '600', flex: 1 },
+  battleCount: { fontSize: typography.sizes.sm, fontWeight: '700' },
+  fieldLabel: {
+    fontSize: typography.sizes.sm,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+    marginTop: spacing[3],
+    marginBottom: spacing[2],
+  },
+  chipRow: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: spacing[2] },
+  numericInput: {
+    borderWidth: 1,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing[4],
+    minHeight: 52,
+    fontSize: typography.sizes.md,
+    fontWeight: '700',
+  },
+  emptyDetail: { fontSize: typography.sizes.base, lineHeight: 22, marginVertical: spacing[3] },
+  instanceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[3],
+    borderWidth: 1,
+    borderRadius: radius.md,
+    padding: spacing[3],
+    marginBottom: spacing[2],
+  },
+  instanceCheck: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  instanceTitle: { fontSize: typography.sizes.base, fontWeight: '700' },
+  instanceMeta: { fontSize: typography.sizes.xs, marginTop: 2, fontWeight: '600' },
+  instanceXp: { fontSize: typography.sizes.sm, fontWeight: '800' },
+  detailActions: { flexDirection: 'row', gap: spacing[3], marginTop: spacing[4] },
 });

@@ -1,145 +1,110 @@
 /**
- * GBECHE — App Tab Layout
- * Tabs thémés avec Ionicons, badge streak, couleurs dynamiques.
+ * GBECHE — Navigation principale (tabs).
+ * Quartier Général · Guerres · Finances · Réglages.
+ * Les modules Calendrier et Agent arrivent en Phase 2.
  */
 
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
-import { Platform } from 'react-native';
 
 import { useTheme } from '@/src/theme/ThemeContext';
-import { useAppStore } from '@/src/store';
+import { FeedbackHost } from '@/src/components/ui/FeedbackHost';
+import { typography } from '@/src/theme';
 
 function TabIcon({
   name,
   focused,
   color,
-  badge,
 }: {
   name: keyof typeof Ionicons.glyphMap;
   focused: boolean;
   color: string;
-  badge?: number;
 }) {
   return (
-    <View style={ti.wrap}>
-      <Ionicons
-        name={focused ? name : (`${name}-outline` as keyof typeof Ionicons.glyphMap)}
-        size={24}
-        color={color}
-      />
-      {badge ? (
-        <View style={ti.badge}>
-          <Text style={ti.badgeText}>{badge > 9 ? '9+' : badge}</Text>
-        </View>
-      ) : null}
+    <View style={styles.iconWrap}>
+      <Ionicons name={name} size={focused ? 25 : 23} color={color} />
+      {focused ? <View style={[styles.dot, { backgroundColor: color }]} /> : null}
     </View>
   );
 }
 
-const ti = StyleSheet.create({
-  wrap:      { position: 'relative', width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
-  badge:     { position: 'absolute', top: -4, right: -6, minWidth: 16, height: 16, borderRadius: 8, backgroundColor: '#FF4757', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3 },
-  badgeText: { fontSize: 9, fontWeight: '900', color: '#fff' },
-});
-
-export default function AppLayout() {
-  const { theme, themeMode } = useTheme();
-  const { colors }           = theme;
-  const warrior              = useAppStore(s => s.warrior);
-
-  const ACTIVE   = '#00E5FF';
-  const INACTIVE = colors.textMuted ?? '#666';
-  const BG       = colors.tabBar   ?? colors.background;
-
-  const isDark = BG.startsWith('rgba(0') || BG === '#0A0B10' || themeMode === 'dark';
+export default function AppTabsLayout() {
+  const { theme } = useTheme();
+  const { colors } = theme;
 
   return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor:   ACTIVE,
-        tabBarInactiveTintColor: INACTIVE,
-        tabBarStyle: {
-          backgroundColor:  BG,
-          borderTopColor:   colors.glassBorder,
-          borderTopWidth:   1,
-          height:           Platform.OS === 'ios' ? 84 : 64,
-          paddingBottom:    Platform.OS === 'ios' ? 24 : 8,
-          elevation:        0,
-        },
-        tabBarBackground: () =>
-          Platform.OS === 'ios' ? (
-            <BlurView
-              intensity={60}
-              tint={isDark ? 'dark' : 'light'}
-              style={StyleSheet.absoluteFill}
-            />
-          ) : null,
-        tabBarLabelStyle: {
-          fontSize:      10,
-          fontWeight:    '700',
-          letterSpacing: 0.3,
-        },
-      }}
-    >
-      <Tabs.Screen
-        name="home"
-        options={{
-          title: 'Accueil',
-          tabBarIcon: ({ focused, color }) => (
-            <TabIcon name="home" focused={focused} color={color} />
-          ),
+    <>
+      <Tabs
+        screenOptions={{
+          headerShown: false,
+          tabBarActiveTintColor: colors.tabActive,
+          tabBarInactiveTintColor: colors.tabInactive,
+          tabBarStyle: {
+            position: 'absolute',
+            borderTopWidth: 0,
+            elevation: 0,
+            height: Platform.OS === 'ios' ? 88 : 72,
+            paddingBottom: Platform.OS === 'ios' ? 28 : 12,
+            paddingTop: 10,
+            backgroundColor: colors.tabBarBg,
+            borderTopColor: colors.tabBarBorder,
+          },
+          tabBarBackground: () =>
+            Platform.OS === 'ios' ? (
+              <BlurView tint={theme.isDark ? 'dark' : 'light'} intensity={70} style={StyleSheet.absoluteFill} />
+            ) : undefined,
+          tabBarLabelStyle: {
+            fontSize: typography.sizes.xs,
+            fontWeight: '700',
+          },
         }}
-      />
-      <Tabs.Screen
-        name="wars"
-        options={{
-          title: 'Guerres',
-          tabBarIcon: ({ focused, color }) => (
-            <TabIcon name="flame" focused={focused} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="finance"
-        options={{
-          title: 'Finance',
-          tabBarIcon: ({ focused, color }) => (
-            <TabIcon name="wallet" focused={focused} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="calendar"
-        options={{
-          title: 'Agenda',
-          tabBarIcon: ({ focused, color }) => (
-            <TabIcon name="calendar" focused={focused} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="chat"
-        options={{
-          title: 'Agent',
-          tabBarIcon: ({ focused, color }) => (
-            <TabIcon name="chatbubble-ellipses" focused={focused} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="settings"
-        options={{
-          title: 'Réglages',
-          tabBarIcon: ({ focused, color }) => (
-            <TabIcon name="settings" focused={focused} color={color} />
-          ),
-        }}
-      />
-    </Tabs>
+      >
+        <Tabs.Screen
+          name="home"
+          options={{
+            title: 'QG',
+            tabBarIcon: ({ focused, color }) => (
+              <TabIcon name={focused ? 'home' : 'home-outline'} focused={focused} color={color} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="wars"
+          options={{
+            title: 'Guerres',
+            tabBarIcon: ({ focused, color }) => (
+              <TabIcon name={focused ? 'trophy' : 'trophy-outline'} focused={focused} color={color} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="finance"
+          options={{
+            title: 'Finances',
+            tabBarIcon: ({ focused, color }) => (
+              <TabIcon name={focused ? 'wallet' : 'wallet-outline'} focused={focused} color={color} />
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="settings"
+          options={{
+            title: 'Réglages',
+            tabBarIcon: ({ focused, color }) => (
+              <TabIcon name={focused ? 'settings' : 'settings-outline'} focused={focused} color={color} />
+            ),
+          }}
+        />
+      </Tabs>
+      <FeedbackHost />
+    </>
   );
 }
+
+const styles = StyleSheet.create({
+  iconWrap: { alignItems: 'center', justifyContent: 'center', gap: 3 },
+  dot: { width: 4, height: 4, borderRadius: 2 },
+});

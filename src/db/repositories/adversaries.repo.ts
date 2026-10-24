@@ -1,0 +1,274 @@
+/**
+ * Repository — Adversaires : templates récurrents + instances planifiées.
+ * La matérialisation est glissante (45 jours) et idempotente grâce à
+ * la contrainte UNIQUE(template_id, scheduled_at).
+ */
+
+import { all, first, getDb, newId, run, transaction } from '../client';
+import type {
+  AdversaryRow,
+  AdversaryStatus,
+  AdversaryTemplateRow,
+  Frequency,
+  ID,
+} from '../types';
+import { addDays, computeOccurrences, dayRange } from '../../utils/recurrence';
+
+const HORIZON_DAYS = 45;
+
+// ─── Templates ────────────────────────────────────────────
+export interface CreateTemplateInput {
+  battleId: ID;
+  warId: ID;
+  title: string;
+  xpReward?: number;
+  frequency: Frequency;
+  specificDays?: number[];
+  hour: number;
+  durationMin?: number;
+  startDate?: Date;
+  endDate?: Date | null;
+}
+
+export async function listTemplatesByBattle(battleId: ID): Promise<AdversaryTemplateRow[]> {
+  return all<AdversaryTemplateRow>(
+    'SELECT * FROM adversary_templates WHERE battle_id = ? ORDER BY created_at DESC;',
+    [battleId],
+  );
+}
+
+export async function listActiveTemplates(): Promise<AdversaryTemplateRow[]> {
+  return all<AdversaryTemplateRow>(
+    'SELECT * FROM adversary_templates WHERE is_active = 1;',
+  );
+}
+
+export async function createTemplate(input: CreateTemplateInput): Promise<ID> {
+  const id = newId();
+  const now = Date.now();
+  const start = input.startDate?.getTime() ?? now;
+
+  await run(
+    `INSERT INTO adversary_templates
+       (id, battle_id, war_id, title, xp_reward, frequency, specific_days, hour, duration_min, start_date, end_date, is_active, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?);`,
+    [
+      id,
+      input.battleId,
+      input.warId,
+      input.title.trim(),
+      input.xpReward ?? 50,
+      input.frequency,
+      JSON.stringify(input.specificDays ?? []),
+      input.hour,
+      input.durationMin ?? 30,
+      start,
+      input.endDate ? input.endDate.getTime() : null,
+      now,
+    ],
+  );
+
+  await materializeTemplate(id);
+  return id;
+}
+
+/** Adversaire ponctuel sans template (création rapide). */
+export async function createManualAdversary(
+  input: Omit<CreateTemplateInput, 'frequency' | 'specificDays' | 'startDate'> & {
+    scheduledAt: Date;
+  },
+): Promise<ID> {
+  const id = newId();
+  const now = Date.now();
+  await run(
+    `INSERT INTO adversaries
+       (id, template_id, battle_id, war_id, title, xp_reward, scheduled_at, hour, duration_min, status, completed_at, created_at, updated_at)
+     VALUES (?, NULL, ?, ?, ?, ?, ?, ?, ?, 'pending', NULL, ?, ?);`,
+    [
+      id,
+      input.battleId,
+      input.warId,
+      input.title.trim(),
+      input.xpReward ?? 50,
+      input.scheduledAt.getTime(),
+      input.hour,
+      input.durationMin ?? 30,
+      now,
+      now,
+    ],
+  );
+  return id;
+}
+
+export async function deactivateTemplate(id: ID): Promise<void> {
+  await run('UPDATE adversary_templates SET is_active = 0 WHERE id = ?;', [id]);
+}
+
+// ─── Moteur de matérialisation ────────────────────────────
+export async function materializeTemplate(
+  templateId: ID,
+  horizonDays = HORIZON_DAYS,
+): Promise<number> {
+  const template = await first<AdversaryTemplateRow>(
+    'SELECT * FROM adversary_templates WHERE id = ?;',
+    [templateId],
+  );
+  if (!template || !template.is_active) return 0;
+
+  const now = Date.now();
+  const until = addDays(now, horizonDays);
+  const occurrences = computeOccurrences(
+    {
+      frequency: template.frequency,
+      startDate: Math.max(template.start_date, now - DAY_MS),
+      endDate: template.end_date,
+      specificDays: safeParseDays(template.specific_days),
+      hour: template.hour,
+    },
+    until,
+  );
+
+  if (occurrences.length === 0) return 0;
+  const created = newId();
+
+  await transaction(async () => {
+    const database = getDb();
+    for (const scheduledAt of occurrences) {
+      await database.runAsync(
+        `INSERT OR IGNORE INTO adversaries
+           (id, template_id, battle_id, war_id, title, xp_reward, scheduled_at, hour, duration_min, status, completed_at, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', NULL, ?, ?);`,
+        [
+          created + ':' + scheduledAt,
+          template.id,
+          template.battle_id,
+          template.war_id,
+          template.title,
+          template.xp_reward,
+          scheduledAt,
+          template.hour,
+          template.duration_min,
+          now,
+          now,
+        ],
+      );
+    }
+  });
+
+  return occurrences.length;
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function safeParseDays(raw: string): number[] {
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((n) => n >= 1 && n <= 7) : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Appelé au boot : garantit 45 jours d'instances pour tous les templates. */
+export async function materializeAllTemplates(horizonDays = HORIZON_DAYS): Promise<void> {
+  const templates = await listActiveTemplates();
+  for (const template of templates) {
+    await materializeTemplate(template.id, horizonDays);
+  }
+}
+
+// ─── Instances ────────────────────────────────────────────
+export async function listInstancesByBattle(battleId: ID): Promise<AdversaryRow[]> {
+  return all<AdversaryRow>(
+    'SELECT * FROM adversaries WHERE battle_id = ? ORDER BY scheduled_at ASC;',
+    [battleId],
+  );
+}
+
+export async function listInstancesForDay(reference: number | Date): Promise<AdversaryRow[]> {
+  const { start, end } = dayRange(reference);
+  return all<AdversaryRow>(
+    `SELECT * FROM adversaries
+     WHERE scheduled_at BETWEEN ? AND ?
+     ORDER BY scheduled_at ASC;`,
+    [start, end],
+  );
+}
+
+export async function listUpcoming(limit = 5): Promise<AdversaryRow[]> {
+  return all<AdversaryRow>(
+    `SELECT * FROM adversaries
+     WHERE status IN ('pending', 'rescheduled') AND scheduled_at >= ?
+     ORDER BY scheduled_at ASC
+     LIMIT ?;`,
+    [Date.now(), limit],
+  );
+}
+
+export async function getInstance(id: ID): Promise<AdversaryRow | null> {
+  return first<AdversaryRow>('SELECT * FROM adversaries WHERE id = ?;', [id]);
+}
+
+export async function setInstanceStatus(
+  id: ID,
+  status: AdversaryStatus,
+): Promise<void> {
+  const completed = status === 'won' ? Date.now() : null;
+  await run(
+    `UPDATE adversaries
+     SET status = ?, completed_at = ?, updated_at = ?
+     WHERE id = ?;`,
+    [status, completed, Date.now(), id],
+  );
+}
+
+export async function rescheduleInstance(id: ID, when: Date): Promise<void> {
+  await run(
+    `UPDATE adversaries
+     SET status = 'rescheduled', scheduled_at = ?, hour = ?, updated_at = ?
+     WHERE id = ?;`,
+    [when.getTime(), when.getHours(), Date.now(), id],
+  );
+}
+
+export interface WarProgress {
+  war_id: string;
+  total: number;
+  won: number;
+}
+
+export async function getWarProgress(): Promise<WarProgress[]> {
+  return all<WarProgress>(
+    `SELECT war_id,
+            COUNT(*) AS total,
+            SUM(CASE WHEN status = 'won' THEN 1 ELSE 0 END) AS won
+     FROM adversaries
+     GROUP BY war_id;`,
+  );
+}
+
+export interface DayStats {
+  total: number;
+  won: number;
+  pending: number;
+  lost: number;
+}
+
+export async function getDayStats(reference: number | Date): Promise<DayStats> {
+  const { start, end } = dayRange(reference);
+  const row = await first<{ total: number; won: number; pending: number; lost: number }>(
+    `SELECT
+       COUNT(*) AS total,
+       SUM(CASE WHEN status = 'won' THEN 1 ELSE 0 END) AS won,
+       SUM(CASE WHEN status IN ('pending','rescheduled') THEN 1 ELSE 0 END) AS pending,
+       SUM(CASE WHEN status = 'lost' THEN 1 ELSE 0 END) AS lost
+     FROM adversaries WHERE scheduled_at BETWEEN ? AND ?;`,
+    [start, end],
+  );
+  return {
+    total: row?.total ?? 0,
+    won: row?.won ?? 0,
+    pending: row?.pending ?? 0,
+    lost: row?.lost ?? 0,
+  };
+}

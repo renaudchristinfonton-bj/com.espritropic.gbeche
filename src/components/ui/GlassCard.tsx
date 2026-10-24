@@ -7,8 +7,6 @@ import React from 'react';
 import {
   Pressable,
   StyleSheet,
-  View,
-  type PressableProps,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';

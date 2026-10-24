@@ -1,102 +1,142 @@
 /**
- * GBECHE — Root Layout
- * Fournit : ThemeProvider, I18nProvider, initialisation DB + notifications.
- * Logique de démarrage : onboarding → PIN → app.
+ * GBECHE — Layout racine.
+ * Séquence de boot :
+ *   1. Ouverture SQLite + migrations
+ *   2. Cache des préférences + amorçage (guerres par défaut, profil)
+ *   3. Matérialisation glissante des récurrences
+ *   4. Routage : onboarding → PIN → Quartier Général
+ * Verrouillage automatique au retour en arrière-plan si un PIN existe.
  */
 
 import React, { useEffect, useState } from 'react';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { AppState, ActivityIndicator, StyleSheet, View } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import 'react-native-reanimated';
-import { MMKV } from 'react-native-mmkv';
+import * as SplashScreen from 'expo-splash-screen';
 
-import { ThemeProvider, useTheme } from '@/src/theme/ThemeContext';
 import { I18nProvider } from '@/src/i18n/I18nProvider';
-import { initNotifications } from '@/src/services/notifications';
-import { hasPinConfigured } from '@/src/services/crypto';
+import { ThemeProvider, useTheme } from '@/src/theme/ThemeContext';
+import { openDatabase } from '@/src/db/client';
+import { loadSettingsCache, getSettingBool, SETTING_KEYS } from '@/src/db/settings';
+import { seedDefaults } from '@/src/services/seed';
+import { materializeAllTemplates } from '@/src/db/repositories/adversaries.repo';
+import { hasPin } from '@/src/services/security';
 
-const onboardingStorage = new MMKV({ id: 'gbeche-onboarding' });
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
-// ─── Inner layout (needs ThemeProvider) ──────────────────
+type BootTarget = 'onboarding' | 'pin' | 'app';
 
-function InnerLayout() {
-  const { theme, themeMode } = useTheme();
-  const { colors } = theme;
-  const router    = useRouter();
-  const segments  = useSegments();
-  const [ready, setReady] = useState(false);
+function BootGate({ children }: { children: React.ReactNode }) {
+  const { theme } = useTheme();
+  const router = useRouter();
+  const segments = useSegments();
+  const [booted, setBooted] = useState(false);
+  const [target, setTarget] = useState<BootTarget>('app');
 
   useEffect(() => {
+    let cancelled = false;
+
     async function boot() {
-      // Init notifications (non-blocking)
-      initNotifications().catch(() => {});
+      try {
+        await openDatabase();
+        await loadSettingsCache();
+        await seedDefaults();
+        await materializeAllTemplates();
 
-      // Route logic
-      const onboardingDone = onboardingStorage.getBoolean('done');
+        const onboardingDone = getSettingBool(SETTING_KEYS.onboardingDone, false);
+        const pinConfigured = await hasPin();
 
-      if (!onboardingDone) {
-        router.replace('/(onboarding)/');
-        setReady(true);
-        return;
+        if (cancelled) return;
+        if (!onboardingDone) setTarget('onboarding');
+        else if (pinConfigured) setTarget('pin');
+        else setTarget('app');
+      } catch (error) {
+        console.error('[boot]', error);
+      } finally {
+        if (!cancelled) {
+          setBooted(true);
+          await SplashScreen.hideAsync().catch(() => {});
+        }
       }
-
-      const pinExists = await hasPinConfigured();
-      if (pinExists) {
-        router.replace('/(auth)/pin');
-      } else {
-        router.replace('/(app)/home');
-      }
-
-      setReady(true);
     }
 
     boot();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  if (!ready) {
+  useEffect(() => {
+    if (!booted) return;
+    const current = segments[0];
+    const routeMap: Record<BootTarget, string> = {
+      onboarding: '(onboarding)',
+      pin: '(auth)',
+      app: '(app)',
+    };
+    const expected = routeMap[target];
+    if (current !== expected) {
+      router.replace(target === 'onboarding' ? '/(onboarding)' : target === 'pin' ? '/(auth)/pin' : '/(app)/home');
+    }
+  }, [booted, target, segments, router]);
+
+  // Verrouillage à chaque retour en arrière-plan.
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextState) => {
+      if (nextState !== 'active') return;
+      hasPin()
+        .then((pinConfigured) => {
+          if (!pinConfigured) return;
+          const group = segments[0];
+          if (group !== '(auth)' && group !== '(onboarding)') {
+            router.replace('/(auth)/pin');
+          }
+        })
+        .catch(() => {});
+    });
+    return () => subscription.remove();
+  }, [router, segments]);
+
+  if (!booted) {
     return (
-      <View style={[styles.splash, { backgroundColor: colors.background }]}>
-        <ActivityIndicator color="#00E5FF" />
+      <View style={[styles.splash, { backgroundColor: theme.colors.background }]}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
   }
 
-  const isDark = themeMode === 'dark' || (themeMode === 'system' && colors.background === '#0A0B10');
-
-  return (
-    <>
-      <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
-        <Stack.Screen name="(onboarding)" options={{ animation: 'none' }} />
-        <Stack.Screen name="(auth)"       options={{ animation: 'none' }} />
-        <Stack.Screen name="(app)"        options={{ animation: 'slide_from_right' }} />
-        <Stack.Screen name="modal"        options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
-      </Stack>
-      <StatusBar style={isDark ? 'light' : 'dark'} />
-    </>
-  );
+  return <>{children}</>;
 }
 
-// ─── Root ─────────────────────────────────────────────────
+function RootNavigator() {
+  const { themeMode } = useTheme();
+
+  return (
+    <BootGate>
+      <StatusBar style={themeMode === 'light' ? 'dark' : 'light'} />
+      <Stack screenOptions={{ headerShown: false, animation: 'fade' }}>
+        <Stack.Screen name="(onboarding)" options={{ animation: 'none' }} />
+        <Stack.Screen name="(auth)" options={{ animation: 'fade' }} />
+        <Stack.Screen name="(app)" options={{ animation: 'slide_from_right' }} />
+      </Stack>
+    </BootGate>
+  );
+}
 
 export default function RootLayout() {
   return (
     <ThemeProvider>
       <I18nProvider>
-        <InnerLayout />
+        <RootNavigator />
       </I18nProvider>
     </ThemeProvider>
   );
 }
 
-export const unstable_settings = {
-  initialRouteName: '(app)',
-};
-
 const styles = StyleSheet.create({
   splash: {
-    flex:           1,
-    alignItems:     'center',
+    flex: 1,
+    alignItems: 'center',
     justifyContent: 'center',
   },
 });

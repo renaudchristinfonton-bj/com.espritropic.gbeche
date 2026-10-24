@@ -13,6 +13,7 @@ import Animated, {
   withTiming,
   Easing,
   useDerivedValue,
+  type SharedValue,
 } from 'react-native-reanimated';
 import { useTheme } from '@/src/theme/ThemeContext';
 
@@ -52,7 +53,7 @@ function AnimatedBar({
   x, y, width, height, color, progress,
 }: {
   x: number; y: number; width: number; height: number;
-  color: string; progress: Animated.SharedValue<number>;
+  color: string; progress: SharedValue<number>;
 }) {
   const animProps = useAnimatedProps(() => ({
     y:      y + height * (1 - progress.value),

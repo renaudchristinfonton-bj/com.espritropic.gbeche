@@ -164,7 +164,7 @@ export const lightColors = {
   warningBg:         'rgba(224,90,37,0.10)',
 } as const;
 
-export type ColorScheme = typeof darkColors;
+export type ColorScheme = { [K in keyof typeof darkColors]: string };
 
 // Always the same neon palette regardless of mode
 export const neon = {

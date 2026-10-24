@@ -1,389 +1,292 @@
 /**
- * GBECHE — Settings Screen
- * Thème dark/light, langue, notifications, biométrie, sécurité, export.
+ * GBECHE — Réglages.
+ * Profil, apparence, langue, sécurité (changement de PIN), réinitialisation.
+ * Les fonctions Phase 2 sont affichées en état « Bientôt » (jamais de bouton factice).
  */
 
-import React, { useState, useCallback } from 'react';
-import {
-  Alert,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  View,
-} from 'react-native';
-import Animated, {
-  FadeInDown,
-  FadeIn,
-} from 'react-native-reanimated';
-import { LinearGradient } from 'expo-linear-gradient';
+import React, { useState } from 'react';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
 import { useRouter } from 'expo-router';
+import Constants from 'expo-constants';
+import * as Haptics from 'expo-haptics';
 
-import { useTheme } from '@/src/theme/ThemeContext';
-import { useTranslation } from '@/src/i18n/I18nProvider';
+import { Screen } from '@/src/components/ui/Screen';
 import { GlassCard } from '@/src/components/ui/GlassCard';
+import { Button } from '@/src/components/ui/Button';
+import { Sheet } from '@/src/components/ui/Sheet';
+import { SegmentedControl } from '@/src/components/ui/SegmentedControl';
+import { PinPad } from '@/src/components/ui/PinPad';
+import { useTheme, type ThemeMode } from '@/src/theme/ThemeContext';
+import { useTranslation, type Language } from '@/src/i18n';
+import { getSetting, loadSettingsCache, SETTING_KEYS } from '@/src/db/settings';
+import { resetDatabase } from '@/src/db/client';
 import {
-  getNotifPreferences,
-  saveNotifPreferences,
-  cancelAll,
-  initNotifications,
-} from '@/src/services/notifications';
-import { clearAllSecrets } from '@/src/services/crypto';
-import { ProgressRing } from '@/src/components/ui/XPBar';
-
-// ─── Row components ───────────────────────────────────────
-
-interface RowProps {
-  icon:     keyof typeof Ionicons.glyphMap;
-  color:    string;
-  label:    string;
-  sub?:     string;
-  right?:   React.ReactNode;
-  onPress?: () => void;
-  danger?:  boolean;
-}
-
-function Row({ icon, color, label, sub, right, onPress, danger }: RowProps) {
-  const { theme } = useTheme();
-
-  return (
-    <Pressable
-      onPress={onPress}
-      disabled={!onPress}
-      style={({ pressed }) => [
-        styles.row,
-        { opacity: pressed ? 0.7 : 1, borderBottomColor: theme.colors.glassBorder },
-      ]}
-    >
-      <View style={[styles.rowIcon, { backgroundColor: color + '22' }]}>
-        <Ionicons name={icon} size={18} color={danger ? '#FF4757' : color} />
-      </View>
-      <View style={{ flex: 1 }}>
-        <Text style={[styles.rowLabel, { color: danger ? '#FF4757' : theme.colors.text }]}>
-          {label}
-        </Text>
-        {sub && <Text style={[styles.rowSub, { color: theme.colors.textMuted }]}>{sub}</Text>}
-      </View>
-      {right ?? (onPress && (
-        <Ionicons name="chevron-forward" size={16} color={theme.colors.textMuted} />
-      ))}
-    </Pressable>
-  );
-}
-
-function SectionHeader({ title }: { title: string }) {
-  const { theme } = useTheme();
-  return (
-    <Text style={[styles.sectionHeader, { color: theme.colors.textMuted }]}>
-      {title.toUpperCase()}
-    </Text>
-  );
-}
-
-// ─── Main Screen ──────────────────────────────────────────
+  clearPin,
+  getBiometricAvailability,
+  hasPin,
+  setPin,
+  verifyPin,
+  wipeAllSecrets,
+} from '@/src/services/security';
+import { seedDefaults } from '@/src/services/seed';
+import { radius, spacing, typography } from '@/src/theme';
 
 export default function SettingsScreen() {
   const { theme, themeMode, setThemeMode } = useTheme();
-  const { language, setLanguage, t } = useTranslation();
   const { colors } = theme;
+  const { language, setLanguage } = useTranslation();
   const router = useRouter();
 
-  // Notifications prefs
-  const [notifPrefs, setNotifPrefs] = useState(getNotifPreferences);
+  const [pinSheet, setPinSheet] = useState(false);
+  const [pinStage, setPinStage] = useState<'verify' | 'new' | 'confirm'>('verify');
+  const [pinValue, setPinValue] = useState('');
+  const [newPin, setNewPin] = useState('');
+  const [pinError, setPinError] = useState(false);
 
-  const toggleNotif = useCallback((key: keyof typeof notifPrefs) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const next = { ...notifPrefs, [key]: !notifPrefs[key] };
-    setNotifPrefs(next);
-    saveNotifPreferences(next);
-    // Reschedule
-    cancelAll().then(() => initNotifications());
-  }, [notifPrefs]);
+  const warriorName = getSetting(SETTING_KEYS.warriorName) ?? 'Guerrier';
+  const version = Constants.expoConfig?.version ?? '1.0.0';
 
-  // Theme
-  const handleTheme = (mode: 'dark' | 'light' | 'system') => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setThemeMode(mode);
+  const openPinSheet = async () => {
+    await getBiometricAvailability();
+    const configured = await hasPin();
+    setPinStage(configured ? 'verify' : 'new');
+    setPinValue('');
+    setNewPin('');
+    setPinError(false);
+    setPinSheet(true);
   };
 
-  // Language
-  const handleLang = (lang: 'fr' | 'en') => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setLanguage(lang);
+  const handlePinFull = async (value: string) => {
+    if (pinStage === 'verify') {
+      const ok = await verifyPin(value);
+      if (!ok) {
+        setPinError(true);
+        setPinValue('');
+        setTimeout(() => setPinError(false), 600);
+        return;
+      }
+      setPinStage('new');
+      setPinValue('');
+      return;
+    }
+    if (pinStage === 'new') {
+      setNewPin(value);
+      setPinStage('confirm');
+      setPinValue('');
+      return;
+    }
+    if (value !== newPin) {
+      setPinError(true);
+      setPinValue('');
+      setTimeout(() => setPinError(false), 600);
+      return;
+    }
+    await setPin(value);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setPinSheet(false);
   };
 
-  // Danger zone
-  const handleDeleteData = () => {
+  const confirmReset = () => {
     Alert.alert(
-      'Supprimer toutes les données',
-      'Cette action est irréversible. Toutes tes Guerres, tâches et données financières seront effacées.',
+      'Tout effacer',
+      'Toutes tes données locales (guerres, finances, progression) seront supprimées définitivement. Cette action est irréversible.',
       [
         { text: 'Annuler', style: 'cancel' },
         {
-          text: 'Supprimer',
+          text: 'Tout effacer',
           style: 'destructive',
-          onPress: () => {
-            clearAllSecrets();
-            // TODO: clear WatermelonDB
-            router.replace('/(onboarding)/');
+          onPress: async () => {
+            await wipeAllSecrets();
+            await resetDatabase();
+            await clearPin();
+            await loadSettingsCache();
+            await seedDefaults();
+            router.replace('/(onboarding)');
           },
         },
-      ]
+      ],
     );
   };
 
-  const ACCENT = '#00E5FF';
-
   return (
-    <View style={[styles.root, { backgroundColor: colors.background }]}>
-      {/* Header */}
-      <LinearGradient
-        colors={['rgba(0,229,255,0.06)', 'transparent']}
-        style={styles.headerGrad}
+    <Screen scroll padded>
+      <Text style={[styles.title, { color: colors.text }]}>Réglages</Text>
+
+      {/* Profil */}
+      <Text style={[styles.section, { color: colors.textMuted }]}>Profil</Text>
+      <GlassCard style={styles.row}>
+        <View style={[styles.rowIcon, { backgroundColor: colors.primaryDim }]}>
+          <Ionicons name="person" size={20} color={colors.primary} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.rowLabel, { color: colors.text }]}>Nom de guerre</Text>
+          <Text style={[styles.rowValue, { color: colors.textMuted }]}>{warriorName}</Text>
+        </View>
+      </GlassCard>
+
+      {/* Apparence */}
+      <Text style={[styles.section, { color: colors.textMuted }]}>Apparence</Text>
+      <GlassCard style={{ gap: spacing[3] }}>
+        <Text style={[styles.rowLabel, { color: colors.text }]}>Thème</Text>
+        <SegmentedControl<ThemeMode>
+          segments={[
+            { value: 'dark', label: 'Sombre' },
+            { value: 'light', label: 'Clair' },
+            { value: 'system', label: 'Auto' },
+          ]}
+          value={themeMode}
+          onChange={setThemeMode}
+        />
+        <Text style={[styles.rowLabel, { color: colors.text, marginTop: spacing[2] }]}>Langue</Text>
+        <SegmentedControl<Language>
+          segments={[
+            { value: 'fr', label: 'Français' },
+            { value: 'en', label: 'English' },
+          ]}
+          value={language}
+          onChange={setLanguage}
+        />
+      </GlassCard>
+
+      {/* Sécurité */}
+      <Text style={[styles.section, { color: colors.textMuted }]}>Sécurité & vie privée</Text>
+      <GlassCard style={{ gap: spacing[2] }}>
+        <SettingsRow
+          icon="keypad"
+          color={colors.primary}
+          label="Code PIN"
+          value="Modifié"
+          onPress={openPinSheet}
+        />
+        <View style={[styles.divider, { backgroundColor: colors.separator }]} />
+        <SettingsRow
+          icon="finger-print"
+          color={colors.success}
+          label="Biométrie"
+          value={
+            getSetting(SETTING_KEYS.biometricEnabled) === '1'
+              ? 'Activée'
+              : 'Disponible à la configuration'
+          }
+          onPress={openPinSheet}
+        />
+        <View style={[styles.divider, { backgroundColor: colors.separator }]} />
+        <SettingsRow
+          icon="shield-checkmark-outline"
+          color={colors.xp}
+          label="Stockage des données"
+          value="100 % sur cet appareil"
+        />
+      </GlassCard>
+
+      {/* Phase 2 */}
+      <Text style={[styles.section, { color: colors.textMuted }]}>Bientôt</Text>
+      <GlassCard style={{ gap: spacing[2] }}>
+        <SoonRow icon="calendar" label="Calendrier & suivi horaire" />
+        <View style={[styles.divider, { backgroundColor: colors.separator }]} />
+        <SoonRow icon="chatbubbles" label="Agent conversationnel local" />
+        <View style={[styles.divider, { backgroundColor: colors.separator }]} />
+        <SoonRow icon="download" label="Export / import CSV" />
+      </GlassCard>
+
+      {/* Zone dangereuse */}
+      <Text style={[styles.section, { color: colors.textMuted }]}>Données</Text>
+      <Button label="Réinitialiser l'application" variant="danger" fullWidth onPress={confirmReset} />
+
+      <Text style={[styles.version, { color: colors.textTertiary }]}>
+        GBECHE v{version} · Hors-ligne · Aucun serveur
+      </Text>
+
+      {/* Sheet PIN */}
+      <Sheet
+        visible={pinSheet}
+        title={pinStage === 'verify' ? 'PIN actuel' : pinStage === 'new' ? 'Nouveau PIN' : 'Confirme le PIN'}
+        onClose={() => setPinSheet(false)}
       >
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Paramètres</Text>
-        <Text style={[styles.headerSub, { color: colors.textMuted }]}>
-          GBECHE v1.0 · Guerrier Niveau 12
-        </Text>
-      </LinearGradient>
+        <PinPad value={pinValue} onChange={setPinValue} onFull={handlePinFull} error={pinError} />
+      </Sheet>
+    </Screen>
+  );
+}
 
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
+function SettingsRow({
+  icon,
+  color,
+  label,
+  value,
+  onPress,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  color: string;
+  label: string;
+  value: string;
+  onPress?: () => void;
+}) {
+  const { colors } = useTheme().theme;
+  const content = (
+    <View style={styles.settingRow}>
+      <View style={[styles.rowIcon, { backgroundColor: `${color}1A` }]}>
+        <Ionicons name={icon} size={20} color={color} />
+      </View>
+      <Text style={[styles.rowLabel, { color: colors.text, flex: 1 }]}>{label}</Text>
+      <Text style={[styles.rowValue, { color: colors.textMuted }]}>{value}</Text>
+      {onPress ? <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} /> : null}
+    </View>
+  );
+  if (onPress) {
+    return (
+      <Pressable onPress={onPress} hitSlop={8}>
+        {content}
+      </Pressable>
+    );
+  }
+  return content;
+}
 
-        {/* ── Appearance ───────────────────────────── */}
-        <Animated.View entering={FadeInDown.delay(0).duration(400)}>
-          <SectionHeader title="Apparence" />
-          <GlassCard noPadding>
-            {/* Theme */}
-            <View style={styles.themeRow}>
-              {[
-                { id: 'dark',   icon: 'moon',      label: 'Sombre' },
-                { id: 'light',  icon: 'sunny',     label: 'Clair'  },
-                { id: 'system', icon: 'phone-portrait', label: 'Auto' },
-              ].map((opt) => (
-                <Pressable
-                  key={opt.id}
-                  onPress={() => handleTheme(opt.id as any)}
-                  style={[
-                    styles.themeBtn,
-                    {
-                      backgroundColor: themeMode === opt.id ? ACCENT + '22' : 'transparent',
-                      borderColor:     themeMode === opt.id ? ACCENT : 'transparent',
-                    },
-                  ]}
-                >
-                  <Ionicons
-                    name={opt.icon as any}
-                    size={20}
-                    color={themeMode === opt.id ? ACCENT : colors.textMuted}
-                  />
-                  <Text style={[
-                    styles.themeBtnLabel,
-                    { color: themeMode === opt.id ? ACCENT : colors.textMuted },
-                  ]}>
-                    {opt.label}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          </GlassCard>
-        </Animated.View>
-
-        {/* ── Language ─────────────────────────────── */}
-        <Animated.View entering={FadeInDown.delay(60).duration(400)}>
-          <SectionHeader title="Langue" />
-          <GlassCard noPadding>
-            <Row
-              icon="flag"
-              color="#00FF88"
-              label="Français"
-              right={
-                <Pressable onPress={() => handleLang('fr')} style={styles.langBtn}>
-                  {language === 'fr'
-                    ? <Ionicons name="radio-button-on" size={22} color="#00FF88" />
-                    : <Ionicons name="radio-button-off" size={22} color="#555" />
-                  }
-                </Pressable>
-              }
-            />
-            <Row
-              icon="flag-outline"
-              color="#00E5FF"
-              label="English"
-              right={
-                <Pressable onPress={() => handleLang('en')} style={styles.langBtn}>
-                  {language === 'en'
-                    ? <Ionicons name="radio-button-on" size={22} color="#00E5FF" />
-                    : <Ionicons name="radio-button-off" size={22} color="#555" />
-                  }
-                </Pressable>
-              }
-            />
-          </GlassCard>
-        </Animated.View>
-
-        {/* ── Notifications ────────────────────────── */}
-        <Animated.View entering={FadeInDown.delay(120).duration(400)}>
-          <SectionHeader title="Notifications" />
-          <GlassCard noPadding>
-            {([
-              { key: 'morning',   icon: 'sunny',           color: '#FFD700', label: 'Réveil du Guerrier',     sub: '6h30 chaque matin' },
-              { key: 'noon',      icon: 'partly-sunny',    color: '#FF9F43', label: 'Mi-journée',             sub: '12h00 · bilan rapide' },
-              { key: 'evening',   icon: 'moon',            color: '#A78BFA', label: 'Bilan du soir',          sub: '21h00 · compte-rendu' },
-              { key: 'streak',    icon: 'flame',           color: '#FF6B35', label: 'Alerte Streak',          sub: '23h00 si non validé' },
-              { key: 'boss',      icon: 'skull',           color: '#FF4757', label: 'Boss hebdomadaire',      sub: 'Dimanche 20h00' },
-              { key: 'hourly',    icon: 'time',            color: '#00E5FF', label: 'Suivi horaire',          sub: '9h → 21h chaque heure' },
-            ] as const).map((n) => (
-              <Row
-                key={n.key}
-                icon={n.icon}
-                color={n.color}
-                label={n.label}
-                sub={n.sub}
-                right={
-                  <Switch
-                    value={notifPrefs[n.key]}
-                    onValueChange={() => toggleNotif(n.key)}
-                    trackColor={{ false: '#333', true: n.color + '88' }}
-                    thumbColor={notifPrefs[n.key] ? n.color : '#888'}
-                  />
-                }
-              />
-            ))}
-          </GlassCard>
-        </Animated.View>
-
-        {/* ── Security ─────────────────────────────── */}
-        <Animated.View entering={FadeInDown.delay(180).duration(400)}>
-          <SectionHeader title="Sécurité" />
-          <GlassCard noPadding>
-            <Row
-              icon="finger-print"
-              color="#00FF88"
-              label="Biométrie"
-              sub="FaceID / Empreinte digitale"
-              right={<Switch trackColor={{ false: '#333', true: '#00FF8888' }} thumbColor="#00FF88" value />}
-            />
-            <Row
-              icon="keypad"
-              color="#00E5FF"
-              label="Changer le PIN"
-              onPress={() => router.push('/(auth)/pin')}
-            />
-            <Row
-              icon="lock-closed"
-              color="#A78BFA"
-              label="Chiffrement des données"
-              sub="AES-256 · Stockage local uniquement"
-            />
-          </GlassCard>
-        </Animated.View>
-
-        {/* ── Data ─────────────────────────────────── */}
-        <Animated.View entering={FadeInDown.delay(240).duration(400)}>
-          <SectionHeader title="Données" />
-          <GlassCard noPadding>
-            <Row
-              icon="download"
-              color="#00E5FF"
-              label="Exporter mes données"
-              sub="JSON · Toutes les guerres et transactions"
-              onPress={() => Alert.alert('Export', 'Fonctionnalité bientôt disponible.')}
-            />
-            <Row
-              icon="cloud-upload"
-              color="#A78BFA"
-              label="Sauvegarde chiffrée"
-              sub="Via fichier local · Aucun cloud"
-              onPress={() => Alert.alert('Backup', 'Fonctionnalité bientôt disponible.')}
-            />
-          </GlassCard>
-        </Animated.View>
-
-        {/* ── About ────────────────────────────────── */}
-        <Animated.View entering={FadeInDown.delay(300).duration(400)}>
-          <SectionHeader title="À propos" />
-          <GlassCard noPadding>
-            <Row icon="information-circle" color="#888" label="Version" sub="GBECHE v1.0.0-beta" />
-            <Row icon="shield-checkmark"   color="#888" label="Confidentialité" sub="100% hors-ligne · aucune donnée envoyée" />
-            <Row icon="code-slash"         color="#888" label="Open Source"  sub="github.com/gbeche/app" onPress={() => {}} />
-          </GlassCard>
-        </Animated.View>
-
-        {/* ── Danger Zone ──────────────────────────── */}
-        <Animated.View entering={FadeInDown.delay(360).duration(400)}>
-          <SectionHeader title="Zone dangereuse" />
-          <GlassCard noPadding style={{ borderColor: '#FF475722' }}>
-            <Row
-              icon="trash"
-              color="#FF4757"
-              label="Effacer toutes les données"
-              sub="Action irréversible"
-              onPress={handleDeleteData}
-              danger
-            />
-          </GlassCard>
-        </Animated.View>
-
-        <View style={{ height: 100 }} />
-      </ScrollView>
+function SoonRow({ icon, label }: { icon: keyof typeof Ionicons.glyphMap; label: string }) {
+  const { colors } = useTheme().theme;
+  return (
+    <View style={styles.settingRow}>
+      <View style={[styles.rowIcon, { backgroundColor: colors.glass }]}>
+        <Ionicons name={icon} size={20} color={colors.textTertiary} />
+      </View>
+      <Text style={[styles.rowLabel, { color: colors.textMuted, flex: 1 }]}>{label}</Text>
+      <View style={styles.soonBadge}>
+        <Text style={[styles.soonText, { color: colors.textMuted }]}>Phase 2</Text>
+      </View>
     </View>
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────
 const styles = StyleSheet.create({
-  root:         { flex: 1 },
-  headerGrad:   { paddingTop: 60, paddingBottom: 20, paddingHorizontal: 20 },
-  headerTitle:  { fontSize: 28, fontWeight: '900', letterSpacing: -1 },
-  headerSub:    { fontSize: 12, fontWeight: '600', marginTop: 4, letterSpacing: 0.3 },
-  content:      { padding: 16, gap: 6 },
-
-  sectionHeader: {
-    fontSize:      10,
-    fontWeight:    '800',
-    letterSpacing: 2,
-    marginTop:     16,
-    marginBottom:  6,
-    marginLeft:    4,
+  title: { fontSize: typography.sizes['3xl'], fontWeight: '800', letterSpacing: -0.5, marginBottom: spacing[5] },
+  section: {
+    fontSize: typography.sizes.sm,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    marginTop: spacing[5],
+    marginBottom: spacing[2.5],
   },
-
-  row: {
-    flexDirection:    'row',
-    alignItems:       'center',
-    paddingVertical:  13,
-    paddingHorizontal: 16,
-    gap:              12,
-    borderBottomWidth: 1,
+  row: { flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
+  settingRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], paddingVertical: spacing[2] },
+  rowIcon: { width: 42, height: 42, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
+  rowLabel: { fontSize: typography.sizes.md, fontWeight: '700' },
+  rowValue: { fontSize: typography.sizes.sm, fontWeight: '600' },
+  divider: { height: 1, width: '100%' },
+  soonBadge: {
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    borderRadius: radius.full,
+    paddingHorizontal: spacing[3],
+    paddingVertical: 4,
   },
-  rowIcon:  { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  rowLabel: { fontSize: 14, fontWeight: '600' },
-  rowSub:   { fontSize: 11, marginTop: 2, fontWeight: '500' },
-
-  // Theme selector
-  themeRow: {
-    flexDirection:  'row',
-    padding:        12,
-    gap:            8,
+  soonText: { fontSize: typography.sizes.xs, fontWeight: '800', letterSpacing: 0.4 },
+  version: {
+    textAlign: 'center',
+    marginTop: spacing[8],
+    fontSize: typography.sizes.sm,
+    fontWeight: '600',
   },
-  themeBtn: {
-    flex:           1,
-    alignItems:     'center',
-    paddingVertical: 12,
-    borderRadius:   12,
-    borderWidth:    1,
-    gap:            6,
-  },
-  themeBtnLabel: {
-    fontSize:   11,
-    fontWeight: '700',
-  },
-
-  langBtn: { padding: 4 },
 });

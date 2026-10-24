@@ -12,6 +12,7 @@ import Animated, {
   useAnimatedProps,
   withTiming,
   Easing,
+  type SharedValue,
 } from 'react-native-reanimated';
 import { useTheme } from '@/src/theme/ThemeContext';
 
@@ -62,7 +63,7 @@ function DonutSlicePath({
 }: {
   cx: number; cy: number; r: number;
   startDeg: number; endDeg: number;
-  color: string; progress: Animated.SharedValue<number>;
+  color: string; progress: SharedValue<number>;
 }) {
   const animatedProps = useAnimatedProps(() => {
     const sweep = (endDeg - startDeg) * progress.value;
