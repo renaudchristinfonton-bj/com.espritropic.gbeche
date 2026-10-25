@@ -20,6 +20,7 @@ import { openDatabase } from '@/src/db/client';
 import { loadSettingsCache, getSettingBool, SETTING_KEYS } from '@/src/db/settings';
 import { seedDefaults } from '@/src/services/seed';
 import { materializeAllTemplates } from '@/src/db/repositories/adversaries.repo';
+import { syncReminderSchedule } from '@/src/services/reminderScheduler.service';
 import { hasPin } from '@/src/services/security';
 import { resolveRouteGroup, routePathFor } from '@/src/services/routing';
 import { useAppStore } from '@/src/store/useAppStore';
@@ -48,6 +49,10 @@ function BootGate({ children }: { children: React.ReactNode }) {
         await loadSettingsCache();
         await seedDefaults();
         await materializeAllTemplates();
+        // Notifications locales natives (no-op sans permission / sur web).
+        await syncReminderSchedule().catch((error) =>
+          console.warn('[boot] syncReminderSchedule', error),
+        );
 
         const configured = await hasPin();
         if (cancelled) return;

@@ -60,6 +60,35 @@ export async function setWarActive(id: ID, active: boolean): Promise<void> {
   ]);
 }
 
+export interface UpdateWarInput {
+  title?: string;
+  icon?: string;
+  color?: string;
+}
+
+export async function updateWar(id: ID, input: UpdateWarInput): Promise<void> {
+  const fields: string[] = [];
+  const params: (string | number)[] = [];
+
+  if (input.title !== undefined) {
+    fields.push('title = ?');
+    params.push(input.title.trim());
+  }
+  if (input.icon !== undefined) {
+    fields.push('icon = ?');
+    params.push(input.icon);
+  }
+  if (input.color !== undefined) {
+    fields.push('color = ?');
+    params.push(input.color);
+  }
+  if (fields.length === 0) return;
+
+  fields.push('updated_at = ?');
+  params.push(Date.now(), id);
+  await run(`UPDATE wars SET ${fields.join(', ')} WHERE id = ?;`, params);
+}
+
 export async function addWarXp(id: ID, xp: number): Promise<void> {
   await run('UPDATE wars SET xp_earned = xp_earned + ?, updated_at = ? WHERE id = ?;', [
     xp,

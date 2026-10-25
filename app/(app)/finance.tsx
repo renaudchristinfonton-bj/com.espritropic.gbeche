@@ -4,8 +4,8 @@
  * des dépenses. Tous les montants dérivent de la base, jamais de cache.
  */
 
-import React, { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams } from 'expo-router';
@@ -25,21 +25,30 @@ import { useTheme } from '@/src/theme/ThemeContext';
 import { useRepoQuery } from '@/src/db/useRepoQuery';
 import type { AccountType, TxType } from '@/src/db/types';
 import {
-  addAccount,
+  ACCOUNT_PRESETS,
+  CATEGORIES,
+  CATEGORY_COLOR_CHOICES,
+  CATEGORY_ICON_CHOICES,
+  getCategory,
+  type CategoryMeta,
+} from '@/src/domain/catalog';
+import {
+  addCustomCategory,
+  getAllCategoryMetas,
+  getCategoryOptions,
+} from '@/src/services/category.service';
+import {
   addMovement,
+  editTransaction,
   getBalances,
   getBreakdown,
   getBudgets,
   getMonthStats,
   getTransactions,
+  removeTransaction,
   setBudget,
+  addAccount,
 } from '@/src/services/finance.service';
-import {
-  ACCOUNT_PRESETS,
-  EXPENSE_CATEGORIES,
-  getCategory,
-  INCOME_CATEGORIES,
-} from '@/src/domain/catalog';
 import { currentMonthKey, formatCurrency, formatDate, formatTime, monthLabel } from '@/src/services/format';
 import { radius, spacing, typography } from '@/src/theme';
 
@@ -54,12 +63,23 @@ export default function FinanceScreen() {
   const [movementSheet, setMovementSheet] = useState(false);
   const [accountSheet, setAccountSheet] = useState(false);
   const [budgetSheet, setBudgetSheet] = useState(false);
+  const [editingTx, setEditingTx] = useState<
+    (Awaited<ReturnType<typeof getTransactions>>)[number] | null
+  >(null);
 
   const balances = useRepoQuery(() => getBalances(), []);
   const month = useRepoQuery(() => getMonthStats(), []);
   const transactions = useRepoQuery(() => getTransactions({ limit: 100 }), []);
   const budgets = useRepoQuery(() => getBudgets(), []);
   const breakdown = useRepoQuery(() => getBreakdown(), []);
+  // Les catégories personnalisées vivent en base : on recharge la fusion.
+  const categoryMetas = useRepoQuery(() => getAllCategoryMetas(), []);
+
+  const resolveCategory = useCallback(
+    (id: string): CategoryMeta =>
+      categoryMetas.data?.find((meta) => meta.id === id) ?? getCategory(id),
+    [categoryMetas.data],
+  );
 
   useEffect(() => {
     if (params.action === 'expense' || params.action === 'income') {
@@ -72,7 +92,7 @@ export default function FinanceScreen() {
     .filter((row) => row.total > 0)
     .slice(0, 6)
     .map((row) => {
-      const meta = getCategory(row.category);
+      const meta = resolveCategory(row.category);
       return { label: meta.label, value: row.total, color: meta.color };
     });
 
@@ -131,10 +151,12 @@ export default function FinanceScreen() {
         {tab === 'transactions' ? (
           <TransactionsTab
             transactions={transactions.data ?? []}
+            resolveCategory={resolveCategory}
             onAdd={(type) => {
               setMovementType(type);
               setMovementSheet(true);
             }}
+            onEdit={(tx) => setEditingTx(tx)}
           />
         ) : null}
 
@@ -142,6 +164,7 @@ export default function FinanceScreen() {
           <BudgetsTab
             budgets={budgets.data ?? []}
             donut={donutData}
+            resolveCategory={resolveCategory}
             onAdd={() => setBudgetSheet(true)}
           />
         ) : null}
@@ -153,6 +176,12 @@ export default function FinanceScreen() {
         type={movementType}
         onClose={() => setMovementSheet(false)}
         accounts={balances.data?.accounts ?? []}
+      />
+      <EditMovementSheet
+        transaction={editingTx}
+        onClose={() => setEditingTx(null)}
+        accounts={balances.data?.accounts ?? []}
+        resolveCategory={resolveCategory}
       />
       <AccountSheet visible={accountSheet} onClose={() => setAccountSheet(false)} />
       <BudgetSheet visible={budgetSheet} onClose={() => setBudgetSheet(false)} />
@@ -215,10 +244,14 @@ function AccountsTab({
 // ─── Onglet transactions ──────────────────────────────────
 function TransactionsTab({
   transactions,
+  resolveCategory,
   onAdd,
+  onEdit,
 }: {
   transactions: Awaited<ReturnType<typeof getTransactions>>;
+  resolveCategory: (id: string) => CategoryMeta;
   onAdd: (type: TxType) => void;
+  onEdit: (tx: Awaited<ReturnType<typeof getTransactions>>[number]) => void;
 }) {
   const { colors } = useTheme().theme;
 
@@ -251,11 +284,12 @@ function TransactionsTab({
       ) : (
         <GlassCard animated={false} noPadding style={{ overflow: 'hidden' }}>
           {transactions.map((tx, index) => {
-            const meta = getCategory(tx.category);
+            const meta = resolveCategory(tx.category);
             const signed = tx.type === 'expense' ? -Math.abs(tx.amount) : Math.abs(tx.amount);
             return (
-              <View
+              <Pressable
                 key={tx.id}
+                onPress={() => onEdit(tx)}
                 style={[
                   styles.txRow,
                   index > 0 && { borderTopWidth: 1, borderTopColor: colors.separator },
@@ -281,7 +315,7 @@ function TransactionsTab({
                   {signed > 0 ? '+' : '−'}
                   {formatCurrency(Math.abs(signed))}
                 </Text>
-              </View>
+              </Pressable>
             );
           })}
         </GlassCard>
@@ -294,10 +328,12 @@ function TransactionsTab({
 function BudgetsTab({
   budgets,
   donut,
+  resolveCategory,
   onAdd,
 }: {
   budgets: Awaited<ReturnType<typeof getBudgets>>;
   donut: DonutSlice[];
+  resolveCategory: (id: string) => CategoryMeta;
   onAdd: () => void;
 }) {
   const { colors } = useTheme().theme;
@@ -321,7 +357,7 @@ function BudgetsTab({
       )}
 
       {budgets.map((budget) => {
-        const meta = getCategory(budget.category);
+        const meta = resolveCategory(budget.category);
         const ratio = budget.amount ? budget.spent / budget.amount : 0;
         const over = ratio > 1;
         return (
@@ -349,6 +385,111 @@ function BudgetsTab({
   );
 }
 
+// ─── Sheet : création d'une catégorie personnalisée ───────
+function CategoryCreateSheet({
+  visible,
+  kind,
+  onClose,
+  onCreated,
+}: {
+  visible: boolean;
+  kind: 'expense' | 'income';
+  onClose: () => void;
+  onCreated: (id: string) => void;
+}) {
+  const { colors } = useTheme().theme;
+  const [label, setLabel] = useState('');
+  const [icon, setIcon] = useState<string>(CATEGORY_ICON_CHOICES[0]);
+  const [color, setColor] = useState<string>(CATEGORY_COLOR_CHOICES[0]);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (visible) {
+      setLabel('');
+      setIcon(CATEGORY_ICON_CHOICES[0]);
+      setColor(CATEGORY_COLOR_CHOICES[0]);
+      setError('');
+      setSaving(false);
+    }
+  }, [visible]);
+
+  const save = async () => {
+    if (!label.trim() || saving) return;
+    setSaving(true);
+    setError('');
+    try {
+      const id = await addCustomCategory({ label, icon, color, kind });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      onCreated(id);
+      onClose();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Création impossible.');
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Sheet
+      visible={visible}
+      title={kind === 'expense' ? 'Nouvelle catégorie de dépense' : 'Nouvelle catégorie de revenu'}
+      onClose={onClose}
+    >
+      <TextField
+        label="Nom de la catégorie"
+        icon="pricetag"
+        placeholder="Ex : Crédit bancaire, Dons à l'église…"
+        value={label}
+        onChangeText={setLabel}
+      />
+      {error ? (
+        <Text style={[styles.helper, { color: colors.danger, marginTop: spacing[2] }]}>{error}</Text>
+      ) : null}
+
+      <Text style={styles.sheetLabel}>Icône</Text>
+      <View style={styles.iconGrid}>
+        {CATEGORY_ICON_CHOICES.map((name) => (
+          <Pressable
+            key={name}
+            onPress={() => setIcon(name)}
+            style={[
+              styles.iconCell,
+              {
+                backgroundColor: name === icon ? `${color}1F` : colors.glass,
+                borderColor: name === icon ? color : colors.glassBorder,
+              },
+            ]}
+          >
+            <Ionicons name={name as never} size={20} color={name === icon ? color : colors.textMuted} />
+          </Pressable>
+        ))}
+      </View>
+
+      <Text style={styles.sheetLabel}>Couleur</Text>
+      <View style={styles.colorRow}>
+        {CATEGORY_COLOR_CHOICES.map((value) => (
+          <Pressable
+            key={value}
+            onPress={() => setColor(value)}
+            style={[styles.colorSwatch, { backgroundColor: value, borderWidth: value === color ? 3 : 0, borderColor: colors.text }]}
+          >
+            {value === color ? <Ionicons name="checkmark" size={16} color="#0B0D12" /> : null}
+          </Pressable>
+        ))}
+      </View>
+
+      <Button
+        label="Créer la catégorie"
+        onPress={save}
+        loading={saving}
+        disabled={!label.trim()}
+        fullWidth
+        style={{ marginTop: spacing[4] }}
+      />
+    </Sheet>
+  );
+}
+
 // ─── Sheet : mouvement (dépense / revenu) ─────────────────
 function MovementSheet({
   visible,
@@ -367,20 +508,32 @@ function MovementSheet({
   const [category, setCategory] = useState('');
   const [label, setLabel] = useState('');
   const [saving, setSaving] = useState(false);
+  const [categoryCreator, setCategoryCreator] = useState(false);
+
+  const optionsQuery = useRepoQuery(
+    () => getCategoryOptions(type === 'expense' ? 'expense' : 'income'),
+    [type, visible],
+  );
+  const categories = optionsQuery.data ?? CATEGORIES;
 
   useEffect(() => {
     if (visible) {
       setAmount('');
       setAccountId(accounts[0]?.id ?? null);
-      const firstCategory = type === 'expense' ? EXPENSE_CATEGORIES[0] : INCOME_CATEGORIES[0];
-      setCategory(firstCategory.id);
       setLabel('');
       setSaving(false);
+      setCategoryCreator(false);
     }
   }, [visible, type, accounts]);
 
-  const categories = type === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;
-  const valid = Number(amount) > 0 && accountId;
+  useEffect(() => {
+    // Sélection par défaut : la première catégorie disponible du type.
+    if (visible && categories.length > 0 && !categories.some((meta) => meta.id === category)) {
+      setCategory(categories[0].id);
+    }
+  }, [visible, categories, category]);
+
+  const valid = Number(amount) > 0 && accountId && category;
 
   const save = async () => {
     if (!valid || !accountId) return;
@@ -448,6 +601,13 @@ function MovementSheet({
             onPress={() => setCategory(meta.id)}
           />
         ))}
+        <Chip
+          label="Nouvelle catégorie"
+          icon="add-circle"
+          color={colors.primary}
+          selected={false}
+          onPress={() => setCategoryCreator(true)}
+        />
       </View>
 
       <TextField
@@ -466,6 +626,183 @@ function MovementSheet({
         disabled={!valid}
         fullWidth
         style={{ marginTop: spacing[3] }}
+      />
+
+      <CategoryCreateSheet
+        visible={categoryCreator}
+        kind={type === 'expense' ? 'expense' : 'income'}
+        onClose={() => setCategoryCreator(false)}
+        onCreated={(id) => setCategory(id)}
+      />
+    </Sheet>
+  );
+}
+
+// ─── Sheet : modification / suppression d'une transaction ─
+function EditMovementSheet({
+  transaction,
+  accounts,
+  resolveCategory,
+  onClose,
+}: {
+  transaction: (Awaited<ReturnType<typeof getTransactions>>)[number] | null;
+  accounts: Awaited<ReturnType<typeof getBalances>>['accounts'];
+  resolveCategory: (id: string) => CategoryMeta;
+  onClose: () => void;
+}) {
+  const { colors } = useTheme().theme;
+  const type: TxType = transaction?.type ?? 'expense';
+  const [amount, setAmount] = useState('');
+  const [accountId, setAccountId] = useState<string | null>(null);
+  const [category, setCategory] = useState('');
+  const [label, setLabel] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const optionsQuery = useRepoQuery(
+    () => getCategoryOptions(type === 'expense' ? 'expense' : 'income'),
+    [type, transaction?.id],
+  );
+  const categories = optionsQuery.data ?? CATEGORIES;
+  const [categoryCreator, setCategoryCreator] = useState(false);
+
+  useEffect(() => {
+    if (transaction) {
+      setAmount(String(Math.abs(transaction.amount)));
+      setAccountId(transaction.account_id);
+      setCategory(transaction.category);
+      setLabel(transaction.label);
+      setSaving(false);
+      setConfirmDelete(false);
+      setCategoryCreator(false);
+    }
+  }, [transaction]);
+
+  if (!transaction) return null;
+
+  const valid = Number(amount) > 0 && accountId && category;
+
+  const save = async () => {
+    if (!valid || !accountId || !transaction) return;
+    setSaving(true);
+    try {
+      await editTransaction(transaction.id, {
+        accountId,
+        type,
+        amount: Number(amount),
+        category,
+        label,
+      });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      onClose();
+    } catch (error) {
+      console.error(error);
+      setSaving(false);
+    }
+  };
+
+  const remove = async () => {
+    if (!transaction) return;
+    setSaving(true);
+    try {
+      await removeTransaction(transaction.id);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      onClose();
+    } catch (error) {
+      console.error(error);
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Sheet
+      visible={!!transaction}
+      title={type === 'expense' ? 'Modifier la dépense' : 'Modifier le revenu'}
+      onClose={onClose}
+    >
+      <TextInput
+        value={amount}
+        onChangeText={(text) => setAmount(text.replace(/[^0-9]/g, ''))}
+        keyboardType="numeric"
+        placeholder="Montant en FCFA"
+        placeholderTextColor={colors.textTertiary}
+        style={[styles.amountInput, { color: colors.text, backgroundColor: colors.glass, borderColor: colors.glassBorder }]}
+      />
+
+      <Text style={styles.sheetLabel}>Compte</Text>
+      <View style={styles.chipWrap}>
+        {accounts.map((account) => (
+          <Chip
+            key={account.id}
+            label={account.name}
+            icon={account.icon as never}
+            color={account.color}
+            selected={accountId === account.id}
+            onPress={() => setAccountId(account.id)}
+          />
+        ))}
+      </View>
+
+      <Text style={styles.sheetLabel}>Catégorie</Text>
+      <View style={styles.chipWrap}>
+        {categories.map((meta) => (
+          <Chip
+            key={meta.id}
+            label={meta.label}
+            icon={meta.icon as never}
+            color={meta.color}
+            selected={category === meta.id}
+            onPress={() => setCategory(meta.id)}
+          />
+        ))}
+        <Chip
+          label="Nouvelle catégorie"
+          icon="add-circle"
+          color={colors.primary}
+          selected={false}
+          onPress={() => setCategoryCreator(true)}
+        />
+      </View>
+
+      <TextField
+        label="Description (optionnel)"
+        icon="create-outline"
+        value={label}
+        onChangeText={setLabel}
+      />
+
+      <View style={{ flexDirection: 'row', gap: spacing[3], marginTop: spacing[4] }}>
+        <Button
+          label="Supprimer"
+          variant="danger"
+          onPress={() => setConfirmDelete(true)}
+          disabled={saving}
+          style={{ flex: 1 }}
+        />
+        <Button
+          label="Enregistrer"
+          onPress={save}
+          loading={saving}
+          disabled={!valid}
+          style={{ flex: 1 }}
+        />
+      </View>
+
+      {confirmDelete ? (
+        <View style={[styles.confirmStrip, { borderColor: colors.danger }]}>
+          <Text style={[styles.helper, { color: colors.danger, flex: 1 }]}>
+            Supprimer cette transaction ?
+          </Text>
+          <Button label="Annuler" variant="glass" size="sm" onPress={() => setConfirmDelete(false)} />
+          <Button label="Confirmer" variant="danger" size="sm" onPress={remove} loading={saving} />
+        </View>
+      ) : null}
+
+      <CategoryCreateSheet
+        visible={categoryCreator}
+        kind={type === 'expense' ? 'expense' : 'income'}
+        onClose={() => setCategoryCreator(false)}
+        onCreated={(id) => setCategory(id)}
       />
     </Sheet>
   );
@@ -555,17 +892,24 @@ function AccountSheet({ visible, onClose }: { visible: boolean; onClose: () => v
 
 // ─── Sheet : budget ───────────────────────────────────────
 function BudgetSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
-  const [category, setCategory] = useState(EXPENSE_CATEGORIES[0].id);
+  const optionsQuery = useRepoQuery(() => getCategoryOptions('expense'), [visible]);
+  const categories = optionsQuery.data ?? CATEGORIES;
+  const [category, setCategory] = useState('');
   const [amount, setAmount] = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (visible) {
-      setCategory(EXPENSE_CATEGORIES[0].id);
       setAmount('');
       setSaving(false);
     }
   }, [visible]);
+
+  useEffect(() => {
+    if (visible && categories.length > 0 && !categories.some((meta) => meta.id === category)) {
+      setCategory(categories[0].id);
+    }
+  }, [visible, categories, category]);
 
   const save = async () => {
     if (!(Number(amount) > 0)) return;
@@ -584,7 +928,7 @@ function BudgetSheet({ visible, onClose }: { visible: boolean; onClose: () => vo
     <Sheet visible={visible} title="Budget mensuel" onClose={onClose}>
       <Text style={styles.sheetLabel}>Catégorie</Text>
       <View style={styles.chipWrap}>
-        {EXPENSE_CATEGORIES.map((meta) => (
+        {categories.map((meta) => (
           <Chip
             key={meta.id}
             label={meta.label}
@@ -673,5 +1017,36 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     textAlign: 'center',
     marginBottom: spacing[2],
+  },
+  iconGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing[2.5],
+    marginBottom: spacing[2],
+  },
+  iconCell: {
+    width: 52,
+    height: 52,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  colorRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[3], marginBottom: spacing[2] },
+  colorSwatch: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  confirmStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+    borderWidth: 1,
+    borderRadius: radius.md,
+    padding: spacing[3],
+    marginTop: spacing[3],
   },
 });

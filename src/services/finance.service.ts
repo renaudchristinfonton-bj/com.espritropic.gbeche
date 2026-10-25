@@ -6,11 +6,14 @@
 
 import {
   createTransaction,
+  deleteTransaction,
   expenseBreakdown,
   listTransactions,
   sumByType,
+  updateTransaction,
   type CategoryBreakdown,
   type TransactionFilter,
+  type UpdateTransactionInput,
 } from '../db/repositories/transactions.repo';
 import {
   createAccount,
@@ -55,6 +58,20 @@ export async function addMovement(input: {
 }): Promise<ID> {
   if (!(input.amount > 0)) throw new Error('Saisis un montant supérieur à zéro.');
   return createTransaction({ ...input });
+}
+
+export async function editTransaction(
+  id: ID,
+  input: UpdateTransactionInput,
+): Promise<void> {
+  if (input.amount !== undefined && !(input.amount > 0)) {
+    throw new Error('Saisis un montant supérieur à zéro.');
+  }
+  await updateTransaction(id, input);
+}
+
+export async function removeTransaction(id: ID): Promise<void> {
+  await deleteTransaction(id);
 }
 
 export async function getMonthStats(month = currentMonthKey()): Promise<MonthStats> {

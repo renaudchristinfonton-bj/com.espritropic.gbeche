@@ -38,6 +38,10 @@ import {
   requestBiometric,
   setPin,
 } from '@/src/services/security';
+import {
+  requestNotificationPermission,
+} from '@/src/services/notifications.service';
+import { syncReminderSchedule } from '@/src/services/reminderScheduler.service';
 import { ACCOUNT_PRESETS } from '@/src/domain/catalog';
 import { radius, spacing, typography } from '@/src/theme';
 
@@ -145,9 +149,16 @@ export default function Onboarding() {
         });
       }
 
-      // La préférence est conservée ; la permission système et les
-      // notifications locales seront activées en Phase 2 (setup FCM v1).
+      // Notifications locales : on demande la permission système dès
+      // l'onboarding (iOS/Android). Aucun serveur push n'est impliqué.
       await setSettingBool(SETTING_KEYS.notificationsEnabled, notifEnabled);
+      if (notifEnabled) {
+        const granted = await requestNotificationPermission();
+        await setSettingBool(SETTING_KEYS.notificationsEnabled, granted);
+        if (granted) {
+          await syncReminderSchedule().catch(() => {});
+        }
+      }
       await setSetting(SETTING_KEYS.warriorName, 'Guerrier');
       await setSettingBool(SETTING_KEYS.onboardingDone, true);
 

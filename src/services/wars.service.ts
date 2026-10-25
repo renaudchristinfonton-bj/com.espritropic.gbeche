@@ -6,24 +6,39 @@
 
 import {
   createBattle,
+  deleteBattle,
   getBattle,
   getBattleProgress,
   listBattlesByWar,
   setBattleStatus,
+  updateBattle,
   type CreateBattleInput,
+  type UpdateBattleInput,
 } from '../db/repositories/battles.repo';
 import {
   createManualAdversary,
   createTemplate,
   deactivateTemplate,
+  deleteInstance,
   listInstancesByBattle,
   listInstancesForDay,
   listTemplatesByBattle,
   listUpcoming,
   materializeAllTemplates,
+  updateManualInstance,
+  updateTemplate,
+  type UpdateManualInstanceInput,
+  type UpdateTemplateInput,
 } from '../db/repositories/adversaries.repo';
-import { getWar } from '../db/repositories/wars.repo';
-import type { BattleRow, Frequency, ID } from '../db/types';
+import { deleteWar, getWar, updateWar, type UpdateWarInput } from '../db/repositories/wars.repo';
+import type {
+  AdversaryRow,
+  AdversaryTemplateRow,
+  BattleRow,
+  Frequency,
+  ID,
+  WarRow,
+} from '../db/types';
 
 export type NewBattleInput = CreateBattleInput;
 
@@ -116,8 +131,66 @@ export async function completeBattleIfDone(battleId: ID): Promise<boolean> {
 }
 
 export async function removeTemplate(templateId: ID): Promise<void> {
+  // Désactivation plutôt que suppression : l'historique des victoires
+  // passées est préservé, et aucune nouvelle instance n'est matérielle.
   await deactivateTemplate(templateId);
 }
+
+// ─── Modification / suppression ───────────────────────────
+export async function editWar(warId: ID, input: UpdateWarInput): Promise<void> {
+  const war = await getWar(warId);
+  if (!war) throw new Error('Guerre introuvable.');
+  if (input.title !== undefined && !input.title.trim()) {
+    throw new Error('Le nom de la guerre est obligatoire.');
+  }
+  await updateWar(warId, input);
+}
+
+export async function removeWar(warId: ID): Promise<void> {
+  await deleteWar(warId);
+}
+
+export async function editBattle(battleId: ID, input: UpdateBattleInput): Promise<void> {
+  const battle = await getBattle(battleId);
+  if (!battle) throw new Error('Bataille introuvable.');
+  if (input.title !== undefined && !input.title.trim()) {
+    throw new Error('Le titre de la bataille est obligatoire.');
+  }
+  await updateBattle(battleId, input);
+}
+
+export async function removeBattle(battleId: ID): Promise<void> {
+  await deleteBattle(battleId);
+}
+
+export async function editTemplate(
+  templateId: ID,
+  input: UpdateTemplateInput,
+): Promise<void> {
+  if (input.frequency === 'specific_days' && !(input.specificDays?.length)) {
+    throw new Error('Sélectionne au moins un jour de la semaine.');
+  }
+  if (input.title !== undefined && !input.title.trim()) {
+    throw new Error("Le nom de l'adversaire est obligatoire.");
+  }
+  await updateTemplate(templateId, input);
+}
+
+export async function editManualInstance(
+  instanceId: ID,
+  input: UpdateManualInstanceInput,
+): Promise<void> {
+  if (input.title !== undefined && !input.title.trim()) {
+    throw new Error('Le nom de la mission est obligatoire.');
+  }
+  await updateManualInstance(instanceId, input);
+}
+
+export async function removeInstance(instanceId: ID): Promise<void> {
+  await deleteInstance(instanceId);
+}
+
+export type { WarRow, BattleRow, AdversaryRow, AdversaryTemplateRow };
 
 export const warsQuery = {
   battlesByWar: listBattlesByWar,

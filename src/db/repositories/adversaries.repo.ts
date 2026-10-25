@@ -104,6 +104,169 @@ export async function deactivateTemplate(id: ID): Promise<void> {
   await run('UPDATE adversary_templates SET is_active = 0 WHERE id = ?;', [id]);
 }
 
+export async function getTemplate(id: ID): Promise<AdversaryTemplateRow | null> {
+  return first<AdversaryTemplateRow>(
+    'SELECT * FROM adversary_templates WHERE id = ?;',
+    [id],
+  );
+}
+
+export interface UpdateTemplateInput {
+  title?: string;
+  xpReward?: number;
+  frequency?: Frequency;
+  specificDays?: number[];
+  hour?: number;
+  durationMin?: number;
+}
+
+/**
+ * Modifie une routine récurrente puis propage les changements aux
+ * instances futures encore pendantes (les victoires passées restent
+ * figées) et complète l'horizon glissant de 45 jours.
+ */
+export async function updateTemplate(
+  id: ID,
+  input: UpdateTemplateInput,
+): Promise<void> {
+  const existing = await getTemplate(id);
+  if (!existing) throw new Error('Routine introuvable.');
+  if (input.title !== undefined && !input.title.trim()) {
+    throw new Error("Le nom de l'adversaire est obligatoire.");
+  }
+
+  const fields: string[] = [];
+  const params: (string | number)[] = [];
+
+  if (input.title !== undefined) {
+    fields.push('title = ?');
+    params.push(input.title.trim());
+  }
+  if (input.xpReward !== undefined) {
+    fields.push('xp_reward = ?');
+    params.push(input.xpReward);
+  }
+  if (input.frequency !== undefined) {
+    fields.push('frequency = ?');
+    params.push(input.frequency);
+  }
+  if (input.specificDays !== undefined) {
+    fields.push('specific_days = ?');
+    params.push(JSON.stringify(input.specificDays));
+  }
+  if (input.hour !== undefined) {
+    fields.push('hour = ?');
+    params.push(input.hour);
+  }
+  if (input.durationMin !== undefined) {
+    fields.push('duration_min = ?');
+    params.push(input.durationMin);
+  }
+  if (fields.length === 0) return;
+
+  await run(
+    `UPDATE adversary_templates SET ${fields.join(', ')} WHERE id = ?;`,
+    [...params, id],
+  );
+
+  const next = await getTemplate(id);
+  if (!next || !next.is_active) return;
+
+  // Propagation aux instances futures non terminées. L'heure modifiée
+  // décale l'instance le même jour à la nouvelle heure.
+  const now = Date.now();
+  const rows = await all<AdversaryRow>(
+    `SELECT * FROM adversaries
+     WHERE template_id = ? AND status IN ('pending', 'rescheduled')
+       AND scheduled_at >= ?;`,
+    [id, now],
+  );
+  for (const instance of rows) {
+    const when = new Date(instance.scheduled_at);
+    when.setHours(next.hour, 0, 0, 0);
+    await run(
+      `UPDATE adversaries
+       SET title = ?, xp_reward = ?, hour = ?, duration_min = ?,
+           scheduled_at = ?, updated_at = ?
+       WHERE id = ?;`,
+      [
+        next.title,
+        next.xp_reward,
+        next.hour,
+        next.duration_min,
+        when.getTime(),
+        now,
+        instance.id,
+      ],
+    );
+  }
+
+  // De nouvelles occurrences peuvent apparaître (changement de fréquence
+  // ou de jours) : INSERT OR IGNORE complète le reste de l'horizon.
+  await materializeTemplate(id);
+}
+
+export interface UpdateManualInstanceInput {
+  title?: string;
+  xpReward?: number;
+  scheduledAt?: Date;
+  durationMin?: number;
+}
+
+/** Modifie une mission ponctuelle (instance sans template). */
+export async function updateManualInstance(
+  id: ID,
+  input: UpdateManualInstanceInput,
+): Promise<void> {
+  const instance = await getInstance(id);
+  if (!instance) throw new Error('Mission introuvable.');
+  if (instance.template_id !== null) {
+    throw new Error('Une occurrence de routine se modifie via sa routine.');
+  }
+  if (input.title !== undefined && !input.title.trim()) {
+    throw new Error('Le nom de la mission est obligatoire.');
+  }
+
+  const fields: string[] = [];
+  const params: (string | number)[] = [];
+
+  if (input.title !== undefined) {
+    fields.push('title = ?');
+    params.push(input.title.trim());
+  }
+  if (input.xpReward !== undefined) {
+    fields.push('xp_reward = ?');
+    params.push(input.xpReward);
+  }
+  if (input.durationMin !== undefined) {
+    fields.push('duration_min = ?');
+    params.push(input.durationMin);
+  }
+  if (input.scheduledAt !== undefined) {
+    fields.push('scheduled_at = ?');
+    fields.push('hour = ?');
+    params.push(input.scheduledAt.getTime(), input.scheduledAt.getHours());
+  }
+  if (fields.length === 0) return;
+
+  fields.push('updated_at = ?');
+  params.push(Date.now(), id);
+  await run(`UPDATE adversaries SET ${fields.join(', ')} WHERE id = ?;`, params);
+}
+
+/**
+ * Supprime une mission ponctuelle. Les occurrences de routine ne peuvent
+ * pas être supprimées ici : elles seraient recréées par la matérialisation.
+ */
+export async function deleteInstance(id: ID): Promise<void> {
+  const instance = await getInstance(id);
+  if (!instance) return;
+  if (instance.template_id !== null) {
+    throw new Error('Une occurrence de routine se gère via sa routine.');
+  }
+  await run('DELETE FROM adversaries WHERE id = ?;', [id]);
+}
+
 // ─── Moteur de matérialisation ────────────────────────────
 export async function materializeTemplate(
   templateId: ID,

@@ -197,6 +197,24 @@ export const MIGRATIONS: Migration[] = [
       );
     `,
   },
+  {
+    version: 2,
+    name: 'custom_categories',
+    sql: /* sql */ `
+      -- Catégories financières créées par l'utilisateur (le catalogue
+      -- statique src/domain/catalog.ts reste le socle, non dupliqué ici).
+      CREATE TABLE IF NOT EXISTS categories (
+        id         TEXT PRIMARY KEY NOT NULL,
+        label      TEXT NOT NULL,
+        icon       TEXT NOT NULL DEFAULT 'pricetag',
+        color      TEXT NOT NULL DEFAULT '#8E94A8',
+        kind       TEXT NOT NULL CHECK (kind IN ('expense', 'income')),
+        is_custom  INTEGER NOT NULL DEFAULT 1,
+        created_at INTEGER NOT NULL,
+        UNIQUE(label, kind)
+      );
+    `,
+  },
 ];
 
 export const LATEST_SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1].version;

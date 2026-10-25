@@ -5,7 +5,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import Constants from 'expo-constants';
@@ -19,7 +19,13 @@ import { SegmentedControl } from '@/src/components/ui/SegmentedControl';
 import { PinPad } from '@/src/components/ui/PinPad';
 import { useTheme, type ThemeMode } from '@/src/theme/ThemeContext';
 import { useTranslation, type Language } from '@/src/i18n';
-import { getSetting, loadSettingsCache, SETTING_KEYS } from '@/src/db/settings';
+import { getSetting, getSettingBool, loadSettingsCache, setSettingBool, SETTING_KEYS } from '@/src/db/settings';
+import {
+  getNotificationPermission,
+  requestNotificationPermission,
+  type NotificationPermissionStatus,
+} from '@/src/services/notifications.service';
+import { syncReminderSchedule } from '@/src/services/reminderScheduler.service';
 import { resetDatabase } from '@/src/db/client';
 import {
   getBiometricAvailability,
@@ -193,6 +199,10 @@ export default function SettingsScreen() {
         />
       </GlassCard>
 
+      {/* Notifications */}
+      <Text style={[styles.section, { color: colors.textMuted }]}>Notifications</Text>
+      <NotificationSettingsRow />
+
       {/* Phase 2 */}
       <Text style={[styles.section, { color: colors.textMuted }]}>Bientôt</Text>
       <GlassCard style={{ gap: spacing[2] }}>
@@ -257,6 +267,71 @@ export default function SettingsScreen() {
         </View>
       </Sheet>
     </Screen>
+  );
+}
+
+function NotificationSettingsRow() {
+  const { colors } = useTheme().theme;
+  const [enabled, setEnabled] = useState(() =>
+    getSettingBool(SETTING_KEYS.notificationsEnabled, false),
+  );
+  const [permission, setPermission] = useState<NotificationPermissionStatus>('default');
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    getNotificationPermission().then(setPermission);
+  }, []);
+
+  const statusLabel =
+    permission === 'unsupported'
+      ? 'Indisponible'
+      : enabled
+        ? permission === 'granted'
+          ? 'Rappels activés'
+          : 'Permission requise'
+        : 'Désactivées';
+
+  const toggle = async (next: boolean) => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      if (next) {
+        const granted = await requestNotificationPermission();
+        setPermission(await getNotificationPermission());
+        if (!granted) {
+          // Le système a refusé : on n'enregistre pas une préférence trompeuse.
+          setEnabled(false);
+          await setSettingBool(SETTING_KEYS.notificationsEnabled, false);
+          return;
+        }
+      }
+      await setSettingBool(SETTING_KEYS.notificationsEnabled, next);
+      setEnabled(next);
+      await syncReminderSchedule();
+    } catch (error) {
+      console.error('[notifications] toggle', error);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <GlassCard style={styles.settingRow}>
+      <View style={[styles.rowIcon, { backgroundColor: colors.primaryDim }]}>
+        <Ionicons name="notifications" size={20} color={colors.primary} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.rowLabel, { color: colors.text }]}>Rappels de missions</Text>
+        <Text style={[styles.rowValue, { color: colors.textMuted }]}>{statusLabel}</Text>
+      </View>
+      <Switch
+        value={enabled}
+        onValueChange={toggle}
+        disabled={busy || permission === 'unsupported'}
+        trackColor={{ false: colors.glassBorder, true: colors.primary }}
+        thumbColor={enabled ? colors.textInverse : colors.textTertiary}
+      />
+    </GlassCard>
   );
 }
 

@@ -1,9 +1,11 @@
 /**
  * GBECHE — Planificateur de rappels.
  * Inspecte les instances planifiées du jour et déclenche :
- *  - une notification système (Notification API sur web, no-op natif pour
- *    l'instant, le push FCM étant réservé à la Phase 2) ;
+ *  - une notification système (expo-notifications en natif, Notification
+ *    API sur web) ;
  *  - un rappel in-app visible via NotificationHost dans tous les cas.
+ * Les notifications planifiées à l'avance (app fermée) sont gérées par
+ * reminderScheduler.service ; ce sondage couvre l'app ouverte et le web.
  * Les IDs déjà notifiés sont persistés dans les préférences pour ne pas
  * re-déclencher après rechargement.
  */

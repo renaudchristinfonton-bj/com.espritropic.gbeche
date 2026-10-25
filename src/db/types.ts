@@ -131,6 +131,20 @@ export interface BudgetRow {
   created_at: number;
 }
 
+// Catégorie personnalisée (les catégories du catalogue statique n'ont
+// pas de ligne : seules les créations utilisateur sont persistées).
+export type CategoryKind = 'expense' | 'income';
+
+export interface CategoryRow {
+  id: ID;
+  label: string;
+  icon: string; // nom Ionicons
+  color: string; // hex
+  kind: CategoryKind;
+  is_custom: number; // 0 | 1
+  created_at: number;
+}
+
 // ─── Gamification ─────────────────────────────────────────
 export interface GamificationRow {
   id: number;

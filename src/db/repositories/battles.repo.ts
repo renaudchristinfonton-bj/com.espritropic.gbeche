@@ -59,6 +59,49 @@ export async function setBattleStatus(id: ID, status: BattleStatus): Promise<voi
   );
 }
 
+export interface UpdateBattleInput {
+  title?: string;
+  description?: string;
+  priority?: Priority;
+  deadline?: Date | null;
+  xpReward?: number;
+}
+
+export async function updateBattle(id: ID, input: UpdateBattleInput): Promise<void> {
+  const fields: string[] = [];
+  const params: (string | number | null)[] = [];
+
+  if (input.title !== undefined) {
+    fields.push('title = ?');
+    params.push(input.title.trim());
+  }
+  if (input.description !== undefined) {
+    fields.push('description = ?');
+    params.push(input.description.trim());
+  }
+  if (input.priority !== undefined) {
+    fields.push('priority = ?');
+    params.push(input.priority);
+  }
+  if (input.deadline !== undefined) {
+    fields.push('deadline = ?');
+    params.push(input.deadline ? input.deadline.getTime() : null);
+  }
+  if (input.xpReward !== undefined) {
+    fields.push('xp_reward = ?');
+    params.push(input.xpReward);
+  }
+  if (fields.length === 0) return;
+
+  fields.push('updated_at = ?');
+  params.push(Date.now(), id);
+  await run(`UPDATE battles SET ${fields.join(', ')} WHERE id = ?;`, params);
+}
+
+export async function deleteBattle(id: ID): Promise<void> {
+  await run('DELETE FROM battles WHERE id = ?;', [id]);
+}
+
 export interface BattleProgress {
   total: number;
   won: number;

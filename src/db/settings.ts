@@ -15,6 +15,8 @@ export const SETTING_KEYS = {
   biometricEnabled: 'biometric_enabled',
   seeded: 'seeded',
   notifiedInstanceIds: 'notified_instance_ids',
+  // Planification des notifications locales : map instanceId → { nid, at }.
+  scheduledReminders: 'scheduled_reminders',
 } as const;
 
 export type SettingKey = (typeof SETTING_KEYS)[keyof typeof SETTING_KEYS];

@@ -95,6 +95,7 @@ export async function resetDatabase(): Promise<void> {
     DROP TABLE IF EXISTS gamification;
     DROP TABLE IF EXISTS budgets;
     DROP TABLE IF EXISTS transactions;
+    DROP TABLE IF EXISTS categories;
     DROP TABLE IF EXISTS accounts;
     DROP TABLE IF EXISTS adversaries;
     DROP TABLE IF EXISTS adversary_templates;
@@ -116,6 +117,7 @@ export const BACKUP_TABLES = [
   'settings',
   'wars',
   'accounts',
+  'categories',
   'battles',
   'adversary_templates',
   'adversaries',

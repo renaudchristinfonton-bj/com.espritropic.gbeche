@@ -2,6 +2,7 @@
  * GBECHE — Écran Guerres.
  * Guerres (domaines) → Batailles (objectifs) → Templates + Adversaires (tâches).
  * Toutes les écritures passent par les services et persistent dans SQLite.
+ * Chaque niveau supporte la création, la modification et la suppression.
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
@@ -27,12 +28,27 @@ import {
   listBattlesByWar,
   type BattleProgress,
 } from '@/src/db/repositories/battles.repo';
-import type { AdversaryRow, BattleRow, Frequency, Priority, WarRow } from '@/src/db/types';
+import type {
+  AdversaryRow,
+  AdversaryTemplateRow,
+  BattleRow,
+  Frequency,
+  Priority,
+  WarRow,
+} from '@/src/db/types';
 import {
   addBattle,
   addQuickAdversary,
   addTemplate,
+  editBattle,
+  editManualInstance,
+  editTemplate,
+  editWar,
   getBattleDetail,
+  removeBattle,
+  removeInstance,
+  removeTemplate,
+  removeWar,
 } from '@/src/services/wars.service';
 import { winAdversary } from '@/src/services/gamification.service';
 import { useAppStore } from '@/src/store/useAppStore';
@@ -64,14 +80,21 @@ const WAR_ICON_CHOICES = [
 
 const WAR_COLOR_CHOICES = [
   '#FFD700',
+  '#FF9F43',
   '#00FF88',
   '#00E5FF',
   '#A78BFA',
   '#FF6B35',
-  '#FF9F43',
   '#6366F1',
   '#FF4757',
 ] as const;
+
+interface ConfirmState {
+  title: string;
+  message: string;
+  confirmLabel: string;
+  onConfirm: () => Promise<void> | void;
+}
 
 export default function WarsScreen() {
   const { colors } = useTheme().theme;
@@ -87,9 +110,21 @@ export default function WarsScreen() {
   const [templateBattle, setTemplateBattle] = useState<BattleRow | null>(null);
   const [quickBattle, setQuickBattle] = useState<BattleRow | null>(null);
 
+  // Cibles d'édition (null = mode création).
+  const [editingWar, setEditingWar] = useState<WarRow | null>(null);
+  const [editingBattle, setEditingBattle] = useState<BattleRow | null>(null);
+  const [editingTemplate, setEditingTemplate] = useState<AdversaryTemplateRow | null>(null);
+  const [editingInstance, setEditingInstance] = useState<AdversaryRow | null>(null);
+  const [confirm, setConfirm] = useState<ConfirmState | null>(null);
+
   useEffect(() => {
-    if (wars.length && !selectedWarId) setSelectedWarId(wars[0].id);
-  }, [wars, selectedWarId]);
+    const list = warsQuery.data ?? [];
+    if (list.length === 0) {
+      setSelectedWarId(null);
+    } else if (!selectedWarId || !list.some((war) => war.id === selectedWarId)) {
+      setSelectedWarId(list[0].id);
+    }
+  }, [warsQuery.data, selectedWarId]);
 
   useEffect(() => {
     if (params.action === 'battle' && selectedWarId) {
@@ -143,6 +178,7 @@ export default function WarsScreen() {
         <Pressable
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            setEditingWar(null);
             setWarSheetOpen(true);
           }}
           style={[styles.warTab, { backgroundColor: colors.glass, borderColor: colors.glassBorder }]}
@@ -156,28 +192,67 @@ export default function WarsScreen() {
         contentContainerStyle={{ padding: spacing[5], paddingBottom: 120, gap: spacing[3] }}
         showsVerticalScrollIndicator={false}
       >
-        {selectedWar ? <WarSection war={selectedWar} onOpenBattle={setDetailBattle} /> : null}
+        {selectedWar ? (
+          <WarSection
+            war={selectedWar}
+            onOpenBattle={setDetailBattle}
+            onEditWar={(war) => {
+              setEditingWar(war);
+              setWarSheetOpen(true);
+            }}
+          />
+        ) : null}
 
         <Button
           label="Nouvelle bataille"
           icon={<Ionicons name="add-circle" size={18} color={colors.textInverse} />}
-          onPress={() => setBattleSheetOpen(true)}
+          onPress={() => {
+            setEditingBattle(null);
+            setBattleSheetOpen(true);
+          }}
           fullWidth
         />
       </ScrollView>
 
       {/* Feuilles */}
-      <CreateWarSheet
+      <WarSheet
         visible={warSheetOpen}
+        war={editingWar}
         onClose={() => setWarSheetOpen(false)}
         onCreated={(id) => setSelectedWarId(id)}
+        onRequestDelete={(war) =>
+          setConfirm({
+            title: 'Supprimer la guerre ?',
+            message: `« ${war.title} » et toutes ses batailles et missions seront supprimés définitivement.`,
+            confirmLabel: 'Supprimer',
+            onConfirm: async () => {
+              await removeWar(war.id);
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              setWarSheetOpen(false);
+            },
+          })
+        }
       />
 
       {selectedWar ? (
-        <CreateBattleSheet
+        <BattleSheet
           visible={battleSheetOpen}
           war={selectedWar}
+          battle={editingBattle}
           onClose={() => setBattleSheetOpen(false)}
+          onRequestDelete={(battle) =>
+            setConfirm({
+              title: 'Supprimer la bataille ?',
+              message: `« ${battle.title} » et ses adversaires seront supprimés définitivement.`,
+              confirmLabel: 'Supprimer',
+              onConfirm: async () => {
+                await removeBattle(battle.id);
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                setBattleSheetOpen(false);
+                setDetailBattle(null);
+              },
+            })
+          }
         />
       ) : null}
 
@@ -186,17 +261,111 @@ export default function WarsScreen() {
         onClose={() => setDetailBattle(null)}
         onAddTemplate={(battle) => {
           setDetailBattle(null);
+          setEditingTemplate(null);
           setTemplateBattle(battle);
         }}
         onAddQuick={(battle) => {
           setDetailBattle(null);
+          setEditingInstance(null);
           setQuickBattle(battle);
         }}
+        onEditTemplate={(battle, template) => {
+          setDetailBattle(null);
+          setEditingTemplate(template);
+          setTemplateBattle(battle);
+        }}
+        onEditInstance={(battle, instance) => {
+          setDetailBattle(null);
+          setEditingInstance(instance);
+          setQuickBattle(battle);
+        }}
+        onDeleteTemplate={(template) =>
+          setConfirm({
+            title: 'Arrêter la routine ?',
+            message: `« ${template.title} » ne générera plus de missions. L'historique des victoires est conservé.`,
+            confirmLabel: 'Arrêter',
+            onConfirm: async () => {
+              await removeTemplate(template.id);
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            },
+          })
+        }
+        onDeleteInstance={(instance) =>
+          setConfirm({
+            title: 'Supprimer la mission ?',
+            message: `« ${instance.title} » sera supprimée définitivement.`,
+            confirmLabel: 'Supprimer',
+            onConfirm: async () => {
+              await removeInstance(instance.id);
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            },
+          })
+        }
       />
 
-      <CreateTemplateSheet battle={templateBattle} onClose={() => setTemplateBattle(null)} />
-      <QuickAdversarySheet battle={quickBattle} onClose={() => setQuickBattle(null)} />
+      <TemplateSheet
+        battle={templateBattle}
+        template={editingTemplate}
+        onClose={() => setTemplateBattle(null)}
+      />
+      <QuickAdversarySheet
+        battle={quickBattle}
+        instance={editingInstance}
+        onClose={() => setQuickBattle(null)}
+        onRequestDelete={(instance) =>
+          setConfirm({
+            title: 'Supprimer la mission ?',
+            message: `« ${instance.title} » sera supprimée définitivement.`,
+            confirmLabel: 'Supprimer',
+            onConfirm: async () => {
+              await removeInstance(instance.id);
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              setQuickBattle(null);
+            },
+          })
+        }
+      />
+
+      <ConfirmSheet
+        state={confirm}
+        onClose={() => setConfirm(null)}
+        onConfirmed={async () => {
+          const action = confirm?.onConfirm;
+          setConfirm(null);
+          try {
+            await action?.();
+          } catch (error) {
+            console.error('[confirm]', error);
+          }
+        }}
+      />
     </Screen>
+  );
+}
+
+// ─── Confirmation générique (cross-plateforme, web inclus) ─
+function ConfirmSheet({
+  state,
+  onClose,
+  onConfirmed,
+}: {
+  state: ConfirmState | null;
+  onClose: () => void;
+  onConfirmed: () => void;
+}) {
+  return (
+    <Sheet visible={!!state} title={state?.title ?? ''} onClose={onClose}>
+      <Text style={styles.confirmText}>{state?.message}</Text>
+      <View style={{ flexDirection: 'row', gap: spacing[3], marginTop: spacing[4] }}>
+        <Button label="Annuler" variant="glass" onPress={onClose} style={{ flex: 1 }} />
+        <Button
+          label={state?.confirmLabel ?? 'Confirmer'}
+          variant="danger"
+          onPress={onConfirmed}
+          style={{ flex: 1 }}
+        />
+      </View>
+    </Sheet>
   );
 }
 
@@ -204,9 +373,11 @@ export default function WarsScreen() {
 function WarSection({
   war,
   onOpenBattle,
+  onEditWar,
 }: {
   war: WarRow;
   onOpenBattle: (battle: BattleRow) => void;
+  onEditWar: (war: WarRow) => void;
 }) {
   const { colors } = useTheme().theme;
   const battlesQuery = useRepoQuery(() => listBattlesByWar(war.id), [war.id]);
@@ -233,16 +404,33 @@ function WarSection({
           <Text style={[styles.warSummaryTitle, { color: colors.text }]}>{war.title}</Text>
           <Text style={[styles.warSummaryXp, { color: colors.xp }]}>{war.xp_earned} XP gagnés</Text>
         </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Modifier la guerre"
+          onPress={() => onEditWar(war)}
+          hitSlop={10}
+          style={[styles.iconButton, { borderColor: colors.glassBorder }]}
+        >
+          <Ionicons name="create-outline" size={18} color={colors.textMuted} />
+        </Pressable>
       </GlassCard>
 
       {battles.map((battle) => (
-        <BattleCard key={battle.id} battle={battle} onPress={() => onOpenBattle(battle)} />
+        <BattleCard key={battle.id} battle={battle} onPress={() => onOpenBattle(battle)} onEdit={() => onOpenBattle(battle)} />
       ))}
     </>
   );
 }
 
-function BattleCard({ battle, onPress }: { battle: BattleRow; onPress: () => void }) {
+function BattleCard({
+  battle,
+  onPress,
+  onEdit,
+}: {
+  battle: BattleRow;
+  onPress: () => void;
+  onEdit: () => void;
+}) {
   const { colors } = useTheme().theme;
   const progressQuery = useRepoQuery(() => getBattleProgress(battle.id), [battle.id]);
   const progress: BattleProgress = progressQuery.data ?? { total: 0, won: 0, pending: 0, lost: 0 };
@@ -263,6 +451,14 @@ function BattleCard({ battle, onPress }: { battle: BattleRow; onPress: () => voi
           {battle.title}
         </Text>
         <View style={[styles.priorityDot, { backgroundColor: priority.color }]} />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Modifier la bataille"
+          onPress={onEdit}
+          hitSlop={10}
+        >
+          <Ionicons name="create-outline" size={18} color={colors.textMuted} />
+        </Pressable>
       </View>
       <View style={styles.battleMetaRow}>
         <Ionicons name="calendar-outline" size={13} color={colors.textMuted} />
@@ -278,42 +474,51 @@ function BattleCard({ battle, onPress }: { battle: BattleRow; onPress: () => voi
   );
 }
 
-// ─── Sheet : création / gestion des guerres ──────────────
-function CreateWarSheet({
+// ─── Sheet : création / modification d'une guerre ─────────
+function WarSheet({
   visible,
+  war,
   onClose,
   onCreated,
+  onRequestDelete,
 }: {
   visible: boolean;
+  war: WarRow | null;
   onClose: () => void;
   onCreated: (warId: string) => void;
+  onRequestDelete: (war: WarRow) => void;
 }) {
   const { colors } = useTheme().theme;
   const allWarsQuery = useRepoQuery(() => listWars(false), []);
   const allWars = allWarsQuery.data ?? [];
-  const inactiveWars = allWars.filter((war) => !war.is_active);
+  const inactiveWars = allWars.filter((item) => !item.is_active);
+  const isEdit = !!war;
 
   const [title, setTitle] = useState('');
   const [icon, setIcon] = useState<string>(WAR_ICON_CHOICES[0]);
   const [color, setColor] = useState<string>(WAR_COLOR_CHOICES[0]);
   const [saving, setSaving] = useState(false);
 
+  useEffect(() => {
+    if (visible) {
+      setTitle(war?.title ?? '');
+      setIcon(war?.icon ?? WAR_ICON_CHOICES[0]);
+      setColor(war?.color ?? WAR_COLOR_CHOICES[0]);
+      setSaving(false);
+    }
+  }, [visible, war]);
+
   const save = async () => {
-    if (!title.trim()) return;
+    if (!title.trim() || saving) return;
     setSaving(true);
     try {
-      const id = await createWar({
-        title,
-        icon,
-        color,
-        domainType: 'custom',
-      });
+      if (isEdit && war) {
+        await editWar(war.id, { title, icon, color });
+      } else {
+        const id = await createWar({ title, icon, color, domainType: 'custom' });
+        onCreated(id);
+      }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setTitle('');
-      setIcon(WAR_ICON_CHOICES[0]);
-      setColor(WAR_COLOR_CHOICES[0]);
-      setSaving(false);
-      onCreated(id);
       onClose();
     } catch (error) {
       console.error(error);
@@ -321,13 +526,13 @@ function CreateWarSheet({
     }
   };
 
-  const toggleActive = async (war: WarRow) => {
-    await setWarActive(war.id, !war.is_active);
+  const toggleActive = async (item: WarRow) => {
+    await setWarActive(item.id, !item.is_active);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
   return (
-    <Sheet visible={visible} title="Nouvelle guerre" onClose={onClose}>
+    <Sheet visible={visible} title={isEdit ? 'Modifier la guerre' : 'Nouvelle guerre'} onClose={onClose}>
       <ScrollView style={{ maxHeight: 480 }} showsVerticalScrollIndicator={false}>
         <TextField
           label="Nom de la guerre"
@@ -386,7 +591,7 @@ function CreateWarSheet({
         </View>
 
         <Button
-          label="Créer la guerre"
+          label={isEdit ? 'Enregistrer' : 'Créer la guerre'}
           onPress={save}
           loading={saving}
           disabled={!title.trim()}
@@ -394,28 +599,38 @@ function CreateWarSheet({
           style={{ marginTop: spacing[5] }}
         />
 
-        {inactiveWars.length > 0 ? (
+        {isEdit && war ? (
+          <Button
+            label="Supprimer la guerre"
+            variant="danger"
+            fullWidth
+            style={{ marginTop: spacing[3] }}
+            onPress={() => onRequestDelete(war)}
+          />
+        ) : null}
+
+        {!isEdit && inactiveWars.length > 0 ? (
           <>
             <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>
               Guerres en pause ({inactiveWars.length})
             </Text>
-            {inactiveWars.map((war) => (
+            {inactiveWars.map((item) => (
               <View
-                key={war.id}
+                key={item.id}
                 style={[styles.manageRow, { backgroundColor: colors.glass, borderColor: colors.glassBorder }]}
               >
-                <Ionicons name={war.icon as never} size={18} color={war.color} />
+                <Ionicons name={item.icon as never} size={18} color={item.color} />
                 <Text
                   numberOfLines={1}
                   style={[styles.manageRowTitle, { color: colors.textMuted }]}
                 >
-                  {war.title}
+                  {item.title}
                 </Text>
                 <Button
                   label="Réactiver"
                   variant="glass"
                   size="sm"
-                  onPress={() => toggleActive(war)}
+                  onPress={() => toggleActive(item)}
                 />
               </View>
             ))}
@@ -426,44 +641,60 @@ function CreateWarSheet({
   );
 }
 
-// ─── Sheet : création de bataille ─────────────────────────
-function CreateBattleSheet({
+// ─── Sheet : création / modification de bataille ──────────
+function BattleSheet({
   visible,
   war,
+  battle,
   onClose,
+  onRequestDelete,
 }: {
   visible: boolean;
   war: WarRow;
+  battle: BattleRow | null;
   onClose: () => void;
+  onRequestDelete: (battle: BattleRow) => void;
 }) {
   const { colors } = useTheme().theme;
+  const isEdit = !!battle;
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [priority, setPriority] = useState<Priority>('medium');
   const [deadlineDays, setDeadlineDays] = useState<number | null>(30);
   const [saving, setSaving] = useState(false);
 
-  const reset = () => {
-    setTitle('');
-    setDescription('');
-    setPriority('medium');
-    setDeadlineDays(30);
-    setSaving(false);
-  };
+  useEffect(() => {
+    if (visible) {
+      setTitle(battle?.title ?? '');
+      setDescription(battle?.description ?? '');
+      setPriority(battle?.priority ?? 'medium');
+      if (battle?.deadline) {
+        const days = Math.round((battle.deadline - Date.now()) / 86_400_000);
+        setDeadlineDays(days > 0 ? days : 0);
+      } else {
+        setDeadlineDays(isEdit ? 0 : 30);
+      }
+      setSaving(false);
+    }
+  }, [visible, battle, isEdit]);
 
   const save = async () => {
-    if (!title.trim()) return;
+    if (!title.trim() || saving) return;
     setSaving(true);
     try {
-      await addBattle({
-        warId: war.id,
-        title,
-        description,
-        priority,
-        deadline: deadlineDays ? new Date(Date.now() + deadlineDays * 86400000) : null,
-      });
+      const deadline = deadlineDays ? new Date(Date.now() + deadlineDays * 86_400_000) : null;
+      if (isEdit && battle) {
+        await editBattle(battle.id, { title, description, priority, deadline });
+      } else {
+        await addBattle({
+          warId: war.id,
+          title,
+          description,
+          priority,
+          deadline,
+        });
+      }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      reset();
       onClose();
     } catch (error) {
       console.error(error);
@@ -472,7 +703,7 @@ function CreateBattleSheet({
   };
 
   return (
-    <Sheet visible={visible} title="Nouvelle bataille" onClose={onClose}>
+    <Sheet visible={visible} title={isEdit ? 'Modifier la bataille' : 'Nouvelle bataille'} onClose={onClose}>
       <TextField
         label="Titre de l'objectif"
         icon="flag"
@@ -517,13 +748,22 @@ function CreateBattleSheet({
       />
 
       <Button
-        label="Créer la bataille"
+        label={isEdit ? 'Enregistrer' : 'Créer la bataille'}
         onPress={save}
         loading={saving}
         disabled={!title.trim()}
         fullWidth
         style={{ marginTop: spacing[5] }}
       />
+      {isEdit && battle ? (
+        <Button
+          label="Supprimer la bataille"
+          variant="danger"
+          fullWidth
+          style={{ marginTop: spacing[3] }}
+          onPress={() => onRequestDelete(battle)}
+        />
+      ) : null}
     </Sheet>
   );
 }
@@ -534,11 +774,19 @@ function BattleDetailSheet({
   onClose,
   onAddTemplate,
   onAddQuick,
+  onEditTemplate,
+  onEditInstance,
+  onDeleteTemplate,
+  onDeleteInstance,
 }: {
   battle: BattleRow | null;
   onClose: () => void;
   onAddTemplate: (battle: BattleRow) => void;
   onAddQuick: (battle: BattleRow) => void;
+  onEditTemplate: (battle: BattleRow, template: AdversaryTemplateRow) => void;
+  onEditInstance: (battle: BattleRow, instance: AdversaryRow) => void;
+  onDeleteTemplate: (template: AdversaryTemplateRow) => void;
+  onDeleteInstance: (instance: AdversaryRow) => void;
 }) {
   const { colors } = useTheme().theme;
   const showXpFeedback = useAppStore((s) => s.showXpFeedback);
@@ -559,6 +807,11 @@ function BattleDetailSheet({
     });
   };
 
+  const activeTemplates = useMemo(
+    () => (detail?.templates ?? []).filter((template) => template.is_active),
+    [detail],
+  );
+
   const upcoming = useMemo(
     () =>
       (detail?.instances ?? [])
@@ -571,42 +824,99 @@ function BattleDetailSheet({
   return (
     <Sheet visible={!!battle} title={battle?.title ?? ''} onClose={onClose}>
       {detail ? (
-        <ScrollView style={{ maxHeight: 420 }} showsVerticalScrollIndicator={false}>
+        <ScrollView style={{ maxHeight: 460 }} showsVerticalScrollIndicator={false}>
           <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>
-            {detail.templates.length} routine(s) · {detail.progress.won}/{detail.progress.total} victoires
+            {activeTemplates.length} routine(s) · {detail.progress.won}/{detail.progress.total} victoires
           </Text>
 
-          {detail.templates.length === 0 && upcoming.length === 0 ? (
+          {activeTemplates.length === 0 && upcoming.length === 0 ? (
             <Text style={[styles.emptyDetail, { color: colors.textMuted }]}>
               Aucun adversaire programmé. Ajoute une routine récurrente ou une mission ponctuelle.
             </Text>
           ) : null}
 
-          {upcoming.map((adversary) => (
-            <Pressable
-              key={adversary.id}
-              onPress={() => handleWin(adversary)}
-              style={[
-                styles.instanceRow,
-                { backgroundColor: colors.glass, borderColor: colors.glassBorder },
-              ]}
+          {activeTemplates.map((template) => (
+            <View
+              key={template.id}
+              style={[styles.templateRow, { backgroundColor: colors.glass, borderColor: colors.glassBorder }]}
             >
-              <View style={[styles.instanceCheck, { borderColor: colors.success }]}>
-                <Ionicons name="checkmark" size={15} color={colors.success} />
-              </View>
+              <Ionicons name="repeat" size={16} color={colors.primary} />
               <View style={{ flex: 1 }}>
                 <Text numberOfLines={1} style={[styles.instanceTitle, { color: colors.text }]}>
-                  {adversary.title}
+                  {template.title}
                 </Text>
                 <Text style={[styles.instanceMeta, { color: colors.textMuted }]}>
-                  {formatDate(adversary.scheduled_at)} · {formatTime(adversary.scheduled_at)}
+                  {FREQUENCY_LABELS[template.frequency]} · {template.hour}h · +{template.xp_reward} XP
                 </Text>
               </View>
-              <Text style={[styles.instanceXp, { color: colors.xp }]}>
-                +{adversary.xp_reward}
-              </Text>
-            </Pressable>
+              <Pressable
+                accessibilityLabel={`Modifier la routine ${template.title}`}
+                onPress={() => battle && onEditTemplate(battle, template)}
+                hitSlop={10}
+              >
+                <Ionicons name="create-outline" size={18} color={colors.textMuted} />
+              </Pressable>
+              <Pressable
+                accessibilityLabel={`Arrêter la routine ${template.title}`}
+                onPress={() => onDeleteTemplate(template)}
+                hitSlop={10}
+              >
+                <Ionicons name="trash-outline" size={18} color={colors.danger} />
+              </Pressable>
+            </View>
           ))}
+
+          {upcoming.map((adversary) => {
+            const isManual = adversary.template_id === null;
+            return (
+              <View
+                key={adversary.id}
+                style={[
+                  styles.instanceRow,
+                  { backgroundColor: colors.glass, borderColor: colors.glassBorder },
+                ]}
+              >
+                <Pressable
+                  style={styles.instanceMain}
+                  onPress={() => handleWin(adversary)}
+                  accessibilityRole="button"
+                >
+                  <View style={[styles.instanceCheck, { borderColor: colors.success }]}>
+                    <Ionicons name="checkmark" size={15} color={colors.success} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text numberOfLines={1} style={[styles.instanceTitle, { color: colors.text }]}>
+                      {adversary.title}
+                    </Text>
+                    <Text style={[styles.instanceMeta, { color: colors.textMuted }]}>
+                      {formatDate(adversary.scheduled_at)} · {formatTime(adversary.scheduled_at)}
+                    </Text>
+                  </View>
+                  <Text style={[styles.instanceXp, { color: colors.xp }]}>
+                    +{adversary.xp_reward}
+                  </Text>
+                </Pressable>
+                {isManual ? (
+                  <View style={styles.instanceActions}>
+                    <Pressable
+                      accessibilityLabel="Modifier la mission"
+                      onPress={() => battle && onEditInstance(battle, adversary)}
+                      hitSlop={10}
+                    >
+                      <Ionicons name="create-outline" size={18} color={colors.textMuted} />
+                    </Pressable>
+                    <Pressable
+                      accessibilityLabel="Supprimer la mission"
+                      onPress={() => onDeleteInstance(adversary)}
+                      hitSlop={10}
+                    >
+                      <Ionicons name="trash-outline" size={18} color={colors.danger} />
+                    </Pressable>
+                  </View>
+                ) : null}
+              </View>
+            );
+          })}
 
           <View style={styles.detailActions}>
             <Button
@@ -632,21 +942,35 @@ function BattleDetailSheet({
   );
 }
 
-// ─── Sheet : routine récurrente ───────────────────────────
-function CreateTemplateSheet({
+// ─── Sheet : routine récurrente (création / modification) ─
+function TemplateSheet({
   battle,
+  template,
   onClose,
 }: {
   battle: BattleRow | null;
+  template: AdversaryTemplateRow | null;
   onClose: () => void;
 }) {
   const { colors } = useTheme().theme;
+  const isEdit = !!template;
   const [title, setTitle] = useState('');
   const [frequency, setFrequency] = useState<Frequency>('daily');
   const [days, setDays] = useState<number[]>([1]);
   const [hour, setHour] = useState(8);
   const [xp, setXp] = useState('50');
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (battle) {
+      setTitle(template?.title ?? '');
+      setFrequency(template?.frequency ?? 'daily');
+      setDays(template ? safeParseDays(template.specific_days) : [1]);
+      setHour(template?.hour ?? 8);
+      setXp(String(template?.xp_reward ?? 50));
+      setSaving(false);
+    }
+  }, [battle, template]);
 
   const toggleDay = (day: number) => {
     setDays((current) =>
@@ -655,20 +979,28 @@ function CreateTemplateSheet({
   };
 
   const save = async () => {
-    if (!battle || !title.trim()) return;
+    if (!battle || !title.trim() || saving) return;
     setSaving(true);
     try {
-      await addTemplate({
-        battleId: battle.id,
-        title,
-        frequency,
-        specificDays: frequency === 'specific_days' ? days : undefined,
-        hour,
-        xpReward: Number(xp) || 50,
-      });
+      if (isEdit && template) {
+        await editTemplate(template.id, {
+          title,
+          frequency,
+          specificDays: frequency === 'specific_days' ? days : undefined,
+          hour,
+          xpReward: Number(xp) || 50,
+        });
+      } else {
+        await addTemplate({
+          battleId: battle.id,
+          title,
+          frequency,
+          specificDays: frequency === 'specific_days' ? days : undefined,
+          hour,
+          xpReward: Number(xp) || 50,
+        });
+      }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setTitle('');
-      setSaving(false);
       onClose();
     } catch (error) {
       console.error(error);
@@ -677,7 +1009,7 @@ function CreateTemplateSheet({
   };
 
   return (
-    <Sheet visible={!!battle} title="Routine récurrente" onClose={onClose}>
+    <Sheet visible={!!battle} title={isEdit ? 'Modifier la routine' : 'Routine récurrente'} onClose={onClose}>
       <TextField
         label="Nom de l'adversaire"
         icon="flash"
@@ -689,7 +1021,7 @@ function CreateTemplateSheet({
       <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>Fréquence</Text>
       <View style={styles.chipRow}>
         {(Object.keys(FREQUENCY_LABELS) as Frequency[])
-          .filter((f) => f !== 'yearly')
+          .filter((f) => f !== 'yearly' && f !== 'once')
           .map((value) => (
             <Chip
               key={value}
@@ -737,7 +1069,7 @@ function CreateTemplateSheet({
       />
 
       <Button
-        label="Programmer la routine"
+        label={isEdit ? 'Enregistrer' : 'Programmer la routine'}
         onPress={save}
         loading={saving}
         disabled={!title.trim() || (frequency === 'specific_days' && days.length === 0)}
@@ -748,31 +1080,65 @@ function CreateTemplateSheet({
   );
 }
 
-// ─── Sheet : mission ponctuelle ───────────────────────────
+function safeParseDays(raw: string): number[] {
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed.filter((n) => n >= 1 && n <= 7) : [1];
+  } catch {
+    return [1];
+  }
+}
+
+// ─── Sheet : mission ponctuelle (création / modification) ─
 function QuickAdversarySheet({
   battle,
+  instance,
   onClose,
+  onRequestDelete,
 }: {
   battle: BattleRow | null;
+  instance: AdversaryRow | null;
   onClose: () => void;
+  onRequestDelete: (instance: AdversaryRow) => void;
 }) {
   const { colors } = useTheme().theme;
+  const isEdit = !!instance;
   const [title, setTitle] = useState('');
   const [dayOffset, setDayOffset] = useState(0);
   const [hour, setHour] = useState(18);
   const [saving, setSaving] = useState(false);
 
+  useEffect(() => {
+    if (battle) {
+      setTitle(instance?.title ?? '');
+      if (instance) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const thatDay = new Date(instance.scheduled_at);
+        thatDay.setHours(0, 0, 0, 0);
+        setDayOffset(Math.round((thatDay.getTime() - today.getTime()) / 86_400_000));
+        setHour(instance.hour);
+      } else {
+        setDayOffset(0);
+        setHour(18);
+      }
+      setSaving(false);
+    }
+  }, [battle, instance]);
+
   const save = async () => {
-    if (!battle || !title.trim()) return;
+    if (!battle || !title.trim() || saving) return;
     setSaving(true);
     try {
       const when = new Date();
       when.setDate(when.getDate() + dayOffset);
       when.setHours(hour, 0, 0, 0);
-      await addQuickAdversary({ battleId: battle.id, title, scheduledAt: when });
+      if (isEdit && instance) {
+        await editManualInstance(instance.id, { title, scheduledAt: when });
+      } else {
+        await addQuickAdversary({ battleId: battle.id, title, scheduledAt: when });
+      }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setTitle('');
-      setSaving(false);
       onClose();
     } catch (error) {
       console.error(error);
@@ -781,7 +1147,7 @@ function QuickAdversarySheet({
   };
 
   return (
-    <Sheet visible={!!battle} title="Mission ponctuelle" onClose={onClose}>
+    <Sheet visible={!!battle} title={isEdit ? 'Modifier la mission' : 'Mission ponctuelle'} onClose={onClose}>
       <TextField
         label="Mission"
         icon="flash"
@@ -812,13 +1178,22 @@ function QuickAdversarySheet({
         ))}
       </View>
       <Button
-        label="Ajouter la mission"
+        label={isEdit ? 'Enregistrer' : 'Ajouter la mission'}
         onPress={save}
         loading={saving}
         disabled={!title.trim()}
         fullWidth
         style={{ marginTop: spacing[5] }}
       />
+      {isEdit && instance ? (
+        <Button
+          label="Supprimer la mission"
+          variant="danger"
+          fullWidth
+          style={{ marginTop: spacing[3] }}
+          onPress={() => onRequestDelete(instance)}
+        />
+      ) : null}
     </Sheet>
   );
 }
@@ -879,6 +1254,8 @@ const styles = StyleSheet.create({
     padding: spacing[3],
     marginBottom: spacing[2],
   },
+  instanceMain: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], flex: 1 },
+  instanceActions: { flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
   instanceCheck: {
     width: 30,
     height: 30,
@@ -890,6 +1267,15 @@ const styles = StyleSheet.create({
   instanceTitle: { fontSize: typography.sizes.base, fontWeight: '700' },
   instanceMeta: { fontSize: typography.sizes.xs, marginTop: 2, fontWeight: '600' },
   instanceXp: { fontSize: typography.sizes.sm, fontWeight: '800' },
+  templateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[3],
+    borderWidth: 1,
+    borderRadius: radius.md,
+    padding: spacing[3],
+    marginBottom: spacing[2],
+  },
   detailActions: { flexDirection: 'row', gap: spacing[3], marginTop: spacing[4] },
   iconGrid: {
     flexDirection: 'row',
@@ -923,4 +1309,13 @@ const styles = StyleSheet.create({
     marginBottom: spacing[2],
   },
   manageRowTitle: { flex: 1, fontSize: typography.sizes.base, fontWeight: '700' },
+  iconButton: {
+    width: 36,
+    height: 36,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  confirmText: { fontSize: typography.sizes.md, lineHeight: 23, color: '#9AA1B8' },
 });

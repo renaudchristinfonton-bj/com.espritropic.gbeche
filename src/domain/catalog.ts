@@ -8,7 +8,7 @@ import type { Ionicons } from '@expo/vector-icons';
 
 import type { AccountType, DomainType, Frequency, Priority } from '../db/types';
 
-type IconName = keyof typeof Ionicons.glyphMap;
+export type IconName = keyof typeof Ionicons.glyphMap;
 
 // ─── Guerres par défaut ───────────────────────────────────
 export interface DefaultWar {
@@ -68,6 +68,33 @@ export const CATEGORIES: CategoryMeta[] = [
   { id: 'gift', label: 'Don / Cadeau reçu', icon: 'gift', color: '#FFD700', kind: 'income' },
   { id: 'other_income', label: 'Autres revenus', icon: 'add-circle', color: '#8E94A8', kind: 'income' },
 ];
+
+// Présélections pour la création d'une catégorie personnalisée.
+export const CATEGORY_ICON_CHOICES = [
+  'pricetag',
+  'cart',
+  'gift',
+  'airplane',
+  'phone-portrait',
+  'musical-notes',
+  'paw',
+  'football',
+  'baby',
+  'wrench',
+  'cloud',
+  'sparkles',
+] as const;
+
+export const CATEGORY_COLOR_CHOICES = [
+  '#FFD700',
+  '#00FF88',
+  '#00E5FF',
+  '#A78BFA',
+  '#FF6B35',
+  '#FF9F43',
+  '#6366F1',
+  '#FF4757',
+] as const;
 
 const CATEGORY_MAP = new Map(CATEGORIES.map((c) => [c.id, c]));
 

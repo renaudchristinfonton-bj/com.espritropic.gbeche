@@ -133,3 +133,61 @@ export async function expenseBreakdown(from: number, to: number): Promise<Catego
 export async function deleteTransaction(id: ID): Promise<void> {
   await run('DELETE FROM transactions WHERE id = ?;', [id]);
 }
+
+export interface UpdateTransactionInput {
+  accountId?: ID;
+  type?: TxType;
+  amount?: number; // montant absolu, toujours > 0
+  category?: string;
+  label?: string;
+  note?: string;
+  timestamp?: Date;
+}
+
+export async function updateTransaction(
+  id: ID,
+  input: UpdateTransactionInput,
+): Promise<void> {
+  if (input.amount !== undefined && !(input.amount > 0)) {
+    throw new Error('Le montant doit être strictement positif.');
+  }
+
+  const fields: string[] = [];
+  const params: (string | number)[] = [];
+
+  if (input.accountId !== undefined) {
+    fields.push('account_id = ?');
+    params.push(input.accountId);
+  }
+  if (input.type !== undefined) {
+    fields.push('type = ?');
+    params.push(input.type);
+  }
+  if (input.amount !== undefined) {
+    fields.push('amount = ?');
+    // Le signe dérive du type : on ne stocke jamais de montant incohérent.
+    params.push(input.type === 'expense' ? -Math.abs(input.amount) : Math.abs(input.amount));
+  }
+  if (input.category !== undefined) {
+    fields.push('category = ?');
+    params.push(input.category);
+  }
+  if (input.label !== undefined) {
+    fields.push('label = ?');
+    params.push(input.label.trim());
+  }
+  if (input.note !== undefined) {
+    fields.push('note = ?');
+    params.push(input.note.trim());
+  }
+  if (input.timestamp !== undefined) {
+    fields.push('timestamp = ?');
+    params.push(input.timestamp.getTime());
+  }
+  if (fields.length === 0) return;
+
+  await run(`UPDATE transactions SET ${fields.join(', ')} WHERE id = ?;`, [
+    ...params,
+    id,
+  ]);
+}

@@ -13,6 +13,7 @@ import { useTheme } from '../../theme/ThemeContext';
 import { radius, spacing, typography } from '../../theme';
 import { useAppStore } from '../../store/useAppStore';
 import { checkDueReminders } from '../../services/reminders.service';
+import { syncReminderSchedule } from '../../services/reminderScheduler.service';
 import * as Haptics from '../../services/haptics';
 
 const POLL_INTERVAL_MS = 30_000;
@@ -31,6 +32,10 @@ export function NotificationHost() {
         if (!mounted.current) return;
         pushReminder(reminder);
       }).catch((error) => console.warn('[reminders]', error));
+      // Diff rapide : ne programme que les nouvelles notifications locales.
+      syncReminderSchedule().catch((error) =>
+        console.warn('[reminders] schedule', error),
+      );
     };
 
     run();
