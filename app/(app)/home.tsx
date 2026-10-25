@@ -5,7 +5,7 @@
  */
 
 import React from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -68,12 +68,12 @@ export default function HomeScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <Screen scroll padded={false}>
-        <ScrollView
-          contentContainerStyle={{ padding: spacing[5], paddingBottom: 120 }}
-          showsVerticalScrollIndicator={false}
-        >
-          {/* En-tête */}
+      <Screen
+        scroll
+        padded={false}
+        contentContainerStyle={{ padding: spacing[5], paddingBottom: 120 }}
+      >
+        {/* En-tête */}
           <View style={styles.header}>
             <View>
               <Text style={[styles.greeting, { color: colors.textMuted }]}>
@@ -200,7 +200,6 @@ export default function HomeScreen() {
               );
             })}
           </GlassCard>
-        </ScrollView>
       </Screen>
 
       <FAB

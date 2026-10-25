@@ -210,6 +210,7 @@ export default function CalendarScreen() {
       </View>
 
       <ScrollView
+        style={{ flex: 1 }}
         contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: 120, gap: spacing[2.5] }}
         showsVerticalScrollIndicator={false}
       >

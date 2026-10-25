@@ -197,6 +197,7 @@ export default function Onboarding() {
         </View>
 
         <ScrollView
+          style={styles.flex}
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}

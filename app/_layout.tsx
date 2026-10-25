@@ -21,6 +21,7 @@ import { loadSettingsCache, getSettingBool, SETTING_KEYS } from '@/src/db/settin
 import { seedDefaults } from '@/src/services/seed';
 import { materializeAllTemplates } from '@/src/db/repositories/adversaries.repo';
 import { syncReminderSchedule } from '@/src/services/reminderScheduler.service';
+import { writeAutoBackup } from '@/src/services/data/autoBackup.service';
 import { hasPin } from '@/src/services/security';
 import { resolveRouteGroup, routePathFor } from '@/src/services/routing';
 import { useAppStore } from '@/src/store/useAppStore';
@@ -53,6 +54,8 @@ function BootGate({ children }: { children: React.ReactNode }) {
         await syncReminderSchedule().catch((error) =>
           console.warn('[boot] syncReminderSchedule', error),
         );
+        // Instantané JSON de sécurité dans le dossier Documents (natif).
+        await writeAutoBackup();
 
         const configured = await hasPin();
         if (cancelled) return;
@@ -91,7 +94,11 @@ function BootGate({ children }: { children: React.ReactNode }) {
   // Verrouillage à chaque retour en arrière-plan (ou regain de focus web).
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextState) => {
-      if (nextState !== 'active') return;
+      // En quittant l'app, on fige un instantané récent (si données il y a).
+      if (nextState !== 'active') {
+        writeAutoBackup().catch(() => {});
+        return;
+      }
       hasPin()
         .then((configured) => {
           if (!configured) return;

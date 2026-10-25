@@ -6,7 +6,7 @@
  * - Sauvegarde / restauration JSON complète (sécurité anti-perte)
  * Tout reste local : aucun envoi réseau.
  */
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Platform, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -27,6 +27,12 @@ import {
   type CsvImportReport,
 } from '@/src/services/data/importExport.service';
 import { CSV_TEMPLATE, CSV_TEMPLATE_FILENAME } from '@/src/services/data/csv-template';
+import {
+  getLatestAutoBackup,
+  restoreLatestAutoBackup,
+  type AutoBackupInfo,
+} from '@/src/services/data/autoBackup.service';
+import { formatDateLong, formatTime } from '@/src/services/format';
 
 function timestamp(): string {
   return new Date().toISOString().slice(0, 10);
@@ -38,6 +44,20 @@ export default function DataScreen() {
   const [busy, setBusy] = useState<string | null>(null);
   const [report, setReport] = useState<CsvImportReport | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [autoBackup, setAutoBackup] = useState<AutoBackupInfo | null>(null);
+  const [confirmAutoRestore, setConfirmAutoRestore] = useState(false);
+
+  useEffect(() => {
+    getLatestAutoBackup().then(setAutoBackup).catch(() => setAutoBackup(null));
+  }, [busy]);
+
+  const restoreAuto = () =>
+    run('restore-auto', async () => {
+      await restoreLatestAutoBackup();
+      setConfirmAutoRestore(false);
+      setMessage('Sauvegarde automatique restaurée. Redirection…');
+      setTimeout(() => router.replace('/(app)/home'), 800);
+    });
 
   const run = async (key: string, task: () => Promise<void>) => {
     setBusy(key);
@@ -157,6 +177,59 @@ export default function DataScreen() {
         <Button label="Restaurer une sauvegarde" variant="danger" fullWidth onPress={importJsonFile} loading={busy === 'import-json'} />
       </GlassCard>
 
+      <Text style={[styles.section, { color: colors.textMuted }]}>Sauvegarde automatique</Text>
+      <GlassCard style={styles.card}>
+        <FeatureRow
+          icon="shield-checkmark"
+          color={colors.success}
+          title={
+            Platform.OS === 'web'
+              ? 'Persistance du navigateur'
+              : autoBackup
+                ? 'Instantané automatique actif'
+                : 'Aucun instantané pour l’instant'
+          }
+          description={
+            Platform.OS === 'web'
+              ? 'La base SQLite (OPFS) est attachée à ce site et survit aux mises en ligne et redémarrages. Télécharge aussi une sauvegarde JSON avant de vider les données du navigateur.'
+              : autoBackup
+                ? `Dernier instantané : ${formatDateLong(autoBackup.modifiedAt)} à ${formatTime(
+                    autoBackup.modifiedAt,
+                  )} (${Math.max(1, Math.round(autoBackup.size / 1024))} Ko). Trois instantanés sont conservés dans le dossier Documents de l’appareil.`
+                : 'Un instantané JSON sera écrit automatiquement à chaque fermeture de l’app, dans son dossier Documents.'
+          }
+        />
+        {Platform.OS !== 'web' && autoBackup ? (
+          confirmAutoRestore ? (
+            <View style={styles.confirmStrip}>
+              <Text style={[styles.confirmText, { color: colors.danger, flex: 1 }]}>
+                Restaurer cet instantané ? Les données actuelles seront remplacées.
+              </Text>
+              <Button
+                label="Annuler"
+                variant="glass"
+                size="sm"
+                onPress={() => setConfirmAutoRestore(false)}
+              />
+              <Button
+                label="Confirmer"
+                variant="danger"
+                size="sm"
+                loading={busy === 'restore-auto'}
+                onPress={restoreAuto}
+              />
+            </View>
+          ) : (
+            <Button
+              label="Restaurer le dernier instantané"
+              variant="glass"
+              fullWidth
+              onPress={() => setConfirmAutoRestore(true)}
+            />
+          )
+        ) : null}
+      </GlassCard>
+
       <Text style={[styles.section, { color: colors.textMuted }]}>Stockage local</Text>
       <GlassCard style={styles.card}>
         <FeatureRow
@@ -166,7 +239,7 @@ export default function DataScreen() {
           description={
             Platform.OS === 'web'
               ? 'Base SQLite (OPFS) et préférences dans le stockage local du navigateur. Sur iOS, utilise Safari 18+ et ne vide pas les données du site.'
-              : 'Base SQLite locale et secrets dans le coffre matériel. Aucun serveur, aucune synchronisation.'
+              : 'Base SQLite dans le dossier Documents et secrets dans le coffre matériel. Les mises à jour de l’app conservent tout ; seule la désinstallation efface les données.'
           }
         />
       </GlassCard>
@@ -252,4 +325,11 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginTop: spacing[5],
   },
+  confirmStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+    marginTop: spacing[2],
+  },
+  confirmText: { fontSize: typography.sizes.sm, fontWeight: '600', lineHeight: 19 },
 });

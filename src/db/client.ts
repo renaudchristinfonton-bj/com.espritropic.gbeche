@@ -10,6 +10,11 @@ import { Platform } from 'react-native';
 
 import { LATEST_SCHEMA_VERSION, MIGRATIONS } from './migrations';
 
+// Nom simple => expo-sqlite place le fichier dans le dossier Documents de
+// l'app (documentDirectory). Ce dossier survit aux mises à jour de l'app,
+// aux mises à jour OTA et aux redémarrages ; seule la désinstallation
+// l'efface. Les montées de version passent par les migrations additives
+// (user_version), jamais par une recréation de base.
 const DB_NAME = 'GBECHE.db';
 
 let db: SQLite.SQLiteDatabase | null = null;

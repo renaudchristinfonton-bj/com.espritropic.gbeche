@@ -189,6 +189,7 @@ export default function WarsScreen() {
       </ScrollView>
 
       <ScrollView
+        style={{ flex: 1 }}
         contentContainerStyle={{ padding: spacing[5], paddingBottom: 120, gap: spacing[3] }}
         showsVerticalScrollIndicator={false}
       >
