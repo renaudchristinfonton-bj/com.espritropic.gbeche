@@ -36,7 +36,11 @@ npm install
 npx expo export --platform web
 ```
 
-Le site statique est généré dans `dist/` (déjà ignoré par Git). On y trouve :
+Le site statique est généré dans `dist/`. Ce dossier est inscrit dans
+`.gitignore` (c'est une sortie de build), mais une copie y est également
+commitée (`git add -f`) pour permettre un déploiement manuel ou une
+vérification sans build ; Netlify le reconstruit de toute façon à chaque
+déploiement. On y trouve :
 
 - `index.html` et une page HTML par route (`/home`, `/wars`, `/finance`…),
 - `_expo/static/js/web/entry-*.js` (l'app) et `worker-*.js` (worker SQLite),
@@ -67,7 +71,7 @@ npx serve dist --headers '{"Cross-Origin-Opener-Policy":"same-origin","Cross-Ori
 > En environnement sans accès réseau aux serveurs Expo, préfixer la commande
 > avec `EXPO_OFFLINE=1`. Sur Netlify, aucune action n'est nécessaire.
 
-## 3. Déploiement Netlify
+## 3. Connexion du dépôt à Netlify (déploiement automatique)
 
 Tout est déjà configuré dans [`netlify.toml`](../netlify.toml) à la racine :
 
@@ -76,20 +80,48 @@ Tout est déjà configuré dans [`netlify.toml`](../netlify.toml) à la racine :
 | Build command | `npx expo export --platform web` |
 | Publish directory | `dist` |
 | Node | 20 |
+| Variables d'environnement | `EXPO_OFFLINE=1`, `EXPO_NO_TELEMETRY=true` (déjà dans le fichier) |
 | Redirect SPA | `/* → /index.html` (200) |
+| En-têtes | COOP/COEP pour SQLite/OPFS (voir §4) |
 
-### Procédure pas à pas
+Aucune variable d'environnement n'est à saisir manuellement : tout est
+prescrit par `netlify.toml`. Le build CI exact (`npm ci` puis la commande
+ci-dessus) est validé dans le dépôt.
+
+### Procédure pas à pas (interface web, ~2 minutes)
 
 1. Aller sur https://app.netlify.com → **Add new site → Import an existing
-   project** → choisir le dépôt GitHub `com.espritropic.gbeche`.
-2. Netlify détecte automatiquement `netlify.toml` : ne rien remplir
-   manuellement (build, publish, Node sont déjà prescrits).
-3. Choisir la branche `master` (après merge de la PR) puis **Deploy site**.
-4. Le site reçoit une URL `https://<nom>.netlify.app` renommable ensuite
+   project**.
+2. Choisir **GitHub** et autoriser Netlify (on peut restreindre l'accès au
+   seul dépôt `com.espritropic.gbeche`).
+3. Sélectionner le dépôt. Netlify détecte `netlify.toml` et pré-remplit
+   build, publication et Node : **ne rien modifier**, cliquer sur
+   **Deploy site**.
+4. Le site reçoit une URL `https://<nom>.netlify.app`, renommable ensuite
    (Site configuration → Domain management).
 
-Chaque push ultérieur sur la branche déployée redéclenche un build
-automatiquement.
+### Ce qui se passe ensuite avec la PR ouverte
+
+- **Chaque push sur la branche `arena/78d3101e-com-espritropic-gbeche`**
+  déclenche un **deploy preview** avec sa propre URL — visible aussi
+  directement dans la pull request GitHub (checks Netlify).
+- **La production (`master`) ne change pas** tant que la PR #1 n'est pas
+  mergée : au merge, Netlify construit et publie automatiquement le site
+  de production sur l'URL principale.
+- Pour déployer la branche actuelle en production sans merger, changer la
+  « production branch » dans Site configuration → Build & deploy, ou
+  utiliser « Trigger deploy » — mais le flux recommandé reste le merge.
+
+### Alternative : Netlify CLI (depuis un terminal personnel)
+
+```bash
+npm install -g netlify-cli
+netlify init        # autorisation du compte + liaison au dépôt
+netlify deploy --build --prod
+```
+
+L'autorisation OAuth nécessite le compte Netlify du propriétaire : cette
+étape ne peut pas être réalisée depuis un bac à sable de développement.
 
 ## 4. En-têtes cross-origin (COOP / COEP)
 
@@ -110,10 +142,17 @@ ressource externe était ajoutée, elle devrait être servie avec
 ## 5. Persistance & vie privée
 
 - Les données vivent dans le stockage **OPFS** du navigateur, par origine
-  (le domaine Netlify) : elles survivent au rechargement et à la fermeture.
+  (le domaine Netlify) : elles survivent au rechargement, à la fermeture
+  **et aux redéploiements automatiques successifs** (l'origine ne change
+  pas, seule la version du code est remplacée).
+- Sur iOS, préférer **Safari 18+** : la fonction `createSyncAccessHandle`
+  requise par SQLite WASM y est disponible ; l'app affiche un bandeau
+  d'avertissement si le stockage persistant n'est pas supporté.
 - Elles sont effacées si l'utilisateur « efface les données de site » dans
   son navigateur, ou via le bouton **Réinitialiser l'application** des
   réglages (la base est recréée à vide, comme sur mobile).
+- Filet de sécurité : l'écran **Données** permet d'exporter et de
+  restaurer une sauvegarde JSON complète à tout moment.
 - Aucune donnée ne transite sur le réseau : le site fonctionne parfaitement
   hors-ligne une fois la première visite effectuée (le code est entièrement
   statique et mis en cache par le navigateur).
