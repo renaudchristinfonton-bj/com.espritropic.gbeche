@@ -1,11 +1,15 @@
 /**
- * GBECHE — Agent de quartier général (100 % local, réponses automatiques).
- * Conversation persistée dans chat_messages ; aucune donnée ne sort de
- * l'appareil. L'agent répond avec les chiffres réels (solde, missions,
- * série, guerres) via un moteur de règles déterministe.
+ * GBECHE — Agent de quartier général (100 % local, conversationnel).
+ *
+ * L'agent transforme le langage naturel en actions : dépenses, revenus,
+ * budgets, missions, victoires et comptes. Les écritures passent toujours
+ * par une carte de confirmation (jamais de saisie silencieuse) et la
+ * conversation reste persistée dans chat_messages. Aucune donnée ne sort
+ * de l'appareil : le moteur de règles est entièrement hors-ligne.
  */
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -27,21 +31,32 @@ import {
   addMessage,
   clearChat,
   listMessages,
+  setMessageStatus,
   type ChatMessageRow,
+  type ChatMessageStatus,
 } from '@/src/db/repositories/chat.repo';
-import { getTotalBalance } from '@/src/db/repositories/accounts.repo';
+import { welcomeMessage } from '@/src/services/agent.service';
 import {
-  getDayStats,
-  listInstancesForDay,
-} from '@/src/db/repositories/adversaries.repo';
-import { listWars } from '@/src/db/repositories/wars.repo';
-import { getWarriorProfile } from '@/src/services/gamification.service';
+  COMMAND_SUGGESTIONS,
+  describeAction,
+  parseCommand,
+  type AgentAction,
+} from '@/src/services/agent/agentCommand';
 import {
-  generateReply,
-  SUGGESTIONS,
-  welcomeMessage,
-  type AgentContext,
-} from '@/src/services/agent.service';
+  buildDayReview,
+  buildFinanceReview,
+  executeAgentAction,
+  getAgentSnapshot,
+} from '@/src/services/agent/agentActions.service';
+
+function parsePayload(message: ChatMessageRow): AgentAction[] {
+  try {
+    const parsed = JSON.parse(message.payload_json ?? '[]');
+    return Array.isArray(parsed) ? (parsed as AgentAction[]) : [];
+  } catch {
+    return [];
+  }
+}
 
 export default function AgentScreen() {
   const { colors } = useTheme().theme;
@@ -51,32 +66,21 @@ export default function AgentScreen() {
 
   const messagesQuery = useRepoQuery(() => listMessages(), []);
   const messages = messagesQuery.data ?? [];
-  const balanceQuery = useRepoQuery(() => getTotalBalance(), []);
-  const dayStatsQuery = useRepoQuery(() => getDayStats(new Date()), []);
-  const instancesQuery = useRepoQuery(() => listInstancesForDay(new Date()), []);
-  const warsQuery = useRepoQuery(() => listWars(true), []);
-  const profileQuery = useRepoQuery(() => getWarriorProfile(), []);
-
-  const context = useMemo<AgentContext>(
-    () => ({
-      balance: balanceQuery.data ?? null,
-      pendingToday:
-        (instancesQuery.data ?? []).filter((i) => i.status === 'pending' || i.status === 'rescheduled')
-          .length,
-      wonToday: dayStatsQuery.data?.won ?? 0,
-      level: profileQuery.data?.level ?? 1,
-      streak: profileQuery.data?.streak ?? 0,
-      activeWars: (warsQuery.data ?? []).length,
-    }),
-    [balanceQuery.data, instancesQuery.data, dayStatsQuery.data, profileQuery.data, warsQuery.data],
-  );
+  const snapshotQuery = useRepoQuery(() => getAgentSnapshot(), []);
+  const snapshot = snapshotQuery.data;
 
   // Message d'accueil automatique à la première ouverture.
   useEffect(() => {
     if (messagesQuery.status === 'ready' && messages.length === 0) {
-      addMessage('agent', welcomeMessage(context), ['welcome']).catch(() => {});
+      addMessage(
+        'agent',
+        welcomeMessage({
+          balance: snapshot?.balance ?? null,
+          pendingToday: snapshot?.day.pending ?? 0,
+        }),
+        ['welcome'],
+      ).catch(() => {});
     }
-    // Uniquement lors du premier rendu « prêt » d'une conversation vide.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messagesQuery.status]);
 
@@ -90,19 +94,69 @@ export default function AgentScreen() {
     if (!text || busy) return;
     setBusy(true);
     setDraft('');
+    Keyboard.dismiss();
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
-      const reply = generateReply(text, context);
       await addMessage('user', text, []);
-      await addMessage('agent', reply.text, [reply.intent]);
+      const parsed = parseCommand(text);
+
+      if (parsed.intent === 'day-review' && snapshot) {
+        await addMessage('agent', buildDayReview(snapshot), ['day-review']);
+      } else if (parsed.intent === 'finance-review' && snapshot) {
+        await addMessage('agent', buildFinanceReview(snapshot), ['finance-review']);
+      } else if (parsed.kind === 'actions' && parsed.actions && parsed.actions.length > 0) {
+        await addMessage('agent', parsed.text, [parsed.intent], parsed.actions, 'proposed');
+      } else {
+        await addMessage('agent', parsed.text, [parsed.intent]);
+      }
     } catch (error) {
       console.error('[agent]', error);
-      await addMessage('agent', "Une erreur est survenue, mais tes données sont intactes. Réessaie.", [
-        'error',
-      ]);
+      await addMessage(
+        'agent',
+        "Une erreur est survenue, mais tes données sont intactes. Réessaie.",
+        ['error'],
+      );
     } finally {
       setBusy(false);
     }
+  };
+
+  const confirm = async (message: ChatMessageRow) => {
+    const actions = parsePayload(message);
+    if (actions.length === 0 || busy) return;
+    setBusy(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    try {
+      const results: string[] = [];
+      let recovery: AgentAction | undefined;
+      for (const action of actions) {
+        const result = await executeAgentAction(action);
+        results.push(result.message);
+        if (result.recovery) recovery = result.recovery;
+      }
+      await setMessageStatus(message.id, 'confirmed');
+      await addMessage('agent', results.join('\n'), ['action-result']);
+      if (recovery) {
+        await addMessage(
+          'agent',
+          'Crée ce compte puis confirme à nouveau ta saisie dans un nouveau message.',
+          ['recovery'],
+          [recovery],
+          'proposed',
+        );
+      }
+    } catch (error) {
+      console.error('[agent]', error);
+      await addMessage('agent', "L'action n'a pas pu aboutir. Aucune donnée n'a été perdue.", ['error']);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const cancel = async (message: ChatMessageRow) => {
+    Haptics.selectionAsync().catch(() => {});
+    await setMessageStatus(message.id, 'cancelled');
+    await addMessage('agent', 'Noté, je n’ai rien modifié.', ['cancelled']);
   };
 
   const reset = async () => {
@@ -116,7 +170,7 @@ export default function AgentScreen() {
         <View style={{ flex: 1 }}>
           <Text style={[styles.title, { color: colors.text }]}>Agent de quartier général</Text>
           <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-            Réponses automatiques · 100 % hors-ligne
+            Discute pour tout faire · 100 % hors-ligne
           </Text>
         </View>
         {messages.length > 0 ? (
@@ -132,60 +186,47 @@ export default function AgentScreen() {
         ) : null}
       </View>
 
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView
           ref={scrollRef}
           style={{ flex: 1 }}
           contentContainerStyle={{ padding: spacing[5], paddingBottom: spacing[4], gap: spacing[3] }}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          onScrollBeginDrag={() => Keyboard.dismiss()}
         >
           {messages.map((message: ChatMessageRow) => (
-            <View
+            <MessageBubble
               key={message.id}
-              style={[
-                styles.bubbleRow,
-                message.role === 'user' ? styles.bubbleRowRight : styles.bubbleRowLeft,
-              ]}
-            >
-              {message.role === 'agent' ? (
-                <View style={[styles.avatar, { backgroundColor: colors.primaryDim }]}>
-                  <Ionicons name="shield-checkmark" size={16} color={colors.primary} />
-                </View>
-              ) : null}
-              <GlassCard
-                animated={false}
-                noPadding
-                style={[
-                  styles.bubble,
-                  message.role === 'user'
-                    ? { backgroundColor: colors.primary, borderColor: colors.primary }
-                    : { backgroundColor: colors.glass, borderColor: colors.glassBorder },
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.bubbleText,
-                    { color: message.role === 'user' ? colors.textInverse : colors.text },
-                  ]}
-                >
-                  {message.text}
-                </Text>
-              </GlassCard>
-            </View>
+              message={message}
+              onConfirm={confirm}
+              onCancel={cancel}
+              busy={busy}
+            />
           ))}
         </ScrollView>
 
-        <View style={[styles.composer, { borderColor: colors.glassBorder, backgroundColor: colors.backgroundElevated }]}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.suggestRow}>
-            {SUGGESTIONS.slice(0, 4).map((suggestion) => (
+        <View
+          style={[
+            styles.composer,
+            { borderColor: colors.glassBorder, backgroundColor: colors.backgroundElevated },
+          ]}
+        >
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.suggestRow}
+            keyboardShouldPersistTaps="handled"
+          >
+            {COMMAND_SUGGESTIONS.map((suggestion) => (
               <Pressable
                 key={suggestion}
                 accessibilityRole="button"
                 onPress={() => send(suggestion)}
-                style={[styles.suggestChip, { backgroundColor: colors.glass, borderColor: colors.glassBorder }]}
+                style={[
+                  styles.suggestChip,
+                  { backgroundColor: colors.glass, borderColor: colors.glassBorder },
+                ]}
               >
                 <Text style={[styles.suggestText, { color: colors.primary }]} numberOfLines={1}>
                   {suggestion}
@@ -197,9 +238,12 @@ export default function AgentScreen() {
             <TextInput
               value={draft}
               onChangeText={setDraft}
-              placeholder="Pose ta question…"
+              placeholder="Raconte ou demande… (« j’ai dépensé 2 000 FCFA »)"
               placeholderTextColor={colors.textTertiary}
-              style={[styles.input, { color: colors.text, backgroundColor: colors.glass, borderColor: colors.glassBorder }]}
+              style={[
+                styles.input,
+                { color: colors.text, backgroundColor: colors.glass, borderColor: colors.glassBorder },
+              ]}
               onSubmitEditing={() => send(draft)}
               returnKeyType="send"
               accessibilityLabel="Message à l'agent"
@@ -223,17 +267,188 @@ export default function AgentScreen() {
   );
 }
 
+function MessageBubble({
+  message,
+  onConfirm,
+  onCancel,
+  busy,
+}: {
+  message: ChatMessageRow;
+  onConfirm: (message: ChatMessageRow) => void;
+  onCancel: (message: ChatMessageRow) => void;
+  busy: boolean;
+}) {
+  const { colors } = useTheme().theme;
+  const actions = parsePayload(message);
+  const isUser = message.role === 'user';
+
+  return (
+    <View style={[styles.bubbleRow, isUser ? styles.bubbleRowRight : styles.bubbleRowLeft]}>
+      {!isUser ? (
+        <View style={[styles.avatar, { backgroundColor: colors.primaryDim }]}>
+          <Ionicons name="shield-checkmark" size={16} color={colors.primary} />
+        </View>
+      ) : null}
+      <GlassCard
+        animated={false}
+        noPadding
+        style={[
+          styles.bubble,
+          isUser
+            ? { backgroundColor: colors.primary, borderColor: colors.primary }
+            : { backgroundColor: colors.glass, borderColor: colors.glassBorder },
+        ]}
+      >
+        <View style={styles.bubbleInner}>
+          <Text style={[styles.bubbleText, { color: isUser ? colors.textInverse : colors.text }]}>
+            {message.text}
+          </Text>
+          {actions.length > 0 ? (
+            <ActionCard
+              actions={actions}
+              status={message.status as ChatMessageStatus}
+              onConfirm={() => onConfirm(message)}
+              onCancel={() => onCancel(message)}
+              busy={busy}
+            />
+          ) : null}
+        </View>
+      </GlassCard>
+    </View>
+  );
+}
+
+function ActionCard({
+  actions,
+  status,
+  onConfirm,
+  onCancel,
+  busy,
+}: {
+  actions: AgentAction[];
+  status: ChatMessageStatus;
+  onConfirm: () => void;
+  onCancel: () => void;
+  busy: boolean;
+}) {
+  const { colors } = useTheme().theme;
+
+  if (status === 'confirmed') {
+    return (
+      <View style={styles.resultLine}>
+        <Ionicons name="checkmark-circle" size={16} color={colors.success} />
+        <Text style={[styles.resultText, { color: colors.textMuted }]}>
+          Confirmé — {actions.length} action{actions.length > 1 ? 's' : ''} appliquée{actions.length > 1 ? 's' : ''}
+        </Text>
+      </View>
+    );
+  }
+  if (status === 'cancelled') {
+    return (
+      <View style={styles.resultLine}>
+        <Ionicons name="close-circle" size={16} color={colors.textTertiary} />
+        <Text style={[styles.resultText, { color: colors.textTertiary }]}>Annulée</Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={[styles.actionCard, { borderColor: colors.glassBorder, backgroundColor: colors.background }]}>
+      {actions.map((action, index) => {
+        const descriptor = describeAction(action);
+        return (
+          <View
+            key={`${action.type}-${index}`}
+            style={[styles.actionRow, index > 0 && { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.glassBorder }]}
+          >
+            <View style={[styles.actionIcon, { backgroundColor: colors.primaryDim }]}>
+              <Ionicons name={descriptor.icon as never} size={18} color={colors.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.actionTitle, { color: colors.text }]}>{descriptor.title}</Text>
+              <Text style={[styles.actionDetail, { color: colors.textMuted }]} numberOfLines={2}>
+                {descriptor.detail}
+              </Text>
+            </View>
+          </View>
+        );
+      })}
+      <View style={styles.actionButtons}>
+        <Pressable
+          accessibilityRole="button"
+          onPress={onCancel}
+          disabled={busy}
+          style={[styles.cancelBtn, { borderColor: colors.glassBorder }]}
+        >
+          <Text style={[styles.cancelText, { color: colors.textMuted }]}>Annuler</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          onPress={onConfirm}
+          disabled={busy}
+          style={[styles.confirmBtn, { backgroundColor: colors.primary, opacity: busy ? 0.5 : 1 }]}
+        >
+          <Ionicons name="checkmark" size={17} color={colors.textInverse} />
+          <Text style={[styles.confirmText, { color: colors.textInverse }]}>
+            {actions.length > 1 ? `Tout confirmer (${actions.length})` : 'Confirmer'}
+          </Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
   title: { fontSize: typography.sizes['2xl'], fontWeight: '800', letterSpacing: -0.4 },
   subtitle: { fontSize: typography.sizes.sm, marginTop: 2, fontWeight: '600' },
-  resetBtn: { width: 40, height: 40, borderRadius: radius.md, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  resetBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   bubbleRow: { flexDirection: 'row', alignItems: 'flex-end', gap: spacing[2], maxWidth: '100%' },
   bubbleRowLeft: { justifyContent: 'flex-start' },
   bubbleRowRight: { justifyContent: 'flex-end' },
   avatar: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
-  bubble: { maxWidth: '82%', borderRadius: radius.lg, paddingHorizontal: spacing[4], paddingVertical: spacing[3] },
+  bubble: { maxWidth: '85%', borderRadius: radius.lg },
+  bubbleInner: { paddingHorizontal: spacing[4], paddingVertical: spacing[3], gap: spacing[2] },
   bubbleText: { fontSize: typography.sizes.md, lineHeight: 22, fontWeight: '600' },
+  actionCard: {
+    borderRadius: radius.md,
+    borderWidth: 1,
+    marginTop: spacing[1],
+    overflow: 'hidden',
+  },
+  actionRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], padding: spacing[3] },
+  actionIcon: { width: 34, height: 34, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
+  actionTitle: { fontSize: typography.sizes.sm, fontWeight: '800' },
+  actionDetail: { fontSize: typography.sizes.xs, fontWeight: '600', marginTop: 1 },
+  actionButtons: { flexDirection: 'row', gap: spacing[2], padding: spacing[3], paddingTop: spacing[2] },
+  cancelBtn: {
+    flex: 1,
+    minHeight: 42,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelText: { fontSize: typography.sizes.sm, fontWeight: '700' },
+  confirmBtn: {
+    flex: 1.4,
+    minHeight: 42,
+    borderRadius: radius.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  confirmText: { fontSize: typography.sizes.sm, fontWeight: '800' },
+  resultLine: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
+  resultText: { fontSize: typography.sizes.xs, fontWeight: '700' },
   composer: { borderTopWidth: 1, paddingTop: spacing[2], paddingBottom: spacing[4] },
   suggestRow: { paddingHorizontal: spacing[5], gap: spacing[2], paddingBottom: spacing[2] },
   suggestChip: { borderWidth: 1, borderRadius: radius.full, paddingHorizontal: spacing[3], paddingVertical: 6 },

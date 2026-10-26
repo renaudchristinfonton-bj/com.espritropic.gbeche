@@ -213,6 +213,13 @@ export default function SettingsScreen() {
           value="Réponses hors-ligne"
           onPress={() => router.push('/(app)/agent')}
         />
+        <SettingsRow
+          icon="school"
+          color={colors.xp}
+          label="Revoir le tutoriel"
+          value="Visite guidée"
+          onPress={() => useAppStore.getState().openTutorial()}
+        />
       </GlassCard>
 
       {/* Données */}

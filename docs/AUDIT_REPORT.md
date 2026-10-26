@@ -1,6 +1,6 @@
 # Rapport d'audit GBECHE
 
-Généré le 26/10/2026 11:38:32 — 100 % hors-ligne.
+Généré le 26/10/2026 13:11:07 — 100 % hors-ligne.
 
 ## Synthèse
 
@@ -9,9 +9,9 @@ Généré le 26/10/2026 11:38:32 — 100 % hors-ligne.
 | Sécurité (npm audit) | 10 vulnérabilité(s) (build/audit) |
 | Migrations non destructives | ✅ |
 | TypeScript | ✅ |
-| Tests fonctionnels (130 passed, 130 total) | ✅ |
+| Tests fonctionnels (194 passed, 194 total) | ✅ |
 | ESLint / accessibilité (0 erreur, 13 avertissement) | ✅ |
-| Aucun appel réseau (91 fichiers) | ✅ |
+| Aucun appel réseau (96 fichiers) | ✅ |
 | Tous les écrans défilent | ✅ |
 | Assets de marque présents | ✅ |
 

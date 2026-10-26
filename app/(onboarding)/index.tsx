@@ -32,6 +32,7 @@ import { useRepoQuery } from '@/src/db/useRepoQuery';
 import { listWars, setWarActive, createWar } from '@/src/db/repositories/wars.repo';
 import { createAccount } from '@/src/db/repositories/accounts.repo';
 import { setSetting, setSettingBool, SETTING_KEYS } from '@/src/db/settings';
+import { useAppStore } from '@/src/store/useAppStore';
 import {
   ensureMasterKey,
   getBiometricAvailability,
@@ -163,6 +164,8 @@ export default function Onboarding() {
       await setSettingBool(SETTING_KEYS.onboardingDone, true);
 
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      // Le tutoriel guidé s'ouvre automatiquement au premier arrivage au QG.
+      useAppStore.getState().openTutorial();
       router.replace('/(app)/home');
     } catch (error) {
       console.error('[onboarding]', error);

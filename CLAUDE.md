@@ -67,12 +67,30 @@ Toujours lancer dans l'ordre : `tsc` → `npm test` → `lint` → builds, avant
   `eslint-plugin-react-native-a11y` couvre les props invalides (erreur) et la
   couverture (avertissement).
 
-## Agent conversationnel local
+## Agent conversationnel local (« tout faire en discutant »)
 
-`src/services/agent.service.ts` est un moteur de réponses automatique **déterministe
-et hors-ligne** (correspondance d'intentions sur mots entiers, contexte chiffré réel).
-Ne pas y brancher de modèle distant ou d'API. La conversation persiste via
-`src/db/repositories/chat.repo.ts` (table `chat_messages`).
+Entièrement **déterministe et hors-ligne** — jamais de modèle distant ou d'API.
+
+- `src/services/agent/agentCommand.ts` : parseur pur. Transforme une phrase en
+  `AgentAction` (`add-expense`, `add-income`, `set-budget`, `add-mission`,
+  `complete-mission`, `create-account`) ou en réponse informative. Gère les montants
+  en français (« 3k », « 20 mille », « 1,5 million », point millier), les catégories
+  par mots-clés, les horaires, et le récit de journée multi-actions.
+- `src/services/agent/agentActions.service.ts` : exécution via les repositories
+  existants (aucune écriture silencieuse : l'UI montre une carte de confirmation),
+  bilans purs `buildFinanceReview` / `buildDayReview` sur chiffres réels.
+- `src/services/agent.service.ts` : réponses informatives de secours (intentions).
+- Persistance `src/db/repositories/chat.repo.ts` (table `chat_messages`, colonnes
+  `payload_json`/`status` ajoutées par la migration additive v3).
+- Écran `app/(app)/agent.tsx` : bulles + cartes d'action Confirmer/Annuler.
+
+## Navigation gestuelle et tutoriel
+
+- `src/components/ui/SwipeTabView.tsx` : changement d'onglet par balayage horizontal
+  via `PanResponder` natif (zéro dépendance). La fonction pure `decideSwipe` est testée.
+- `src/components/ui/tutorial.model.ts` + `Tutorial.tsx` : tutoriel guidé au premier
+  lancement, relançable depuis Réglages. Drapeau settings `tutorial_done` ; l'état
+  transitoire d'ouverture vit dans `useAppStore` (`openTutorial`/`closeTutorial`).
 
 ## Build et livraison
 

@@ -35,8 +35,16 @@ describe('migrations SQLite', () => {
     }
   });
 
-  test('la dernière migration couvre la table des catégories personnalisées', () => {
+  test('une migration couvre la table des catégories personnalisées', () => {
+    const categoriesMigration = MIGRATIONS.find((m) =>
+      /CREATE TABLE IF NOT EXISTS categories/.test(m.sql),
+    );
+    expect(categoriesMigration).toBeDefined();
+  });
+
+  test('la dernière migration est additive (ALTER TABLE ADD COLUMN sans DROP)', () => {
     const latest = MIGRATIONS[MIGRATIONS.length - 1];
-    expect(latest.sql).toMatch(/CREATE TABLE IF NOT EXISTS categories/);
+    expect(latest.sql).toMatch(/ALTER TABLE chat_messages ADD COLUMN/);
+    expect(latest.sql).not.toMatch(/DROP|DELETE|TRUNCATE/i);
   });
 });

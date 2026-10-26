@@ -215,6 +215,17 @@ export const MIGRATIONS: Migration[] = [
       );
     `,
   },
+  {
+    version: 3,
+    name: 'chat_action_cards',
+    sql: /* sql */ `
+      -- L'agent peut proposer des actions à confirmer (dépense, mission…).
+      -- Migration strictement additive : les anciens messages gardent
+      -- leurs valeurs par défaut (aucune action, statut informatif).
+      ALTER TABLE chat_messages ADD COLUMN payload_json TEXT NOT NULL DEFAULT '[]';
+      ALTER TABLE chat_messages ADD COLUMN status TEXT NOT NULL DEFAULT 'info';
+    `,
+  },
 ];
 
 export const LATEST_SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1].version;

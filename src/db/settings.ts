@@ -8,6 +8,7 @@ import { all, first, run } from './client';
 
 export const SETTING_KEYS = {
   onboardingDone: 'onboarding_done',
+  tutorialDone: 'tutorial_done',
   warriorName: 'warrior_name',
   themeMode: 'theme_mode',
   language: 'language',

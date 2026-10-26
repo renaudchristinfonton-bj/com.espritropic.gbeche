@@ -34,6 +34,8 @@ interface AppState {
   reminders: InAppReminder[];
   // Compteur de rafraîchissement global (forcer un reload si besoin)
   refreshTick: number;
+  // Tutoriel guidé (superposition), relançable depuis les Réglages
+  tutorialOpen: boolean;
 
   lock: () => void;
   unlock: () => void;
@@ -44,6 +46,8 @@ interface AppState {
   dismissReminder: (id: string) => void;
   clearReminders: () => void;
   bumpRefresh: () => void;
+  openTutorial: () => void;
+  closeTutorial: () => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -53,6 +57,7 @@ export const useAppStore = create<AppState>()(
     quickAction: null,
     reminders: [],
     refreshTick: 0,
+    tutorialOpen: false,
 
     lock: () =>
       set((state) => {
@@ -101,6 +106,16 @@ export const useAppStore = create<AppState>()(
     bumpRefresh: () =>
       set((state) => {
         state.refreshTick += 1;
+      }),
+
+    openTutorial: () =>
+      set((state) => {
+        state.tutorialOpen = true;
+      }),
+
+    closeTutorial: () =>
+      set((state) => {
+        state.tutorialOpen = false;
       }),
   })),
 );

@@ -14,6 +14,8 @@ import { useTheme } from '@/src/theme/ThemeContext';
 import { FeedbackHost } from '@/src/components/ui/FeedbackHost';
 import { NotificationHost } from '@/src/components/ui/NotificationHost';
 import { StorageWarning } from '@/src/components/ui/StorageWarning';
+import { SwipeTabView } from '@/src/components/ui/SwipeTabView';
+import { TutorialHost } from '@/src/components/ui/Tutorial';
 import { centeredPanelStyle } from '@/src/theme/layout';
 import { typography } from '@/src/theme';
 
@@ -40,6 +42,7 @@ export default function AppTabsLayout() {
 
   return (
     <>
+      <SwipeTabView>
       <Tabs
         screenOptions={{
           headerShown: false,
@@ -113,9 +116,11 @@ export default function AppTabsLayout() {
           }}
         />
       </Tabs>
+      </SwipeTabView>
       <StorageWarning />
       <NotificationHost />
       <FeedbackHost />
+      <TutorialHost />
     </>
   );
 }
