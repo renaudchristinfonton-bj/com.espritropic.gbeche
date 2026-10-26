@@ -12,6 +12,7 @@ import { useRouter } from 'expo-router';
 import * as Haptics from '@/src/services/haptics';
 
 import { Screen } from '@/src/components/ui/Screen';
+import { SectionHeader } from '@/src/components/ui/SectionHeader';
 import { GlassCard } from '@/src/components/ui/GlassCard';
 import { StatCard } from '@/src/components/ui/StatCard';
 import { ProgressBar } from '@/src/components/ui/ProgressBar';
@@ -146,12 +147,11 @@ export default function HomeScreen() {
           </View>
 
           {/* Ordre de bataille */}
-          <View style={styles.sectionHead}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Ordre de bataille</Text>
-            <Pressable onPress={() => router.push('/(app)/wars')} hitSlop={10}>
-              <Text style={[styles.seeAll, { color: colors.primary }]}>Tout voir</Text>
-            </Pressable>
-          </View>
+          <SectionHeader
+            title="Ordre de bataille"
+            actionLabel="Tout voir"
+            onAction={() => router.push('/(app)/wars')}
+          />
 
           {instances.length === 0 ? (
             <EmptyState
@@ -170,9 +170,7 @@ export default function HomeScreen() {
           )}
 
           {/* Progression des guerres */}
-          <View style={[styles.sectionHead, { marginTop: spacing[8] }]}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Mes guerres</Text>
-          </View>
+          <SectionHeader title="Mes guerres" />
           <GlassCard style={{ gap: spacing[4] }} animated={false}>
             {(wars.data ?? []).slice(0, 5).map((war) => {
               const row = progressByWar.get(war.id);
@@ -303,14 +301,6 @@ const styles = StyleSheet.create({
   heroMeta: { fontSize: typography.sizes.base, fontWeight: '600' },
   heroXp: { fontSize: typography.sizes.sm, fontWeight: '700' },
   statsGrid: { flexDirection: 'row', gap: spacing[3], marginVertical: spacing[4] },
-  sectionHead: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing[3],
-  },
-  sectionTitle: { fontSize: typography.sizes.lg, fontWeight: '800' },
-  seeAll: { fontSize: typography.sizes.base, fontWeight: '700' },
   taskCard: { paddingVertical: spacing[3.5], paddingHorizontal: spacing[4], borderRadius: radius.lg },
   taskRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
   check: {

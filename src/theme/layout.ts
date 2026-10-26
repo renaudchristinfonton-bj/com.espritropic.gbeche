@@ -10,20 +10,44 @@ import { Platform, type ViewStyle } from 'react-native';
 export const WEB_SHELL_WIDTH = 480;
 
 /**
- * Hauteur réelle de la barre d'onglets (voir app/(app)/_layout.tsx).
- * Elle est en position absolue : tout contenu défilant doit réserver
- * cet espace + une marge d'air pour ne jamais être masqué.
+ * Hauteur de la pilule d'onglets flottante (voir app/(app)/_layout.tsx).
+ * Elle est en position absolue : tout contenu défilant doit réserver cet
+ * espace, sa marge basse et l'encoche système, pour ne jamais être masqué.
  */
-export const TAB_BAR_HEIGHT = Platform.select({ ios: 88, default: 72 });
+export const FLOATING_TAB_BAR_HEIGHT = 62;
 
-/** Marge basse à appliquer aux ScrollView des écrans à onglets. */
-export const SCREEN_BOTTOM_PADDING = TAB_BAR_HEIGHT + 20;
+/**
+ * Marge basse des ScrollView des écrans à onglets. Couvre la pilule (62),
+ * son dégagement (8), l'encoche iOS (~34) et une marge d'air. Valeur
+ * volontairement généreuse pour rester sûre sur tous les appareils.
+ */
+export const SCREEN_BOTTOM_PADDING =
+  FLOATING_TAB_BAR_HEIGHT + (Platform.OS === 'ios' ? 50 : 34);
+
+/** Conservé pour d'éventuels références historiques. */
+export const TAB_BAR_HEIGHT = FLOATING_TAB_BAR_HEIGHT;
 
 /** Largeur contrainte d'un panneau (Sheet, barre d'onglets) sur le web. */
 export const centeredPanelStyle: ViewStyle =
   Platform.OS === 'web'
     ? { width: WEB_SHELL_WIDTH, maxWidth: '100%', alignSelf: 'center', left: 0, right: 0 }
     : { width: '100%' };
+
+/**
+ * Barre d'onglets flottante (pilule). Sur le web, elle reste calée dans la
+ * colonne téléphone centrée, avec une marge de chaque côté ; sur mobile elle
+ * occupe toute la largeur utile (les marges sont posées via left/right).
+ */
+export const floatingTabBarWebStyle =
+  Platform.OS === 'web'
+    ? ({
+        width: WEB_SHELL_WIDTH - 32,
+        maxWidth: 'calc(100% - 32px)',
+        alignSelf: 'center',
+        left: 0,
+        right: 0,
+      } as unknown as ViewStyle)
+    : ({} as ViewStyle);
 
 /**
  * Décalage droit d'un élément flottant (FAB) pour qu'il reste dans la

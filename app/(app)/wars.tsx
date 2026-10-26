@@ -12,6 +12,7 @@ import { useLocalSearchParams } from 'expo-router';
 import * as Haptics from '@/src/services/haptics';
 
 import { Screen } from '@/src/components/ui/Screen';
+import { ScreenHeader } from '@/src/components/ui/ScreenHeader';
 import { GlassCard } from '@/src/components/ui/GlassCard';
 import { Button } from '@/src/components/ui/Button';
 import { Chip } from '@/src/components/ui/Chip';
@@ -137,12 +138,10 @@ export default function WarsScreen() {
 
   return (
     <Screen padded={false}>
-      <View style={{ padding: spacing[5], paddingBottom: spacing[3] }}>
-        <Text style={[styles.screenTitle, { color: colors.text }]}>Mes Guerres</Text>
-        <Text style={[styles.screenSub, { color: colors.textMuted }]}>
-          Tes domaines de vie, tes objectifs et tes missions quotidiennes.
-        </Text>
-      </View>
+      <ScreenHeader
+        title="Mes Guerres"
+        subtitle="Tes domaines de vie, tes objectifs et tes missions quotidiennes."
+      />
 
       <ScrollView
         horizontal
@@ -1201,8 +1200,6 @@ function QuickAdversarySheet({
 }
 
 const styles = StyleSheet.create({
-  screenTitle: { fontSize: typography.sizes['3xl'], fontWeight: '800', letterSpacing: -0.5 },
-  screenSub: { fontSize: typography.sizes.md, marginTop: 4, lineHeight: 22 },
   warScroller: { paddingHorizontal: spacing[5], gap: spacing[2.5], paddingBottom: spacing[2] },
   warTab: {
     flexDirection: 'row',

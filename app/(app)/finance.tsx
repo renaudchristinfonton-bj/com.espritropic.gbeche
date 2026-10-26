@@ -12,6 +12,7 @@ import { useLocalSearchParams } from 'expo-router';
 import * as Haptics from '@/src/services/haptics';
 
 import { Screen } from '@/src/components/ui/Screen';
+import { ScreenHeader } from '@/src/components/ui/ScreenHeader';
 import { GlassCard } from '@/src/components/ui/GlassCard';
 import { Button } from '@/src/components/ui/Button';
 import { Chip } from '@/src/components/ui/Chip';
@@ -99,8 +100,8 @@ export default function FinanceScreen() {
 
   return (
     <Screen padded={false}>
-      <View style={{ padding: spacing[5], paddingBottom: spacing[3] }}>
-        <Text style={[styles.screenTitle, { color: colors.text }]}>Trésorerie</Text>
+      <View style={{ paddingHorizontal: spacing[5], paddingBottom: spacing[3] }}>
+        <ScreenHeader title="Trésorerie" subtitle="Tes comptes, mouvements et budgets mensuels." />
 
         <GlassCard noPadding elevated style={styles.balanceCard}>
           <LinearGradient
@@ -963,7 +964,6 @@ function BudgetSheet({ visible, onClose }: { visible: boolean; onClose: () => vo
 }
 
 const styles = StyleSheet.create({
-  screenTitle: { fontSize: typography.sizes['3xl'], fontWeight: '800', letterSpacing: -0.5, marginBottom: spacing[4] },
   balanceCard: { borderRadius: radius['2xl'], overflow: 'hidden' },
   balanceGradient: { padding: spacing[6], gap: 6 },
   balanceLabel: { fontSize: typography.sizes.base, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6 },

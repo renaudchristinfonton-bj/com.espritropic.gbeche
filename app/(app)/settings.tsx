@@ -12,6 +12,7 @@ import Constants from 'expo-constants';
 import * as Haptics from '@/src/services/haptics';
 
 import { Screen } from '@/src/components/ui/Screen';
+import { ScreenHeader } from '@/src/components/ui/ScreenHeader';
 import { GlassCard } from '@/src/components/ui/GlassCard';
 import { Button } from '@/src/components/ui/Button';
 import { Sheet } from '@/src/components/ui/Sheet';
@@ -126,7 +127,10 @@ export default function SettingsScreen() {
 
   return (
     <Screen scroll padded>
-      <Text style={[styles.title, { color: colors.text }]}>Réglages</Text>
+      <ScreenHeader
+        title="Réglages"
+        subtitle="Sons, notifications, rappels et gestion de tes données."
+      />
 
       {/* Profil */}
       <Text style={[styles.section, { color: colors.textMuted }]}>Profil</Text>
@@ -383,7 +387,6 @@ function SettingsRow({
 }
 
 const styles = StyleSheet.create({
-  title: { fontSize: typography.sizes['3xl'], fontWeight: '800', letterSpacing: -0.5, marginBottom: spacing[5] },
   section: {
     fontSize: typography.sizes.sm,
     fontWeight: '800',

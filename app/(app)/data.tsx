@@ -7,13 +7,13 @@
  * Tout reste local : aucun envoi réseau.
  */
 import React, { useEffect, useState } from 'react';
-import { Platform, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as Haptics from '@/src/services/haptics';
 
-import { useHideTabBar } from '@/src/hooks/useHideTabBar';
 import { Screen } from '@/src/components/ui/Screen';
+import { ScreenHeader } from '@/src/components/ui/ScreenHeader';
 import { GlassCard } from '@/src/components/ui/GlassCard';
 import { Button } from '@/src/components/ui/Button';
 import { useTheme } from '@/src/theme/ThemeContext';
@@ -42,8 +42,6 @@ function timestamp(): string {
 export default function DataScreen() {
   const { colors } = useTheme().theme;
   const router = useRouter();
-  // Écran plein écran : la barre d'onglets masquerait les dernières actions.
-  useHideTabBar(true);
   const [busy, setBusy] = useState<string | null>(null);
   const [report, setReport] = useState<CsvImportReport | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -126,13 +124,21 @@ export default function DataScreen() {
 
   return (
     <Screen scroll bottomPadding={40}>
-      <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.text }]}>Données & fichiers</Text>
-        <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-          Importe un programme sur mesure préparé dans le modèle CSV, ou sauvegarde tout ton
-          quartier général. Rien ne quitte cet appareil.
-        </Text>
-      </View>
+      <ScreenHeader
+        title="Données & fichiers"
+        subtitle="Importe un programme CSV ou sauvegarde ton quartier général. Rien ne quitte cet appareil."
+        left={
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Retour"
+            onPress={() => router.back()}
+            hitSlop={10}
+            style={[styles.iconBtn, { borderColor: colors.glassBorder }]}
+          >
+            <Ionicons name="chevron-back" size={20} color={colors.text} />
+          </Pressable>
+        }
+      />
 
       <Text style={[styles.section, { color: colors.textMuted }]}>Programme CSV</Text>
       <GlassCard style={styles.card}>
@@ -290,9 +296,14 @@ function ReportLine({ label, value }: { label: string; value: number }) {
 }
 
 const styles = StyleSheet.create({
-  header: { marginBottom: spacing[4] },
-  title: { fontSize: typography.sizes['3xl'], fontWeight: '800', letterSpacing: -0.5 },
-  subtitle: { fontSize: typography.sizes.md, marginTop: 6, lineHeight: 22 },
+  iconBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   section: {
     fontSize: typography.sizes.sm,
     fontWeight: '800',

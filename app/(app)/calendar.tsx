@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from '@/src/services/haptics';
 
 import { Screen } from '@/src/components/ui/Screen';
+import { ScreenHeader } from '@/src/components/ui/ScreenHeader';
 import { GlassCard } from '@/src/components/ui/GlassCard';
 import { Button } from '@/src/components/ui/Button';
 import { EmptyState } from '@/src/components/ui/EmptyState';
@@ -120,12 +121,10 @@ export default function CalendarScreen() {
 
   return (
     <Screen padded={false} scroll contentContainerStyle={styles.screenContent}>
-      <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.text }]}>Agenda</Text>
-        <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-          Tes missions, jour par jour, sur 45 jours glissants.
-        </Text>
-      </View>
+      <ScreenHeader
+        title="Agenda"
+        subtitle="Tes batailles planifiées et ton score de constance, jour par jour."
+      />
 
       {Platform.OS === 'web' && permission !== 'granted' && permission !== 'unsupported' ? (
         <View style={styles.notifWrap}>
@@ -415,9 +414,6 @@ function TimelineRow({
 
 const styles = StyleSheet.create({
   screenContent: { paddingBottom: SCREEN_BOTTOM_PADDING },
-  header: { padding: spacing[5], paddingBottom: spacing[3] },
-  title: { fontSize: typography.sizes['3xl'], fontWeight: '800', letterSpacing: -0.5 },
-  subtitle: { fontSize: typography.sizes.md, marginTop: 4, lineHeight: 22 },
   notifWrap: { paddingHorizontal: spacing[5], marginBottom: spacing[3] },
   notifCard: {
     flexDirection: 'row',

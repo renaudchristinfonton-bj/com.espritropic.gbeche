@@ -21,9 +21,10 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 
-import { useHideTabBar } from '@/src/hooks/useHideTabBar';
 import { Screen } from '@/src/components/ui/Screen';
+import { ScreenHeader } from '@/src/components/ui/ScreenHeader';
 import { GlassCard } from '@/src/components/ui/GlassCard';
 import { useTheme } from '@/src/theme/ThemeContext';
 import { useRepoQuery } from '@/src/db/useRepoQuery';
@@ -63,9 +64,7 @@ function parsePayload(message: ChatMessageRow): AgentAction[] {
 export default function AgentScreen() {
   const { colors } = useTheme().theme;
   const insets = useSafeAreaInsets();
-  // Écran immersif : la barre d'onglets est masquée pour que le composer
-  // reste entièrement visible et accessible.
-  useHideTabBar(true);
+  const router = useRouter();
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
@@ -172,25 +171,34 @@ export default function AgentScreen() {
 
   return (
     <Screen padded={false}>
-      <View style={[styles.header, { padding: spacing[5], paddingBottom: spacing[3] }]}>
-        <View style={{ flex: 1 }}>
-          <Text style={[styles.title, { color: colors.text }]}>Agent de quartier général</Text>
-          <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-            Discute pour tout faire · 100 % hors-ligne
-          </Text>
-        </View>
-        {messages.length > 0 ? (
+      <ScreenHeader
+        title="Agent"
+        subtitle="Discute pour tout faire · 100 % hors-ligne"
+        left={
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Effacer la conversation"
-            onPress={reset}
+            accessibilityLabel="Retour"
+            onPress={() => router.back()}
             hitSlop={10}
-            style={[styles.resetBtn, { borderColor: colors.glassBorder }]}
+            style={[styles.iconBtn, { borderColor: colors.glassBorder }]}
           >
-            <Ionicons name="trash-outline" size={18} color={colors.textMuted} />
+            <Ionicons name="chevron-back" size={20} color={colors.text} />
           </Pressable>
-        ) : null}
-      </View>
+        }
+        right={
+          messages.length > 0 ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Effacer la conversation"
+              onPress={reset}
+              hitSlop={10}
+              style={[styles.iconBtn, { borderColor: colors.glassBorder }]}
+            >
+              <Ionicons name="trash-outline" size={18} color={colors.textMuted} />
+            </Pressable>
+          ) : undefined
+        }
+      />
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView
@@ -409,10 +417,7 @@ function ActionCard({
 }
 
 const styles = StyleSheet.create({
-  header: { flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
-  title: { fontSize: typography.sizes['2xl'], fontWeight: '800', letterSpacing: -0.4 },
-  subtitle: { fontSize: typography.sizes.sm, marginTop: 2, fontWeight: '600' },
-  resetBtn: {
+  iconBtn: {
     width: 40,
     height: 40,
     borderRadius: radius.md,
