@@ -79,7 +79,7 @@ export function HeatMap({
     // Total cells (multiple of 7)
     const totalDays = Math.ceil((days + dayOfWeek) / 7) * 7;
 
-    const allDays: Array<{ date: string; value: number; inRange: boolean; month: number }> = [];
+    const allDays: { date: string; value: number; inRange: boolean; month: number }[] = [];
     for (let i = 0; i < totalDays; i++) {
       const d    = addDays(gridStart, i);
       const key  = formatDate(d);
@@ -95,7 +95,7 @@ export function HeatMap({
 
     // Month labels
     const seen = new Set<number>();
-    const mLabels: Array<{ col: number; label: string }> = [];
+    const mLabels: { col: number; label: string }[] = [];
     weeks.forEach((week, col) => {
       const month = week[0].month;
       if (!seen.has(month)) {

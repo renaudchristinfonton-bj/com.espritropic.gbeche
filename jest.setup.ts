@@ -26,10 +26,12 @@ jest.mock('expo-sqlite', () => ({
 jest.mock('@expo/vector-icons', () => {
   const React = require('react');
   const { Text } = require('react-native');
-  const makeIcon =
-    () =>
-    ({ name, ...props }: { name?: string }) =>
-      React.createElement(Text, props, name ?? null);
+  const makeIcon = () => {
+    function MockIcon({ name, ...props }: { name?: string }) {
+      return React.createElement(Text, props, name ?? null);
+    }
+    return MockIcon;
+  };
   return {
     Ionicons: makeIcon(),
     MaterialCommunityIcons: makeIcon(),

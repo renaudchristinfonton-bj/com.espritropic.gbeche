@@ -1,0 +1,90 @@
+{
+  "generatedAt": "2026-10-26T11:38:32.298Z",
+  "checks": {
+    "security": {
+      "source": "npm audit",
+      "vulnerabilities": {
+        "info": 0,
+        "low": 0,
+        "moderate": 4,
+        "high": 6,
+        "critical": 0
+      },
+      "total": 10,
+      "dependencies": {
+        "prod": 772,
+        "dev": 373,
+        "optional": 52,
+        "peer": 0,
+        "peerOptional": 0,
+        "total": 1156
+      }
+    },
+    "migrations": {
+      "files": [],
+      "destructiveStatements": [],
+      "ok": true
+    },
+    "typescript": {
+      "ok": true,
+      "tail": ""
+    },
+    "tests": {
+      "ok": true,
+      "suites": "20 passed, 20 total",
+      "tests": "130 passed, 130 total"
+    },
+    "lint": {
+      "ok": true,
+      "errors": 0,
+      "warnings": 13,
+      "byRule": {
+        "react-hooks/exhaustive-deps": {
+          "error": 0,
+          "warning": 13
+        }
+      }
+    },
+    "offline": {
+      "scannedFiles": 91,
+      "networkReferences": [],
+      "ok": true
+    },
+    "scrolling": {
+      "screens": [
+        "app/(app)/agent.tsx",
+        "app/(app)/calendar.tsx",
+        "app/(app)/data.tsx",
+        "app/(app)/finance.tsx",
+        "app/(app)/home.tsx",
+        "app/(app)/settings.tsx",
+        "app/(app)/wars.tsx"
+      ],
+      "nonScrolling": [],
+      "ok": true
+    },
+    "brand": {
+      "expected": [
+        "assets/images/icon.png",
+        "assets/images/favicon.png",
+        "assets/images/android-icon-background.png",
+        "assets/images/android-icon-foreground.png",
+        "assets/images/android-icon-monochrome.png",
+        "assets/images/splash-icon.png"
+      ],
+      "missing": [],
+      "svgSources": [
+        "assets/brand/android-background.svg",
+        "assets/brand/android-foreground.svg",
+        "assets/brand/android-monochrome.svg",
+        "assets/brand/emblem.svg",
+        "assets/brand/icon-master.svg",
+        "assets/brand/wordmark.svg"
+      ],
+      "ok": true
+    }
+  },
+  "summary": {
+    "overall": "PASS"
+  }
+}

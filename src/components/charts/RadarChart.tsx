@@ -6,7 +6,7 @@
 
 import React, { useEffect, useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import Svg, { Polygon, Line, Circle, Text as SvgText, Path } from 'react-native-svg';
+import Svg, { Polygon, Line, Circle, Text as SvgText } from 'react-native-svg';
 import Animated, {
   useSharedValue,
   useAnimatedProps,

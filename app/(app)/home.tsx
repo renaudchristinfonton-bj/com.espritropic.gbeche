@@ -100,7 +100,7 @@ export default function HomeScreen() {
           </View>
 
           {/* Anneau du jour */}
-          <GlassCard elevated noPadding style={styles.heroCard}>
+          <GlassCard elevated noPadding blur="light" style={styles.heroCard}>
             <LinearGradient
               colors={['rgba(0,229,255,0.10)', 'rgba(99,102,241,0.06)']}
               style={StyleSheet.absoluteFill}

@@ -14,6 +14,7 @@ import * as Haptics from '@/src/services/haptics';
 
 import { useTheme } from '@/src/theme/ThemeContext';
 import { PinPad } from '@/src/components/ui/PinPad';
+import { Logo } from '@/src/components/ui/Logo';
 import {
   getBiometricAvailability,
   requestBiometric,
@@ -104,9 +105,7 @@ export default function PinLock() {
         style={StyleSheet.absoluteFill}
       />
       <View style={styles.body}>
-        <View style={[styles.iconWrap, { backgroundColor: colors.primaryDim }]}>
-          <Ionicons name="lock-closed" size={44} color={colors.primary} />
-        </View>
+        <Logo size={96} variant="full" />
         <Text style={[styles.title, { color: colors.text }]}>Quartier Général verrouillé</Text>
         <Text style={[styles.subtitle, { color: colors.textMuted }]}>
           {lockdown > 0
@@ -138,14 +137,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: spacing[6],
     gap: spacing[4],
-  },
-  iconWrap: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: spacing[2],
   },
   title: {
     fontSize: typography.sizes['2xl'],

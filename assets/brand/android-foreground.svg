@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+  <linearGradient id="neonStroke" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#00E5FF"/>
+    <stop offset="1" stop-color="#00FF88"/>
+  </linearGradient>
+  <radialGradient id="bg" cx="0.5" cy="0.32" r="0.92">
+    <stop offset="0" stop-color="#111525"/>
+    <stop offset="1" stop-color="#070911"/>
+  </radialGradient>
+  <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#FFE45C"/>
+    <stop offset="1" stop-color="#FFD700"/>
+  </linearGradient></defs>
+  <g transform="translate(512 512) scale(0.7) translate(-512 -512)">
+    <path d="M262 214 H762 Q782 214 782 234 V520 C782 642 700 738 540 806 Q512 818 484 806 C324 738 242 642 242 520 V234 Q242 214 262 214 Z" fill="rgba(0,229,255,0.06)"
+      stroke="url(#neonStroke)" stroke-width="34" stroke-linejoin="round"/>
+    <path d="M262 214 H762 Q782 214 782 234 V520 C782 642 700 738 540 806 Q512 818 484 806 C324 738 242 642 242 520 V234 Q242 214 262 214 Z" fill="none"
+      stroke="rgba(255,255,255,0.16)"
+      stroke-width="10" stroke-linejoin="round"
+      transform="translate(512 512) scale(0.84) translate(-512 -512)"/>
+    <polygon points="512.0,276.0 525.5,311.4 563.4,313.3 533.9,337.1 543.7,373.7 512.0,353.0 480.3,373.7 490.1,337.1 460.6,313.3 498.5,311.4" fill="url(#gold)"/>
+    <path d="M332 524 H402 L438 434 L488 614 L538 464 L568 524 H692" fill="none" stroke="url(#neonStroke)"
+      stroke-width="36" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>

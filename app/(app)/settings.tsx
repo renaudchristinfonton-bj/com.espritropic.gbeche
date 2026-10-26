@@ -203,10 +203,16 @@ export default function SettingsScreen() {
       <Text style={[styles.section, { color: colors.textMuted }]}>Notifications</Text>
       <NotificationSettingsRow />
 
-      {/* Phase 2 */}
-      <Text style={[styles.section, { color: colors.textMuted }]}>Bientôt</Text>
+      {/* Assistant local */}
+      <Text style={[styles.section, { color: colors.textMuted }]}>Assistant</Text>
       <GlassCard style={{ gap: spacing[2] }}>
-        <SoonRow icon="chatbubbles" label="Agent conversationnel local" />
+        <SettingsRow
+          icon="chatbubbles"
+          color={colors.primary}
+          label="Agent de quartier général"
+          value="Réponses hors-ligne"
+          onPress={() => router.push('/(app)/agent')}
+        />
       </GlassCard>
 
       {/* Données */}
@@ -367,21 +373,6 @@ function SettingsRow({
     );
   }
   return content;
-}
-
-function SoonRow({ icon, label }: { icon: keyof typeof Ionicons.glyphMap; label: string }) {
-  const { colors } = useTheme().theme;
-  return (
-    <View style={styles.settingRow}>
-      <View style={[styles.rowIcon, { backgroundColor: colors.glass }]}>
-        <Ionicons name={icon} size={20} color={colors.textTertiary} />
-      </View>
-      <Text style={[styles.rowLabel, { color: colors.textMuted, flex: 1 }]}>{label}</Text>
-      <View style={styles.soonBadge}>
-        <Text style={[styles.soonText, { color: colors.textMuted }]}>Phase 2</Text>
-      </View>
-    </View>
-  );
 }
 
 const styles = StyleSheet.create({

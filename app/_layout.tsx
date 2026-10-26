@@ -22,6 +22,8 @@ import { seedDefaults } from '@/src/services/seed';
 import { materializeAllTemplates } from '@/src/db/repositories/adversaries.repo';
 import { syncReminderSchedule } from '@/src/services/reminderScheduler.service';
 import { writeAutoBackup } from '@/src/services/data/autoBackup.service';
+import { RouteErrorFallback } from '@/src/components/ui/ErrorBoundary';
+import { Logo } from '@/src/components/ui/Logo';
 import { hasPin } from '@/src/services/security';
 import { resolveRouteGroup, routePathFor } from '@/src/services/routing';
 import { useAppStore } from '@/src/store/useAppStore';
@@ -46,16 +48,11 @@ function BootGate({ children }: { children: React.ReactNode }) {
 
     async function boot() {
       try {
+        // Chemin critique : tout ce dont le routage initial dépend.
         await openDatabase();
         await loadSettingsCache();
         await seedDefaults();
         await materializeAllTemplates();
-        // Notifications locales natives (no-op sans permission / sur web).
-        await syncReminderSchedule().catch((error) =>
-          console.warn('[boot] syncReminderSchedule', error),
-        );
-        // Instantané JSON de sécurité dans le dossier Documents (natif).
-        await writeAutoBackup();
 
         const configured = await hasPin();
         if (cancelled) return;
@@ -66,6 +63,14 @@ function BootGate({ children }: { children: React.ReactNode }) {
         if (!cancelled) {
           setBooted(true);
           await SplashScreen.hideAsync().catch(() => {});
+          // Tâches non critiques, lancées après le premier rendu pour ne
+          // pas allonger le temps d'affichage (échecs toujours isolés).
+          void Promise.allSettled([
+            syncReminderSchedule().catch((error) =>
+              console.warn('[boot] syncReminderSchedule', error),
+            ),
+            writeAutoBackup(),
+          ]);
         }
       }
     }
@@ -116,7 +121,8 @@ function BootGate({ children }: { children: React.ReactNode }) {
   if (!booted) {
     return (
       <View style={[styles.splash, { backgroundColor: theme.colors.background }]}>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
+        <Logo size={132} variant="full" />
+        <ActivityIndicator size="small" color={theme.colors.primary} style={styles.splashSpinner} />
       </View>
     );
   }
@@ -167,11 +173,22 @@ export default function RootLayout() {
   );
 }
 
+// Toute erreur de rendu d'une route affiche l'écran de reprise au lieu
+// d'un crash blanc (les données ne sont jamais affectées).
+export function ErrorBoundary(props: { error: Error; retry: () => void }) {
+  return <RouteErrorFallback error={props.error} retry={props.retry} />;
+}
+
 const styles = StyleSheet.create({
   splash: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 24,
+  },
+  splashSpinner: {
+    position: 'absolute',
+    bottom: '18%',
   },
   webRoot: {
     flex: 1,
@@ -182,7 +199,8 @@ const styles = StyleSheet.create({
       width: '100%',
       maxWidth: 480,
       alignSelf: 'center',
-      minHeight: '100vh',
+      // dvh suit la barre d'URL dynamique des navigateurs mobiles.
+      minHeight: '100dvh',
       borderLeftWidth: StyleSheet.hairlineWidth,
       borderRightWidth: StyleSheet.hairlineWidth,
     },

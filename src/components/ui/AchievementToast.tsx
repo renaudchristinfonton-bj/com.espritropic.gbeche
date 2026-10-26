@@ -61,7 +61,6 @@ export function AchievementToast({
   xpReward  = 0,
   onHide,
 }: ToastProps) {
-  const { theme } = useTheme();
   const cfg       = RARITY_CONFIG[rarity];
 
   const translateY = useSharedValue(-120);
