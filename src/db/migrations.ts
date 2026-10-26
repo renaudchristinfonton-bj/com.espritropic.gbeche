@@ -226,6 +226,26 @@ export const MIGRATIONS: Migration[] = [
       ALTER TABLE chat_messages ADD COLUMN status TEXT NOT NULL DEFAULT 'info';
     `,
   },
+  {
+    version: 4,
+    name: 'life_project_drafts',
+    sql: /* sql */ `
+      -- Brouillon de l'agent pendant la phase de questions d'un projet de
+      -- vie (mariage, véhicule, foi…). Un seul brouillon actif à la fois,
+      -- identifié par l'id fixe 'active'. La conversation complète reste
+      -- tracée dans chat_messages ; cette table ne porte que l'état de
+      -- travail multi-tours jusqu'à la carte de plan à valider.
+      CREATE TABLE IF NOT EXISTS life_project_drafts (
+        id         TEXT PRIMARY KEY NOT NULL,
+        guide_id   TEXT NOT NULL,
+        step_index INTEGER NOT NULL DEFAULT 0,
+        slots_json TEXT NOT NULL DEFAULT '{}',
+        status     TEXT NOT NULL DEFAULT 'collecting',
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
+    `,
+  },
 ];
 
 export const LATEST_SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1].version;

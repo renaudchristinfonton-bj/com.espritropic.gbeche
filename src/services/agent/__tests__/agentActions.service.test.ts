@@ -16,6 +16,7 @@ jest.mock('../../../db/repositories/battles.repo', () => ({
 }));
 jest.mock('../../../db/repositories/wars.repo', () => ({
   listWars: jest.fn(),
+  createWar: jest.fn(),
 }));
 jest.mock('../../finance.service', () => ({
   getMonthStats: jest.fn(),
@@ -29,6 +30,7 @@ jest.mock('../../finance.service', () => ({
 jest.mock('../../wars.service', () => ({
   addBattle: jest.fn(),
   addQuickAdversary: jest.fn(),
+  addTemplate: jest.fn(),
 }));
 jest.mock('../../gamification.service', () => ({
   winAdversary: jest.fn(),
@@ -38,9 +40,9 @@ jest.mock('../../gamification.service', () => ({
 import { listAccountsWithBalance } from '../../../db/repositories/accounts.repo';
 import { listInstancesForDay } from '../../../db/repositories/adversaries.repo';
 import { listBattlesByWar } from '../../../db/repositories/battles.repo';
-import { listWars } from '../../../db/repositories/wars.repo';
+import { listWars, createWar } from '../../../db/repositories/wars.repo';
 import { addMovement, addAccount, setBudget } from '../../finance.service';
-import { addBattle, addQuickAdversary } from '../../wars.service';
+import { addBattle, addQuickAdversary, addTemplate } from '../../wars.service';
 import { winAdversary } from '../../gamification.service';
 import {
   buildDayReview,
@@ -252,5 +254,84 @@ describe('buildDayReview — bilan de journée', () => {
       todayExpense: 0,
     });
     expect(text).toContain('Toutes tes missions sont gagnées');
+  });
+});
+
+describe('executeAgentAction — projet de vie (create-life-plan)', () => {
+  const plan = {
+    guideId: 'vehicle',
+    warTitle: 'Projet — Véhicule (voiture ou moto)',
+    icon: 'car',
+    color: '#00E5FF',
+    domainType: 'finance' as const,
+    battles: [
+      {
+        title: 'Financement du véhicule',
+        priority: 'high' as const,
+        missions: [
+          { title: 'Suivre mes dépenses', frequency: 'weekly' as const, hour: 18, specificDays: [7] },
+          { title: 'Verser mon enveloppe d’épargne véhicule', frequency: 'monthly' as const, hour: 18 },
+        ],
+      },
+      {
+        title: 'Démarches & préparation',
+        priority: 'medium' as const,
+        missions: [{ title: 'Une démarche véhicule', frequency: 'weekly' as const, hour: 18 }],
+      },
+    ],
+    savings: {
+      category: 'savings' as const,
+      label: 'Épargne véhicule',
+      targetAmount: 3_000_000,
+      horizonMonths: 12,
+      monthlyAmount: 250_000,
+      missionTitle: 'Verser mon enveloppe d’épargne véhicule',
+    },
+    summary: 'résumé',
+  };
+
+  test('crée la guerre, les batailles, les missions récurrentes et le budget d épargne', async () => {
+    (createWar as jest.Mock).mockResolvedValue('war-1');
+    (addBattle as jest.Mock).mockResolvedValue('battle-1');
+    (addTemplate as jest.Mock).mockResolvedValue('tpl-1');
+
+    const result = await executeAgentAction({ type: 'create-life-plan', plan });
+
+    expect(createWar).toHaveBeenCalledWith({
+      title: plan.warTitle,
+      icon: 'car',
+      color: '#00E5FF',
+      domainType: 'finance',
+    });
+    expect(addBattle).toHaveBeenCalledTimes(2);
+    // 3 missions au total (2 + 1).
+    expect(addTemplate).toHaveBeenCalledTimes(3);
+    expect(setBudget).toHaveBeenCalledWith('savings', 250_000);
+    expect(result.ok).toBe(true);
+    expect(result.message).toContain('2 bataille(s)');
+    expect(result.message).toContain('250 000 FCFA');
+  });
+
+  test('un projet sans argent ne touche pas aux budgets', async () => {
+    (createWar as jest.Mock).mockResolvedValue('war-2');
+    (addBattle as jest.Mock).mockResolvedValue('battle-2');
+    const spiritual = {
+      ...plan,
+      guideId: 'faith',
+      warTitle: 'Projet — Croissance dans la foi',
+      domainType: 'spiritual' as const,
+      savings: null,
+      battles: [
+        {
+          title: 'Vie quotidienne avec Dieu',
+          priority: 'high' as const,
+          missions: [{ title: 'Prière', frequency: 'daily' as const, hour: 6 }],
+        },
+      ],
+    };
+    const result = await executeAgentAction({ type: 'create-life-plan', plan: spiritual });
+    expect(setBudget).not.toHaveBeenCalled();
+    expect(result.ok).toBe(true);
+    expect(result.message).toContain('1 bataille(s)');
   });
 });

@@ -14,7 +14,6 @@ import {
   type DayStats,
 } from '../../db/repositories/adversaries.repo';
 import { listBattlesByWar } from '../../db/repositories/battles.repo';
-import { listWars } from '../../db/repositories/wars.repo';
 import type { BudgetWithSpent } from '../../db/repositories/budgets.repo';
 import type { AdversaryRow, BattleRow, WarRow } from '../../db/types';
 import {
@@ -27,7 +26,9 @@ import {
   setBudget,
   type MonthStats,
 } from '../finance.service';
-import { addBattle, addQuickAdversary } from '../wars.service';
+import { addBattle, addQuickAdversary, addTemplate } from '../wars.service';
+import { createWar, listWars } from '../../db/repositories/wars.repo';
+import type { LifePlan } from './lifeProject.service';
 import { winAdversary, getWarriorProfile } from '../gamification.service';
 import { ACCOUNT_PRESETS } from '../../domain/catalog';
 import { categoryLabel, formatFcfa, type AgentAction } from './agentCommand';
@@ -103,6 +104,9 @@ export async function executeAgentAction(action: AgentAction): Promise<Execution
 
     case 'create-account':
       return executeCreateAccount(action);
+
+    case 'create-life-plan':
+      return executeLifePlan(action.plan);
   }
 }
 
@@ -221,6 +225,59 @@ async function executeCreateAccount(
     ok: true,
     message: `Compte « ${action.name} » créé. Tu peux maintenant enregistrer tes mouvements dessus.`,
   };
+}
+
+// ─── Projets de vie (guerre complète + enveloppe d'épargne) ─
+async function executeLifePlan(plan: LifePlan): Promise<ExecutionResult> {
+  const warId = await createWar({
+    title: plan.warTitle,
+    icon: plan.icon,
+    color: plan.color,
+    domainType: plan.domainType,
+  });
+
+  const warnings: string[] = [];
+  let missionTotal = 0;
+  for (const battleSpec of plan.battles) {
+    try {
+      const battleId = await addBattle({
+        warId,
+        title: battleSpec.title,
+        priority: battleSpec.priority,
+      });
+      for (const mission of battleSpec.missions) {
+        await addTemplate({
+          battleId,
+          title: mission.title,
+          frequency: mission.frequency,
+          specificDays: mission.specificDays,
+          hour: mission.hour,
+          durationMin: mission.durationMin,
+          startDate: new Date(),
+        });
+        missionTotal += 1;
+      }
+    } catch {
+      warnings.push(`La bataille « ${battleSpec.title} » n'a pas pu être créée complètement.`);
+    }
+  }
+
+  if (plan.savings) {
+    await setBudget(plan.savings.category, plan.savings.monthlyAmount);
+  }
+
+  const lines: string[] = [
+    `Guerre « ${plan.warTitle} » créée : ${plan.battles.length} bataille(s), ${missionTotal} mission(s) récurrente(s). Elles apparaissent dans ton agenda sur 45 jours glissants.`,
+  ];
+  if (plan.savings) {
+    lines.push(
+      `Budget d'épargne mensuel fixé à ${formatFcfa(plan.savings.monthlyAmount)} ` +
+        `(objectif ${formatFcfa(plan.savings.targetAmount)} sur ${plan.savings.horizonMonths} mois).`,
+    );
+  }
+  lines.push('Tout reste ajustable dans les écrans Guerres et Finances.');
+  lines.push(...warnings);
+  return { ok: true, message: lines.join('\n') };
 }
 
 // ─── Bilans purs (testables sans base) ─────────────────────

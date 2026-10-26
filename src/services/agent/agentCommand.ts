@@ -10,6 +10,7 @@
 
 import { CATEGORIES, type CategoryMeta } from '../../domain/catalog';
 import { generateReply } from '../agent.service';
+import type { LifePlan } from './lifeProject.service';
 
 // ─── Actions proposées par l'agent (cartes à confirmer) ─────
 export type AgentAction =
@@ -23,7 +24,8 @@ export type AgentAction =
       hour: number;
     }
   | { type: 'complete-mission'; query: string }
-  | { type: 'create-account'; name: string };
+  | { type: 'create-account'; name: string }
+  | { type: 'create-life-plan'; plan: LifePlan };
 
 export interface ParsedResult {
   kind: 'reply' | 'actions';
@@ -91,7 +93,7 @@ const INCOME_KEYWORDS: Record<string, string[]> = {
 };
 
 /** Vrai match sur mot entier (gère les mots français accentués, une fois normalisés). */
-function hasWord(text: string, keyword: string): boolean {
+export function hasWord(text: string, keyword: string): boolean {
   const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   return new RegExp(`(^|[^a-zà-ÿ])${escaped}([^a-zà-ÿ]|$)`).test(text);
 }
@@ -229,6 +231,7 @@ function cleanDoneQuery(raw: string): string {
 
 // ─── Suggestions ───────────────────────────────────────────
 export const COMMAND_SUGGESTIONS = [
+  'Je veux acheter une voiture',
   'J’ai dépensé 2 500 FCFA de transport',
   'Ajoute une mission sport demain 7h',
   'Bilan de ma journée',
@@ -469,5 +472,16 @@ export function describeAction(action: AgentAction): ActionDescriptor {
         title: 'Créer un compte',
         detail: action.name,
       };
+    case 'create-life-plan': {
+      const missionCount = action.plan.battles.reduce((sum, battle) => sum + battle.missions.length, 0);
+      const savings = action.plan.savings
+        ? ` · épargne ${formatFcfa(action.plan.savings.monthlyAmount)}/mois`
+        : '';
+      return {
+        icon: action.plan.icon || 'rocket',
+        title: `Plan de vie — ${action.plan.warTitle.replace(/^Projet — /, '')}`,
+        detail: `${action.plan.battles.length} bataille(s) · ${missionCount} mission(s)${savings}`,
+      };
+    }
   }
 }

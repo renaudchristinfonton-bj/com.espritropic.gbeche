@@ -42,9 +42,18 @@ describe('migrations SQLite', () => {
     expect(categoriesMigration).toBeDefined();
   });
 
-  test('la dernière migration est additive (ALTER TABLE ADD COLUMN sans DROP)', () => {
-    const latest = MIGRATIONS[MIGRATIONS.length - 1];
-    expect(latest.sql).toMatch(/ALTER TABLE chat_messages ADD COLUMN/);
-    expect(latest.sql).not.toMatch(/DROP|DELETE|TRUNCATE/i);
+  test('la migration v3 ajoute les colonnes des cartes d action sans rien détruire', () => {
+    const v3 = MIGRATIONS.find((m) => m.version === 3);
+    expect(v3).toBeDefined();
+    expect(v3!.sql).toMatch(/ALTER TABLE chat_messages ADD COLUMN/);
+    expect(v3!.sql).not.toMatch(/DROP|DELETE|TRUNCATE/i);
+  });
+
+  test('la migration v4 crée la table des brouillons de projets de vie', () => {
+    const v4 = MIGRATIONS.find((m) => m.version === 4);
+    expect(v4).toBeDefined();
+    expect(v4!.sql).toMatch(/CREATE TABLE IF NOT EXISTS life_project_drafts/);
+    expect(v4!.sql).not.toMatch(/DROP|DELETE|TRUNCATE|ALTER/i);
+    expect(LATEST_SCHEMA_VERSION).toBe(4);
   });
 });

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-26T14:31:33.529Z",
+  "generatedAt": "2026-10-26T15:25:12.600Z",
   "checks": {
     "security": {
       "source": "npm audit",
@@ -31,8 +31,8 @@
     },
     "tests": {
       "ok": true,
-      "suites": "27 passed, 27 total",
-      "tests": "214 passed, 214 total"
+      "suites": "31 passed, 31 total",
+      "tests": "297 passed, 297 total"
     },
     "lint": {
       "ok": true,
@@ -46,7 +46,7 @@
       }
     },
     "offline": {
-      "scannedFiles": 99,
+      "scannedFiles": 102,
       "networkReferences": [],
       "ok": true
     },

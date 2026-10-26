@@ -189,6 +189,37 @@ describe('describeAction et formatage', () => {
     expect(descriptor.detail).toContain('2 500 FCFA');
   });
 
+  test('décrit une carte de plan de vie avec ses compteurs', () => {
+    const descriptor = describeAction({
+      type: 'create-life-plan',
+      plan: {
+        guideId: 'vehicle',
+        warTitle: 'Projet — Véhicule (voiture ou moto)',
+        icon: 'car',
+        color: '#00E5FF',
+        domainType: 'finance',
+        battles: [
+          { title: 'B1', priority: 'high', missions: [{ title: 'm1', frequency: 'weekly', hour: 18 }] },
+          { title: 'B2', priority: 'medium', missions: [{ title: 'm2', frequency: 'monthly', hour: 18 }] },
+        ],
+        savings: {
+          category: 'savings',
+          label: 'Épargne véhicule',
+          targetAmount: 3_000_000,
+          horizonMonths: 12,
+          monthlyAmount: 250_000,
+          missionTitle: 'Versement',
+        },
+        summary: '',
+      },
+    });
+    expect(descriptor.icon).toBe('car');
+    expect(descriptor.title).toContain('Véhicule');
+    expect(descriptor.detail).toContain('2 bataille(s)');
+    expect(descriptor.detail).toContain('2 mission(s)');
+    expect(descriptor.detail).toContain('250 000 FCFA/mois');
+  });
+
   test('formatFcfa avec séparateurs', () => {
     expect(formatFcfa(1250000)).toBe('1 250 000 FCFA');
   });

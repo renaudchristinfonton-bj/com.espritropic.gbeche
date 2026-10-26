@@ -227,5 +227,5 @@ export function welcomeMessage(context: AgentContext = {}): string {
   if (pending > 0) {
     return `Bienvenue au quartier général. Tu as ${pending} mission${pending > 1 ? 's' : ''} à mener aujourd'hui : on commence par laquelle ?`;
   }
-  return 'Bienvenue au quartier général. Je peux suivre tes missions, ton solde et tes objectifs, entièrement sur cet appareil.';
+  return "Bienvenue au quartier général. Je suis tes missions, ton solde et tes objectifs, et je peux transformer une ambition (« je veux me marier », « acheter une voiture », « grandir dans ma foi ») en plan de bataille complet. Tout reste sur cet appareil.";
 }

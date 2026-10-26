@@ -51,6 +51,18 @@ import {
   executeAgentAction,
   getAgentSnapshot,
 } from '@/src/services/agent/agentActions.service';
+import {
+  applyAnswer,
+  buildPlan,
+  currentQuestion,
+  guideOfDraft,
+  isCancelRequest,
+  isDraftComplete,
+  shouldOpenAspiration,
+  startDraft,
+  type LifeDraft,
+} from '@/src/services/agent/lifeProject.service';
+import { clearDraft, getActiveDraft, upsertDraft } from '@/src/db/repositories/lifeDrafts.repo';
 
 function parsePayload(message: ChatMessageRow): AgentAction[] {
   try {
@@ -67,6 +79,9 @@ export default function AgentScreen() {
   const router = useRouter();
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
+  // Pastilles de réponse rapide : questions de choix d'un projet de vie,
+  // sinon suggestions de commandes classiques.
+  const [quickReplies, setQuickReplies] = useState<string[]>([]);
   const scrollRef = useRef<ScrollView>(null);
 
   const messagesQuery = useRepoQuery(() => listMessages(), []);
@@ -103,6 +118,15 @@ export default function AgentScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
       await addMessage('user', text, []);
+
+      // Un projet de vie est en cours de construction : la phrase est une
+      // réponse aux questions de l'agent, pas une commande classique.
+      const activeDraft = await getActiveDraft();
+      if (activeDraft) {
+        await handleDraftAnswer(activeDraft, text);
+        return;
+      }
+
       const parsed = parseCommand(text);
 
       if (parsed.intent === 'day-review' && snapshot) {
@@ -112,6 +136,24 @@ export default function AgentScreen() {
       } else if (parsed.kind === 'actions' && parsed.actions && parsed.actions.length > 0) {
         await addMessage('agent', parsed.text, [parsed.intent], parsed.actions, 'proposed');
       } else {
+        // Aucune action : l'aspiration ouvre un dialogue guidé seulement
+        // si un guide reconnaît la phrase et que le parseur ne réclamait
+        // pas déjà un montant (sinon on garde sa réponse informative).
+        const guide = shouldOpenAspiration(parsed, text);
+        if (guide) {
+          const newDraft = startDraft(guide.id);
+          await upsertDraft(newDraft);
+          const first = guide.questions[0];
+          setQuickReplies(first.choices ?? []);
+          await addMessage(
+            'agent',
+            `${guide.pitch}\n\n1/${guide.questions.length} — ${first.label}${
+              first.hint ? `\n${first.hint}` : ''
+            }\n\n(Réponds « annuler » à tout moment pour interrompre.)`,
+            ['life-aspiration', guide.id],
+          );
+          return;
+        }
         await addMessage('agent', parsed.text, [parsed.intent]);
       }
     } catch (error) {
@@ -124,6 +166,65 @@ export default function AgentScreen() {
     } finally {
       setBusy(false);
     }
+  };
+
+  /** Avance le dialogue d'un projet de vie jusqu'à la carte de plan à valider. */
+  const handleDraftAnswer = async (active: LifeDraft, text: string) => {
+    const guide = guideOfDraft(active);
+    if (!guide) {
+      await clearDraft();
+      setQuickReplies([]);
+      await addMessage(
+        'agent',
+        "Désolé, j'ai perdu le fil de ce projet. Reformule ton objectif, on recommence.",
+        ['error'],
+      );
+      return;
+    }
+
+    if (isCancelRequest(text)) {
+      await clearDraft();
+      setQuickReplies([]);
+      await addMessage(
+        'agent',
+        `Projet « ${guide.title} » interrompu. Je n'ai rien créé ni modifié.`,
+        ['life-cancel'],
+      );
+      return;
+    }
+
+    const outcome = applyAnswer(active, text, guide);
+    if (outcome.error) {
+      const question = currentQuestion(active, guide);
+      setQuickReplies(question?.choices ?? []);
+      await addMessage('agent', `${outcome.error}\n\n${question?.label ?? ''}`, ['life-clarification']);
+      return;
+    }
+
+    await upsertDraft(outcome.draft);
+
+    if (!isDraftComplete(outcome.draft, guide)) {
+      const question = currentQuestion(outcome.draft, guide);
+      setQuickReplies(question?.choices ?? []);
+      await addMessage(
+        'agent',
+        `${outcome.draft.stepIndex + 1}/${guide.questions.length} — ${question?.label ?? ''}`,
+        ['life-clarification'],
+      );
+      return;
+    }
+
+    // Toutes les réponses sont réunies : résumé + carte de confirmation.
+    const plan = buildPlan(guide, outcome.draft);
+    await clearDraft();
+    setQuickReplies([]);
+    await addMessage(
+      'agent',
+      plan.summary,
+      ['life-plan', guide.id],
+      [{ type: 'create-life-plan', plan }],
+      'proposed',
+    );
   };
 
   const confirm = async (message: ChatMessageRow) => {
@@ -166,6 +267,8 @@ export default function AgentScreen() {
 
   const reset = async () => {
     await clearChat();
+    await clearDraft();
+    setQuickReplies([]);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   };
 
@@ -236,7 +339,7 @@ export default function AgentScreen() {
             contentContainerStyle={styles.suggestRow}
             keyboardShouldPersistTaps="handled"
           >
-            {COMMAND_SUGGESTIONS.map((suggestion) => (
+            {(quickReplies.length > 0 ? quickReplies : COMMAND_SUGGESTIONS).map((suggestion) => (
               <Pressable
                 key={suggestion}
                 accessibilityRole="button"
