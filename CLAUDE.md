@@ -84,13 +84,18 @@ Entièrement **déterministe et hors-ligne** — jamais de modèle distant ou d'
   `payload_json`/`status` ajoutées par la migration additive v3).
 - Écran `app/(app)/agent.tsx` : bulles + cartes d'action Confirmer/Annuler.
 
-## Navigation gestuelle et tutoriel
+## Navigation gestuelle, tutoriel et marges de barre d'onglets
 
 - `src/components/ui/SwipeTabView.tsx` : changement d'onglet par balayage horizontal
   via `PanResponder` natif (zéro dépendance). La fonction pure `decideSwipe` est testée.
 - `src/components/ui/tutorial.model.ts` + `Tutorial.tsx` : tutoriel guidé au premier
   lancement, relançable depuis Réglages. Drapeau settings `tutorial_done` ; l'état
   transitoire d'ouverture vit dans `useAppStore` (`openTutorial`/`closeTutorial`).
+- La barre d'onglets est flottante (`position: absolute`). Tout écran à onglets doit
+  réserver `SCREEN_BOTTOM_PADDING` (voir `src/theme/layout.ts`) en bas de son contenu
+  défilant — ne jamais remettre de valeur magique type `120`. Les écrans poussés
+  plein écran sans onglets (agent, données) appellent `useHideTabBar()` pour masquer
+  la barre et gèrent leur propre marge basse (`insets.bottom`).
 
 ## Build et livraison
 

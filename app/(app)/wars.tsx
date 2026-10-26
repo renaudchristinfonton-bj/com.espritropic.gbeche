@@ -59,6 +59,7 @@ import {
 } from '@/src/domain/catalog';
 import { formatDate, formatTime } from '@/src/services/format';
 import { radius, spacing, typography } from '@/src/theme';
+import { SCREEN_BOTTOM_PADDING } from '@/src/theme/layout';
 
 const HOUR_CHOICES = [6, 8, 12, 18, 21];
 
@@ -190,7 +191,7 @@ export default function WarsScreen() {
 
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ padding: spacing[5], paddingBottom: 120, gap: spacing[3] }}
+        contentContainerStyle={{ padding: spacing[5], paddingBottom: SCREEN_BOTTOM_PADDING, gap: spacing[3] }}
         showsVerticalScrollIndicator={false}
       >
         {selectedWar ? (

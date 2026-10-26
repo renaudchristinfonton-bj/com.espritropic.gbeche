@@ -51,6 +51,7 @@ import {
 } from '@/src/services/finance.service';
 import { currentMonthKey, formatCurrency, formatDate, formatTime, monthLabel } from '@/src/services/format';
 import { radius, spacing, typography } from '@/src/theme';
+import { SCREEN_BOTTOM_PADDING } from '@/src/theme/layout';
 
 type Tab = 'accounts' | 'transactions' | 'budgets';
 
@@ -142,7 +143,7 @@ export default function FinanceScreen() {
 
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ padding: spacing[5], paddingBottom: 120, gap: spacing[3] }}
+        contentContainerStyle={{ padding: spacing[5], paddingBottom: SCREEN_BOTTOM_PADDING, gap: spacing[3] }}
         showsVerticalScrollIndicator={false}
       >
         {tab === 'accounts' ? (

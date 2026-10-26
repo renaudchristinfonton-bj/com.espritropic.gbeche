@@ -20,7 +20,9 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { useHideTabBar } from '@/src/hooks/useHideTabBar';
 import { Screen } from '@/src/components/ui/Screen';
 import { GlassCard } from '@/src/components/ui/GlassCard';
 import { useTheme } from '@/src/theme/ThemeContext';
@@ -60,6 +62,10 @@ function parsePayload(message: ChatMessageRow): AgentAction[] {
 
 export default function AgentScreen() {
   const { colors } = useTheme().theme;
+  const insets = useSafeAreaInsets();
+  // Écran immersif : la barre d'onglets est masquée pour que le composer
+  // reste entièrement visible et accessible.
+  useHideTabBar(true);
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
@@ -209,7 +215,11 @@ export default function AgentScreen() {
         <View
           style={[
             styles.composer,
-            { borderColor: colors.glassBorder, backgroundColor: colors.backgroundElevated },
+            {
+              borderColor: colors.glassBorder,
+              backgroundColor: colors.backgroundElevated,
+              paddingBottom: Math.max(insets.bottom, spacing[3]),
+            },
           ]}
         >
           <ScrollView

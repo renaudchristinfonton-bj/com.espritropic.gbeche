@@ -15,6 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useTheme } from '../../theme/ThemeContext';
+import { SCREEN_BOTTOM_PADDING } from '../../theme/layout';
 
 interface ScreenProps {
   children: React.ReactNode;
@@ -22,6 +23,12 @@ interface ScreenProps {
   padded?: boolean;
   style?: ViewStyle;
   contentContainerStyle?: ViewStyle;
+  /**
+   * Marge basse du contenu défilant. Par défaut elle réserve la place de
+   * la barre d'onglets flottante afin que rien ne reste masqué dessous.
+   * Les écrans plein écran (sans barre) peuvent passer une valeur réduite.
+   */
+  bottomPadding?: number;
 }
 
 export function Screen({
@@ -30,6 +37,7 @@ export function Screen({
   padded = true,
   style,
   contentContainerStyle,
+  bottomPadding = SCREEN_BOTTOM_PADDING,
 }: ScreenProps) {
   const { theme } = useTheme();
   const { colors, spacing } = theme;
@@ -48,7 +56,7 @@ export function Screen({
         {scroll ? (
           <ScrollView
             style={styles.flex}
-            contentContainerStyle={[{ padding, paddingBottom: spacing[16] }, contentContainerStyle]}
+            contentContainerStyle={[{ padding, paddingBottom: bottomPadding }, contentContainerStyle]}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >

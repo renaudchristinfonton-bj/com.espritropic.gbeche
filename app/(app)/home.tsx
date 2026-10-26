@@ -32,6 +32,7 @@ import { getTodayExpense } from '@/src/services/finance.service';
 import { useAppStore } from '@/src/store/useAppStore';
 import { formatCurrency, formatDateLong, formatTime, greeting } from '@/src/services/format';
 import { radius, spacing, typography } from '@/src/theme';
+import { SCREEN_BOTTOM_PADDING } from '@/src/theme/layout';
 import type { AdversaryRow } from '@/src/db/types';
 
 export default function HomeScreen() {
@@ -71,7 +72,7 @@ export default function HomeScreen() {
       <Screen
         scroll
         padded={false}
-        contentContainerStyle={{ padding: spacing[5], paddingBottom: 120 }}
+        contentContainerStyle={{ padding: spacing[5], paddingBottom: SCREEN_BOTTOM_PADDING }}
       >
         {/* En-tête */}
           <View style={styles.header}>

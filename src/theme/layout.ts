@@ -9,6 +9,16 @@ import { Platform, type ViewStyle } from 'react-native';
 
 export const WEB_SHELL_WIDTH = 480;
 
+/**
+ * Hauteur réelle de la barre d'onglets (voir app/(app)/_layout.tsx).
+ * Elle est en position absolue : tout contenu défilant doit réserver
+ * cet espace + une marge d'air pour ne jamais être masqué.
+ */
+export const TAB_BAR_HEIGHT = Platform.select({ ios: 88, default: 72 });
+
+/** Marge basse à appliquer aux ScrollView des écrans à onglets. */
+export const SCREEN_BOTTOM_PADDING = TAB_BAR_HEIGHT + 20;
+
 /** Largeur contrainte d'un panneau (Sheet, barre d'onglets) sur le web. */
 export const centeredPanelStyle: ViewStyle =
   Platform.OS === 'web'

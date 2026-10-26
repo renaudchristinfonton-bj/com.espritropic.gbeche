@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import * as Haptics from '@/src/services/haptics';
 
+import { useHideTabBar } from '@/src/hooks/useHideTabBar';
 import { Screen } from '@/src/components/ui/Screen';
 import { GlassCard } from '@/src/components/ui/GlassCard';
 import { Button } from '@/src/components/ui/Button';
@@ -41,6 +42,8 @@ function timestamp(): string {
 export default function DataScreen() {
   const { colors } = useTheme().theme;
   const router = useRouter();
+  // Écran plein écran : la barre d'onglets masquerait les dernières actions.
+  useHideTabBar(true);
   const [busy, setBusy] = useState<string | null>(null);
   const [report, setReport] = useState<CsvImportReport | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -122,7 +125,7 @@ export default function DataScreen() {
     });
 
   return (
-    <Screen scroll>
+    <Screen scroll bottomPadding={40}>
       <View style={styles.header}>
         <Text style={[styles.title, { color: colors.text }]}>Données & fichiers</Text>
         <Text style={[styles.subtitle, { color: colors.textMuted }]}>

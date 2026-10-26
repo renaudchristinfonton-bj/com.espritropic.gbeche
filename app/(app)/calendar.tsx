@@ -1,11 +1,13 @@
 /**
- * GBECHE — Écran Agenda.
- * Vue semaine : les 7 jours avec indicateurs de missions, détail du jour
- * sélectionné, tap sur une mission pour la remporter. Sur web, un bandeau
- * permet d'autoriser les notifications système (Notification API).
+ * GBECHE — Écran Agenda (refonte visuelle).
+ *
+ * Calendrier mensuel professionnel : grille 7 colonnes avec indicateurs
+ * de missions, jour courant et sélection, statistiques du jour choisi,
+ * puis timeline verticale des missions tap-to-win. Sur web, un bandeau
+ * permet d'autoriser les notifications système.
  */
 import React, { useMemo, useState } from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from '@/src/services/haptics';
 
@@ -29,32 +31,27 @@ import {
 import { useAppStore } from '@/src/store/useAppStore';
 import { formatTime } from '@/src/services/format';
 import { radius, spacing, typography } from '@/src/theme';
+import { SCREEN_BOTTOM_PADDING } from '@/src/theme/layout';
 import type { AdversaryRow } from '@/src/db/types';
-
-const DAY_MS = 86_400_000;
-const WEEKDAY_SHORT = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
-
-function startOfWeek(date: Date): Date {
-  const d = new Date(date);
-  d.setHours(0, 0, 0, 0);
-  const iso = d.getDay() === 0 ? 7 : d.getDay();
-  d.setDate(d.getDate() - (iso - 1));
-  return d;
-}
-
-function sameDay(a: Date, b: Date): boolean {
-  return (
-    a.getFullYear() === b.getFullYear() &&
-    a.getMonth() === b.getMonth() &&
-    a.getDate() === b.getDate()
-  );
-}
+import {
+  buildMonthGrid,
+  dayKeyFromTimestamp,
+  monthRange,
+  monthTitle,
+  sameDay,
+  WEEKDAY_LABELS,
+  type CalendarCell,
+} from '@/src/utils/calendar';
 
 export default function CalendarScreen() {
   const { colors } = useTheme().theme;
   const showXpFeedback = useAppStore((state) => state.showXpFeedback);
 
-  const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()));
+  const today = useMemo(() => new Date(), []);
+  const [cursor, setCursor] = useState(() => ({
+    year: today.getFullYear(),
+    month: today.getMonth(),
+  }));
   const [selected, setSelected] = useState(() => new Date());
   const [permission, setPermission] = useState<NotificationPermissionStatus>('default');
 
@@ -64,37 +61,41 @@ export default function CalendarScreen() {
     }
   }, []);
 
-  const weekEnd = useMemo(() => new Date(weekStart.getTime() + 7 * DAY_MS - 1), [weekStart]);
-  const weekQuery = useRepoQuery(
-    () => listInstancesInRange(weekStart.getTime(), weekEnd.getTime()),
-    [weekStart.getTime()],
+  const range = useMemo(() => monthRange(cursor.year, cursor.month), [cursor]);
+  const monthQuery = useRepoQuery(
+    () => listInstancesInRange(range.start, range.end),
+    [range.start, range.end],
   );
   const dayQuery = useRepoQuery(() => listInstancesForDay(selected), [selected.getTime()]);
 
-  const countByDay = useMemo(() => {
-    const map = new Map<number, number>();
-    for (const instance of weekQuery.data ?? []) {
-      const day = new Date(instance.scheduled_at);
-      const key = new Date(day.getFullYear(), day.getMonth(), day.getDate()).getTime();
-      map.set(key, (map.get(key) ?? 0) + 1);
-    }
-    return map;
-  }, [weekQuery.data]);
-
-  const days = useMemo(
-    () => Array.from({ length: 7 }, (_, i) => new Date(weekStart.getTime() + i * DAY_MS)),
-    [weekStart],
+  const grid = useMemo(
+    () => buildMonthGrid(cursor.year, cursor.month, today),
+    [cursor, today],
   );
 
-  const shiftWeek = (direction: number) => {
+  const { totalByDay, wonByDay } = useMemo(() => {
+    const totals = new Map<number, number>();
+    const wins = new Map<number, number>();
+    for (const instance of monthQuery.data ?? []) {
+      const key = dayKeyFromTimestamp(instance.scheduled_at);
+      totals.set(key, (totals.get(key) ?? 0) + 1);
+      if (instance.status === 'won') wins.set(key, (wins.get(key) ?? 0) + 1);
+    }
+    return { totalByDay: totals, wonByDay: wins };
+  }, [monthQuery.data]);
+
+  const shiftMonth = (direction: number) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setWeekStart((current) => new Date(current.getTime() + direction * 7 * DAY_MS));
+    setCursor((current) => {
+      const next = new Date(current.year, current.month + direction, 1);
+      return { year: next.getFullYear(), month: next.getMonth() };
+    });
   };
 
   const goToday = () => {
     const now = new Date();
     setSelected(now);
-    setWeekStart(startOfWeek(now));
+    setCursor({ year: now.getFullYear(), month: now.getMonth() });
   };
 
   const enableNotifications = async () => {
@@ -114,25 +115,26 @@ export default function CalendarScreen() {
   };
 
   const instances = dayQuery.data ?? [];
-  const today = new Date();
+  const dayWon = instances.filter((i) => i.status === 'won').length;
+  const dayPending = instances.filter((i) => i.status === 'pending' || i.status === 'rescheduled').length;
 
   return (
-    <Screen padded={false}>
-      <View style={{ padding: spacing[5], paddingBottom: spacing[3] }}>
+    <Screen padded={false} scroll contentContainerStyle={styles.screenContent}>
+      <View style={styles.header}>
         <Text style={[styles.title, { color: colors.text }]}>Agenda</Text>
         <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-          Tes missions planifiées sur 45 jours glissants.
+          Tes missions, jour par jour, sur 45 jours glissants.
         </Text>
       </View>
 
       {Platform.OS === 'web' && permission !== 'granted' && permission !== 'unsupported' ? (
-        <View style={{ paddingHorizontal: spacing[5], marginBottom: spacing[3] }}>
+        <View style={styles.notifWrap}>
           <GlassCard style={styles.notifCard}>
             <Ionicons name="notifications-circle" size={26} color={colors.primary} />
             <View style={{ flex: 1 }}>
               <Text style={[styles.notifTitle, { color: colors.text }]}>Rappels du navigateur</Text>
               <Text style={[styles.notifBody, { color: colors.textMuted }]}>
-                Reçois une notification à l'heure de chaque mission, même si l'onglet est au premier plan.
+                Reçois une notification à l'heure de chaque mission.
               </Text>
             </View>
             <Button
@@ -146,74 +148,94 @@ export default function CalendarScreen() {
         </View>
       ) : null}
 
-      {/* Navigation de semaine */}
-      <View style={styles.weekHeader}>
-        <Pressable hitSlop={10} onPress={() => shiftWeek(-1)} style={styles.weekArrow}>
-          <Ionicons name="chevron-back" size={22} color={colors.text} />
-        </Pressable>
-        <Text style={[styles.weekLabel, { color: colors.text }]}>
-          {weekStart.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}
-          {' — '}
-          {new Date(weekEnd).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}
-        </Text>
-        <Pressable hitSlop={10} onPress={() => shiftWeek(1)} style={styles.weekArrow}>
-          <Ionicons name="chevron-forward" size={22} color={colors.text} />
-        </Pressable>
-      </View>
+      {/* ─── Calendrier mensuel ─── */}
+      <GlassCard animated={false} style={styles.calendarCard}>
+        <View style={styles.monthHeader}>
+          <Pressable
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel="Mois précédent"
+            onPress={() => shiftMonth(-1)}
+            style={[styles.monthArrow, { borderColor: colors.glassBorder }]}
+          >
+            <Ionicons name="chevron-back" size={18} color={colors.text} />
+          </Pressable>
+          <Text style={[styles.monthTitle, { color: colors.text }]}>
+            {monthTitle(cursor.year, cursor.month)}
+          </Text>
+          <Pressable
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel="Mois suivant"
+            onPress={() => shiftMonth(1)}
+            style={[styles.monthArrow, { borderColor: colors.glassBorder }]}
+          >
+            <Ionicons name="chevron-forward" size={18} color={colors.text} />
+          </Pressable>
+        </View>
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.dayScroller}
-      >
-        {days.map((day) => {
-          const key = new Date(day.getFullYear(), day.getMonth(), day.getDate()).getTime();
-          const isSelected = sameDay(day, selected);
-          const isToday = sameDay(day, today);
-          const count = countByDay.get(key) ?? 0;
-          return (
-            <Pressable
-              key={key}
+        <View style={styles.weekRow}>
+          {WEEKDAY_LABELS.map((label) => (
+            <Text key={label} style={[styles.weekLabel, { color: colors.textTertiary }]}>
+              {label}
+            </Text>
+          ))}
+        </View>
+
+        <View style={styles.grid}>
+          {grid.map((cell) => (
+            <MonthCell
+              key={cell.timestamp}
+              cell={cell}
+              selected={sameDay(new Date(cell.timestamp), selected)}
+              total={totalByDay.get(cell.timestamp) ?? 0}
+              won={wonByDay.get(cell.timestamp) ?? 0}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                setSelected(day);
+                setSelected(new Date(cell.timestamp));
               }}
-              style={[
-                styles.dayCell,
-                {
-                  backgroundColor: isSelected ? colors.primaryDim : colors.glass,
-                  borderColor: isSelected ? colors.primary : colors.glassBorder,
-                },
-              ]}
-            >
-              <Text style={[styles.dayName, { color: colors.textMuted }]}>
-                {WEEKDAY_SHORT[day.getDay() === 0 ? 6 : day.getDay() - 1]}
-              </Text>
-              <Text style={[styles.dayNumber, { color: isToday ? colors.primary : colors.text }]}>
-                {day.getDate()}
-              </Text>
-              <View style={[styles.dayDot, { backgroundColor: count > 0 ? colors.accent : 'transparent' }]} />
-            </Pressable>
-          );
-        })}
-      </ScrollView>
+            />
+          ))}
+        </View>
 
-      <View style={styles.todayRow}>
-        <Text style={[styles.sectionTitle, { color: colors.text }]}>
-          {selected.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
-        </Text>
-        {!sameDay(selected, today) ? (
-          <Pressable onPress={goToday} hitSlop={8}>
-            <Text style={[styles.todayLink, { color: colors.primary }]}>Aujourd'hui</Text>
-          </Pressable>
-        ) : null}
+        <View style={styles.legendRow}>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: colors.accent }]} />
+            <Text style={[styles.legendText, { color: colors.textMuted }]}>Mission</Text>
+          </View>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: colors.success }]} />
+            <Text style={[styles.legendText, { color: colors.textMuted }]}>Tout gagné</Text>
+          </View>
+          {!sameDay(selected, today) ? (
+            <Pressable onPress={goToday} hitSlop={8} style={styles.todayButton}>
+              <Ionicons name="today-outline" size={14} color={colors.primary} />
+              <Text style={[styles.todayLink, { color: colors.primary }]}>Aujourd'hui</Text>
+            </Pressable>
+          ) : null}
+        </View>
+      </GlassCard>
+
+      {/* ─── Jour sélectionné ─── */}
+      <View style={styles.dayHeader}>
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.dayTitle, { color: colors.text }]}>
+            {selected.toLocaleDateString('fr-FR', {
+              weekday: 'long',
+              day: 'numeric',
+              month: 'long',
+            })}
+          </Text>
+        </View>
       </View>
 
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={{ paddingHorizontal: spacing[5], paddingBottom: 120, gap: spacing[2.5] }}
-        showsVerticalScrollIndicator={false}
-      >
+      <View style={styles.statRow}>
+        <StatChip icon="flag" value={instances.length} label="missions" tint={colors.primaryDim} color={colors.primary} />
+        <StatChip icon="checkmark-circle" value={dayWon} label="gagnées" tint={colors.successDim} color={colors.success} />
+        <StatChip icon="time-outline" value={dayPending} label="à mener" tint={colors.warningDim} color={colors.warning} />
+      </View>
+
+      <View style={styles.timelineSection}>
         {instances.length === 0 ? (
           <EmptyState
             icon="calendar-outline"
@@ -221,18 +243,115 @@ export default function CalendarScreen() {
             description="Les routines et missions ponctuelles programmées apparaîtront ici."
           />
         ) : (
-          instances.map((instance) => (
-            <TaskRow key={instance.id} instance={instance} onWin={() => handleWin(instance)} />
+          instances.map((instance, index) => (
+            <TimelineRow
+              key={instance.id}
+              instance={instance}
+              isLast={index === instances.length - 1}
+              onWin={() => handleWin(instance)}
+            />
           ))
         )}
-      </ScrollView>
+      </View>
     </Screen>
   );
 }
 
-function TaskRow({ instance, onWin }: { instance: AdversaryRow; onWin: () => void }) {
+function MonthCell({
+  cell,
+  selected,
+  total,
+  won,
+  onPress,
+}: {
+  cell: CalendarCell;
+  selected: boolean;
+  total: number;
+  won: number;
+  onPress: () => void;
+}) {
   const { colors } = useTheme().theme;
-  const [warName, setWarName] = React.useState<string>('');
+  const allWon = total > 0 && won === total;
+
+  return (
+    <Pressable
+      onPress={cell.inMonth ? onPress : undefined}
+      disabled={!cell.inMonth}
+      style={styles.cell}
+      accessibilityRole="button"
+      accessibilityLabel={`${cell.day}${total > 0 ? `, ${total} mission(s)` : ''}`}
+    >
+      <View
+        style={[
+          styles.cellInner,
+          selected && { backgroundColor: colors.primary },
+          !selected && cell.isToday && { borderColor: colors.primary, borderWidth: 1.5 },
+          !cell.inMonth && { opacity: 0.32 },
+        ]}
+      >
+        <Text
+          style={[
+            styles.cellNumber,
+            {
+              color: selected
+                ? colors.textInverse
+                : cell.isToday
+                  ? colors.primary
+                  : colors.text,
+            },
+          ]}
+        >
+          {cell.day}
+        </Text>
+        <View
+          style={[
+            styles.cellDot,
+            {
+              backgroundColor: total === 0 ? 'transparent' : selected ? colors.textInverse : allWon ? colors.success : colors.accent,
+            },
+          ]}
+        />
+      </View>
+    </Pressable>
+  );
+}
+
+function StatChip({
+  icon,
+  value,
+  label,
+  tint,
+  color,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  value: number;
+  label: string;
+  tint: string;
+  color: string;
+}) {
+  const { colors } = useTheme().theme;
+  return (
+    <GlassCard animated={false} style={styles.statChip}>
+      <View style={[styles.statIcon, { backgroundColor: tint }]}>
+        <Ionicons name={icon} size={16} color={color} />
+      </View>
+      <Text style={[styles.statValue, { color: colors.text }]}>{value}</Text>
+      <Text style={[styles.statLabel, { color: colors.textMuted }]}>{label}</Text>
+    </GlassCard>
+  );
+}
+
+function TimelineRow({
+  instance,
+  isLast,
+  onWin,
+}: {
+  instance: AdversaryRow;
+  isLast: boolean;
+  onWin: () => void;
+}) {
+  const { colors } = useTheme().theme;
+  const [warName, setWarName] = React.useState('');
   const won = instance.status === 'won';
 
   React.useEffect(() => {
@@ -240,50 +359,66 @@ function TaskRow({ instance, onWin }: { instance: AdversaryRow; onWin: () => voi
   }, [instance.war_id]);
 
   return (
-    <GlassCard onPress={onWin} accentColor={won ? colors.success : colors.glassBorder}>
-      <View style={styles.taskRow}>
+    <View style={styles.timelineRow}>
+      <View style={styles.timelineRail}>
         <View
           style={[
-            styles.check,
+            styles.timelineNode,
+            { backgroundColor: won ? colors.success : colors.primaryDim },
+          ]}
+        >
+          <Ionicons
+            name={won ? 'checkmark' : 'ellipse'}
+            size={won ? 12 : 8}
+            color={won ? colors.textInverse : colors.primary}
+          />
+        </View>
+        {!isLast ? <View style={[styles.timelineLine, { backgroundColor: colors.glassBorderHover }]} /> : null}
+      </View>
+
+      <GlassCard
+        onPress={onWin}
+        accentColor={won ? colors.success : colors.glassBorder}
+        style={styles.timelineCard}
+      >
+        <Text style={[styles.timelineTime, { color: colors.primary }]}>
+          {formatTime(instance.scheduled_at)}
+        </Text>
+        <Text
+          numberOfLines={2}
+          style={[
+            styles.timelineTitle,
             {
-              borderColor: won ? colors.success : colors.borderStrong,
-              backgroundColor: won ? colors.success : 'transparent',
+              color: won ? colors.textMuted : colors.text,
+              textDecorationLine: won ? 'line-through' : 'none',
             },
           ]}
         >
-          {won ? <Ionicons name="checkmark" size={16} color={colors.textInverse} /> : null}
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text
-            numberOfLines={1}
-            style={[
-              styles.taskTitle,
-              {
-                color: won ? colors.textMuted : colors.text,
-                textDecorationLine: won ? 'line-through' : 'none',
-              },
-            ]}
-          >
-            {instance.title}
-          </Text>
-          <Text style={[styles.taskMeta, { color: colors.textMuted }]}>
-            {formatTime(instance.scheduled_at)}
-            {warName ? ` · ${warName}` : ''} · {instance.duration_min} min · +{instance.xp_reward} XP
+          {instance.title}
+        </Text>
+        <View style={styles.timelineMetaRow}>
+          {warName ? (
+            <View style={[styles.metaTag, { backgroundColor: colors.glass }]}>
+              <Text style={[styles.metaTagText, { color: colors.textMuted }]} numberOfLines={1}>
+                {warName}
+              </Text>
+            </View>
+          ) : null}
+          <Text style={[styles.timelineMeta, { color: colors.textTertiary }]}>
+            {instance.duration_min} min · +{instance.xp_reward} XP
           </Text>
         </View>
-        <Ionicons
-          name={won ? 'shield-checkmark' : 'ellipse-outline'}
-          size={22}
-          color={won ? colors.success : colors.textTertiary}
-        />
-      </View>
-    </GlassCard>
+      </GlassCard>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  screenContent: { paddingBottom: SCREEN_BOTTOM_PADDING },
+  header: { padding: spacing[5], paddingBottom: spacing[3] },
   title: { fontSize: typography.sizes['3xl'], fontWeight: '800', letterSpacing: -0.5 },
   subtitle: { fontSize: typography.sizes.md, marginTop: 4, lineHeight: 22 },
+  notifWrap: { paddingHorizontal: spacing[5], marginBottom: spacing[3] },
   notifCard: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -293,50 +428,98 @@ const styles = StyleSheet.create({
   },
   notifTitle: { fontSize: typography.sizes.base, fontWeight: '800' },
   notifBody: { fontSize: typography.sizes.xs, marginTop: 2, lineHeight: 17 },
-  weekHeader: {
+
+  calendarCard: { marginHorizontal: spacing[5], padding: spacing[4] },
+  monthHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: spacing[5],
-    marginBottom: spacing[3],
+    marginBottom: spacing[4],
   },
-  weekArrow: { padding: spacing[1] },
-  weekLabel: { fontSize: typography.sizes.base, fontWeight: '800', textTransform: 'capitalize' },
-  dayScroller: { paddingHorizontal: spacing[5], gap: spacing[2], paddingBottom: spacing[2] },
-  dayCell: {
-    width: 52,
+  monthArrow: {
+    width: 36,
+    height: 36,
     borderRadius: radius.md,
     borderWidth: 1,
-    paddingVertical: spacing[2.5],
-    alignItems: 'center',
-    gap: 4,
-  },
-  dayName: { fontSize: typography.sizes.xs, fontWeight: '700', textTransform: 'uppercase' },
-  dayNumber: { fontSize: typography.sizes.lg, fontWeight: '800' },
-  dayDot: { width: 6, height: 6, borderRadius: 3 },
-  todayRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: spacing[5],
-    marginTop: spacing[4],
-    marginBottom: spacing[3],
-  },
-  sectionTitle: {
-    fontSize: typography.sizes.lg,
-    fontWeight: '800',
-    textTransform: 'capitalize',
-  },
-  todayLink: { fontSize: typography.sizes.base, fontWeight: '700' },
-  taskRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
-  check: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  taskTitle: { fontSize: typography.sizes.md, fontWeight: '700' },
-  taskMeta: { fontSize: typography.sizes.xs, marginTop: 2, fontWeight: '600' },
+  monthTitle: { fontSize: typography.sizes.lg, fontWeight: '800', textTransform: 'capitalize' },
+  weekRow: { flexDirection: 'row', marginBottom: spacing[2] },
+  weekLabel: {
+    flex: 1,
+    textAlign: 'center',
+    fontSize: typography.sizes.xs,
+    fontWeight: '800',
+    letterSpacing: 0.5,
+  },
+  grid: { flexDirection: 'row', flexWrap: 'wrap' },
+  cell: { width: `${100 / 7}%`, aspectRatio: 0.86, padding: 2 },
+  cellInner: {
+    flex: 1,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 3,
+    borderColor: 'transparent',
+  },
+  cellNumber: { fontSize: typography.sizes.md, fontWeight: '700' },
+  cellDot: { width: 5, height: 5, borderRadius: 3 },
+  legendRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[4],
+    marginTop: spacing[3],
+    paddingTop: spacing[3],
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  legendDot: { width: 7, height: 7, borderRadius: 4 },
+  legendText: { fontSize: typography.sizes.xs, fontWeight: '600' },
+  todayButton: { marginLeft: 'auto', flexDirection: 'row', alignItems: 'center', gap: 4 },
+  todayLink: { fontSize: typography.sizes.sm, fontWeight: '800' },
+
+  dayHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: spacing[5],
+    marginTop: spacing[5],
+    marginBottom: spacing[3],
+  },
+  dayTitle: { fontSize: typography.sizes.xl, fontWeight: '800', textTransform: 'capitalize' },
+  statRow: {
+    flexDirection: 'row',
+    gap: spacing[3],
+    paddingHorizontal: spacing[5],
+  },
+  statChip: {
+    flex: 1,
+    borderRadius: radius.lg,
+    paddingVertical: spacing[3],
+    alignItems: 'center',
+    gap: 4,
+  },
+  statIcon: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  statValue: { fontSize: typography.sizes.xl, fontWeight: '800' },
+  statLabel: { fontSize: typography.sizes.xs, fontWeight: '700' },
+
+  timelineSection: { paddingHorizontal: spacing[5], paddingTop: spacing[3], gap: spacing[3] },
+  timelineRow: { flexDirection: 'row', gap: spacing[3] },
+  timelineRail: { width: 22, alignItems: 'center' },
+  timelineNode: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: spacing[4],
+  },
+  timelineLine: { flex: 1, width: 2, marginTop: 2, borderRadius: 1 },
+  timelineCard: { flex: 1, padding: spacing[3.5] },
+  timelineTime: { fontSize: typography.sizes.sm, fontWeight: '800', marginBottom: 2 },
+  timelineTitle: { fontSize: typography.sizes.md, fontWeight: '700', lineHeight: 21 },
+  timelineMetaRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[2], marginTop: spacing[2], flexWrap: 'wrap' },
+  metaTag: { borderRadius: radius.full, paddingHorizontal: spacing[2.5], paddingVertical: 3 },
+  metaTagText: { fontSize: typography.sizes.xs, fontWeight: '700' },
+  timelineMeta: { fontSize: typography.sizes.xs, fontWeight: '600' },
 });
