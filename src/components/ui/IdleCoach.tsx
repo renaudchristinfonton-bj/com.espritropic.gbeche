@@ -89,11 +89,15 @@ export function IdleCoach() {
   const arm = useCallback(() => {
     clearTimers();
     hide();
-    if (!enabled) return;
+    // Lecture fraîche du réglage à chaque cycle : un changement opéré dans
+    // Réglages est pris en compte dès la navigation suivante, sans remontage.
+    const isEnabled = getSettingBool(SETTING_KEYS.idleCoachEnabled, true);
+    setEnabled(isEnabled);
+    if (!isEnabled) return;
     const tip = coachTipForPath(pathname);
     if (!tip) return;
     idleTimer.current = setTimeout(() => setVisible(true), IDLE_DELAY_MS);
-  }, [clearTimers, enabled, hide, pathname]);
+  }, [clearTimers, hide, pathname]);
 
   // Réarmement à chaque navigation ou toucher ; arrêt si le clavier s'ouvre.
   useEffect(() => {
