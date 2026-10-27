@@ -12,13 +12,13 @@ import { radius, spacing, typography } from '../../theme';
 
 interface ChipProps {
   label: string;
-  selected: boolean;
+  selected?: boolean;
   onPress: () => void;
   icon?: keyof typeof Ionicons.glyphMap;
   color?: string;
 }
 
-export function Chip({ label, selected, onPress, icon, color }: ChipProps) {
+export function Chip({ label, selected = false, onPress, icon, color }: ChipProps) {
   const { theme } = useTheme();
   const { colors } = theme;
   const accent = color ?? colors.primary;

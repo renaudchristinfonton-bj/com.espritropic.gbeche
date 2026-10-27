@@ -163,10 +163,10 @@ describe('parseCommand — récit de journée', () => {
 });
 
 describe('parseCommand — repli informatif', () => {
-  test('salutation déléguée au moteur d’intentions', () => {
+  test('salutation prise en charge par le cerveau local', () => {
     const result = parseCommand('bonjour');
     expect(result.kind).toBe('reply');
-    expect(result.intent).toBe('greeting');
+    expect(result.intent).toBe('brain-greeting');
     expect(result.text.length).toBeGreaterThan(5);
   });
 

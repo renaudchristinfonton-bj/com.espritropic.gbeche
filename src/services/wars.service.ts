@@ -56,6 +56,8 @@ export interface NewTemplateInput {
   frequency: Frequency;
   specificDays?: number[];
   hour: number;
+  minute?: number;
+  intervalDays?: number;
   durationMin?: number;
   startDate?: Date;
   endDate?: Date | null;
@@ -67,6 +69,9 @@ export async function addTemplate(input: NewTemplateInput): Promise<ID> {
   if (input.frequency === 'specific_days' && !(input.specificDays?.length)) {
     throw new Error('Sélectionne au moins un jour de la semaine.');
   }
+  if (input.frequency === 'interval_days' && !(input.intervalDays && input.intervalDays >= 2)) {
+    throw new Error('Indique un intervalle d’au moins 2 jours.');
+  }
   return createTemplate({
     battleId: input.battleId,
     warId: battle.war_id,
@@ -75,6 +80,8 @@ export async function addTemplate(input: NewTemplateInput): Promise<ID> {
     frequency: input.frequency,
     specificDays: input.specificDays,
     hour: input.hour,
+    minute: input.minute,
+    intervalDays: input.intervalDays,
     durationMin: input.durationMin,
     startDate: input.startDate,
     endDate: input.endDate,
@@ -169,6 +176,9 @@ export async function editTemplate(
 ): Promise<void> {
   if (input.frequency === 'specific_days' && !(input.specificDays?.length)) {
     throw new Error('Sélectionne au moins un jour de la semaine.');
+  }
+  if (input.intervalDays !== undefined && input.intervalDays < 2) {
+    throw new Error('L’intervalle doit être d’au moins 2 jours.');
   }
   if (input.title !== undefined && !input.title.trim()) {
     throw new Error("Le nom de l'adversaire est obligatoire.");

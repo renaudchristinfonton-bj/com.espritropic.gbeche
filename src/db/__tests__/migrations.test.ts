@@ -54,6 +54,15 @@ describe('migrations SQLite', () => {
     expect(v4).toBeDefined();
     expect(v4!.sql).toMatch(/CREATE TABLE IF NOT EXISTS life_project_drafts/);
     expect(v4!.sql).not.toMatch(/DROP|DELETE|TRUNCATE|ALTER/i);
-    expect(LATEST_SCHEMA_VERSION).toBe(4);
+  });
+
+  test('la migration v5 ajoute la minute et l intervalle sans rien détruire', () => {
+    const v5 = MIGRATIONS.find((m) => m.version === 5);
+    expect(v5).toBeDefined();
+    expect(v5!.sql).toMatch(/ALTER TABLE adversary_templates ADD COLUMN minute/);
+    expect(v5!.sql).toMatch(/ALTER TABLE adversary_templates ADD COLUMN interval_days/);
+    expect(v5!.sql).toMatch(/ALTER TABLE adversaries ADD COLUMN minute/);
+    expect(v5!.sql).not.toMatch(/DROP|DELETE|TRUNCATE/i);
+    expect(LATEST_SCHEMA_VERSION).toBe(5);
   });
 });

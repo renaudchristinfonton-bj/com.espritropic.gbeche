@@ -2,7 +2,7 @@
   "expo": {
     "name": "GBECHE",
     "slug": "GBECHE",
-    "version": "1.5.0",
+    "version": "1.6.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "com.espritropic.gbeche",
@@ -11,13 +11,13 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.espritropic.gbeche",
-      "buildNumber": "6",
+      "buildNumber": "7",
       "infoPlist": {
         "NSFaceIDUsageDescription": "GBECHE utilise Face ID pour verrouiller l'accès à tes données personnelles."
       }
     },
     "android": {
-      "versionCode": 6,
+      "versionCode": 7,
       "adaptiveIcon": {
         "backgroundColor": "#070911",
         "foregroundImage": "./assets/images/android-icon-foreground.png",

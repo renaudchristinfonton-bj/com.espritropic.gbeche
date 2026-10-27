@@ -51,6 +51,7 @@ export interface BattleRow {
 export type Frequency =
   | 'once'
   | 'daily'
+  | 'interval_days'
   | 'weekly'
   | 'specific_days'
   | 'monthly'
@@ -67,6 +68,8 @@ export interface AdversaryTemplateRow {
   frequency: Frequency;
   specific_days: string; // JSON : [1, 4] (lundi, jeudi — ISO 1..7)
   hour: number; // 0..23
+  minute: number; // 0..59
+  interval_days: number; // >= 2 quand frequency = 'interval_days', sinon 0
   duration_min: number;
   start_date: number;
   end_date: number | null;
@@ -83,6 +86,7 @@ export interface AdversaryRow {
   xp_reward: number;
   scheduled_at: number;
   hour: number;
+  minute: number; // 0..59
   duration_min: number;
   status: AdversaryStatus;
   completed_at: number | null;

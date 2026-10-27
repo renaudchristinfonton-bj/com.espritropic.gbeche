@@ -18,6 +18,8 @@ export const SETTING_KEYS = {
   notifiedInstanceIds: 'notified_instance_ids',
   // Planification des notifications locales : map instanceId → { nid, at }.
   scheduledReminders: 'scheduled_reminders',
+  // Astuces contextuelles après 5 s d'inactivité (IdleCoach).
+  idleCoachEnabled: 'idle_coach_enabled',
 } as const;
 
 export type SettingKey = (typeof SETTING_KEYS)[keyof typeof SETTING_KEYS];

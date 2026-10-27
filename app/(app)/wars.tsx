@@ -18,6 +18,8 @@ import { Button } from '@/src/components/ui/Button';
 import { Chip } from '@/src/components/ui/Chip';
 import { Sheet } from '@/src/components/ui/Sheet';
 import { TextField } from '@/src/components/ui/TextField';
+import { DateTimeField } from '@/src/components/ui/DateTimeField';
+import { FrequencySelector, DEFAULT_FREQUENCY, type FrequencyValue } from '@/src/components/ui/FrequencySelector';
 import { SegmentedControl } from '@/src/components/ui/SegmentedControl';
 import { ProgressBar } from '@/src/components/ui/ProgressBar';
 import { EmptyState } from '@/src/components/ui/EmptyState';
@@ -33,7 +35,6 @@ import type {
   AdversaryRow,
   AdversaryTemplateRow,
   BattleRow,
-  Frequency,
   Priority,
   WarRow,
 } from '@/src/db/types';
@@ -53,16 +54,20 @@ import {
 } from '@/src/services/wars.service';
 import { winAdversary } from '@/src/services/gamification.service';
 import { useAppStore } from '@/src/store/useAppStore';
-import {
-  FREQUENCY_LABELS,
-  PRIORITY_META,
-  WEEKDAY_LABELS,
-} from '@/src/domain/catalog';
+import { FREQUENCY_LABELS, PRIORITY_META } from '@/src/domain/catalog';
 import { formatDate, formatTime } from '@/src/services/format';
 import { radius, spacing, typography } from '@/src/theme';
 import { SCREEN_BOTTOM_PADDING } from '@/src/theme/layout';
 
-const HOUR_CHOICES = [6, 8, 12, 18, 21];
+/** Libellé complet d'une routine : fréquence (intervalle inclus) + heure minute. */
+function routineMeta(template: AdversaryTemplateRow): string {
+  const frequency =
+    template.frequency === 'interval_days' && template.interval_days >= 2
+      ? `Tous les ${template.interval_days} jours`
+      : FREQUENCY_LABELS[template.frequency];
+  const time = `${String(template.hour).padStart(2, '0')}h${String(template.minute ?? 0).padStart(2, '0')}`;
+  return `${frequency} · ${time} · +${template.xp_reward} XP`;
+}
 
 // Choix proposés à l'utilisateur pour créer sa propre guerre.
 const WAR_ICON_CHOICES = [
@@ -847,7 +852,7 @@ function BattleDetailSheet({
                   {template.title}
                 </Text>
                 <Text style={[styles.instanceMeta, { color: colors.textMuted }]}>
-                  {FREQUENCY_LABELS[template.frequency]} · {template.hour}h · +{template.xp_reward} XP
+                  {routineMeta(template)}
                 </Text>
               </View>
               <Pressable
@@ -956,50 +961,51 @@ function TemplateSheet({
   const { colors } = useTheme().theme;
   const isEdit = !!template;
   const [title, setTitle] = useState('');
-  const [frequency, setFrequency] = useState<Frequency>('daily');
-  const [days, setDays] = useState<number[]>([1]);
-  const [hour, setHour] = useState(8);
+  const [recurrence, setRecurrence] = useState<FrequencyValue>(DEFAULT_FREQUENCY);
+  const [startAt, setStartAt] = useState<Date | null>(null);
   const [xp, setXp] = useState('50');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (battle) {
       setTitle(template?.title ?? '');
-      setFrequency(template?.frequency ?? 'daily');
-      setDays(template ? safeParseDays(template.specific_days) : [1]);
-      setHour(template?.hour ?? 8);
+      setRecurrence(
+        template
+          ? {
+              frequency: template.frequency,
+              specificDays: safeParseDays(template.specific_days),
+              intervalDays: template.interval_days || 3,
+            }
+          : DEFAULT_FREQUENCY,
+      );
+      const base = template ? new Date(template.start_date) : new Date();
+      base.setHours(template?.hour ?? 8, template?.minute ?? 0, 0, 0);
+      setStartAt(base);
       setXp(String(template?.xp_reward ?? 50));
       setSaving(false);
     }
   }, [battle, template]);
 
-  const toggleDay = (day: number) => {
-    setDays((current) =>
-      current.includes(day) ? current.filter((d) => d !== day) : [...current, day].sort(),
-    );
-  };
-
   const save = async () => {
-    if (!battle || !title.trim() || saving) return;
+    if (!battle || !title.trim() || saving || !startAt) return;
+    if (recurrence.frequency === 'specific_days' && recurrence.specificDays.length === 0) return;
+    if (recurrence.frequency === 'interval_days' && recurrence.intervalDays < 2) return;
     setSaving(true);
     try {
+      const common = {
+        title,
+        frequency: recurrence.frequency,
+        specificDays: recurrence.frequency === 'specific_days' ? recurrence.specificDays : [],
+        intervalDays: recurrence.frequency === 'interval_days' ? recurrence.intervalDays : 0,
+        hour: startAt.getHours(),
+        minute: startAt.getMinutes(),
+        xpReward: Number(xp) || 50,
+        startDate: startAt,
+      };
       if (isEdit && template) {
-        await editTemplate(template.id, {
-          title,
-          frequency,
-          specificDays: frequency === 'specific_days' ? days : undefined,
-          hour,
-          xpReward: Number(xp) || 50,
-        });
+        await editTemplate(template.id, common);
       } else {
-        await addTemplate({
-          battleId: battle.id,
-          title,
-          frequency,
-          specificDays: frequency === 'specific_days' ? days : undefined,
-          hour,
-          xpReward: Number(xp) || 50,
-        });
+        await addTemplate({ battleId: battle.id, ...common });
       }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       onClose();
@@ -1009,8 +1015,19 @@ function TemplateSheet({
     }
   };
 
+  const blocked =
+    !title.trim() ||
+    !startAt ||
+    (recurrence.frequency === 'specific_days' && recurrence.specificDays.length === 0) ||
+    (recurrence.frequency === 'interval_days' && recurrence.intervalDays < 2);
+
   return (
-    <Sheet visible={!!battle} title={isEdit ? 'Modifier la routine' : 'Routine récurrente'} onClose={onClose}>
+    <Sheet
+      visible={!!battle}
+      title={isEdit ? 'Modifier la routine' : 'Routine récurrente'}
+      onClose={onClose}
+      scroll
+    >
       <TextField
         label="Nom de l'adversaire"
         icon="flash"
@@ -1019,47 +1036,14 @@ function TemplateSheet({
         onChangeText={setTitle}
       />
 
-      <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>Fréquence</Text>
-      <View style={styles.chipRow}>
-        {(Object.keys(FREQUENCY_LABELS) as Frequency[])
-          .filter((f) => f !== 'yearly' && f !== 'once')
-          .map((value) => (
-            <Chip
-              key={value}
-              label={FREQUENCY_LABELS[value]}
-              selected={frequency === value}
-              onPress={() => setFrequency(value)}
-            />
-          ))}
-      </View>
+      <DateTimeField
+        label="Première occurrence — date et heure"
+        value={startAt}
+        onChange={setStartAt}
+        minimumDate={new Date(new Date().setHours(0, 0, 0, 0))}
+      />
 
-      {frequency === 'specific_days' ? (
-        <>
-          <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>Jours</Text>
-          <View style={styles.chipRow}>
-            {WEEKDAY_LABELS.map((label, index) => (
-              <Chip
-                key={label}
-                label={label}
-                selected={days.includes(index + 1)}
-                onPress={() => toggleDay(index + 1)}
-              />
-            ))}
-          </View>
-        </>
-      ) : null}
-
-      <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>Heure</Text>
-      <View style={styles.chipRow}>
-        {HOUR_CHOICES.map((value) => (
-          <Chip
-            key={value}
-            label={`${value}h`}
-            selected={hour === value}
-            onPress={() => setHour(value)}
-          />
-        ))}
-      </View>
+      <FrequencySelector value={recurrence} onChange={setRecurrence} />
 
       <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>Récompense XP</Text>
       <TextInput
@@ -1073,7 +1057,7 @@ function TemplateSheet({
         label={isEdit ? 'Enregistrer' : 'Programmer la routine'}
         onPress={save}
         loading={saving}
-        disabled={!title.trim() || (frequency === 'specific_days' && days.length === 0)}
+        disabled={blocked}
         fullWidth
         style={{ marginTop: spacing[5] }}
       />
@@ -1105,35 +1089,38 @@ function QuickAdversarySheet({
   const { colors } = useTheme().theme;
   const isEdit = !!instance;
   const [title, setTitle] = useState('');
-  const [dayOffset, setDayOffset] = useState(0);
-  const [hour, setHour] = useState(18);
+  const [when, setWhen] = useState<Date | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (battle) {
       setTitle(instance?.title ?? '');
       if (instance) {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const thatDay = new Date(instance.scheduled_at);
-        thatDay.setHours(0, 0, 0, 0);
-        setDayOffset(Math.round((thatDay.getTime() - today.getTime()) / 86_400_000));
-        setHour(instance.hour);
+        setWhen(new Date(instance.scheduled_at));
       } else {
-        setDayOffset(0);
-        setHour(18);
+        const fallback = new Date();
+        fallback.setHours(18, 0, 0, 0);
+        setWhen(fallback);
       }
       setSaving(false);
     }
   }, [battle, instance]);
 
+  /** Raccourci : décale la date en conservant l'heure choisie. */
+  const applyQuickOffset = (offset: number) => {
+    setWhen((current) => {
+      const base = current ?? new Date();
+      const next = new Date();
+      next.setDate(next.getDate() + offset);
+      next.setHours(base.getHours(), base.getMinutes(), 0, 0);
+      return next;
+    });
+  };
+
   const save = async () => {
-    if (!battle || !title.trim() || saving) return;
+    if (!battle || !title.trim() || saving || !when) return;
     setSaving(true);
     try {
-      const when = new Date();
-      when.setDate(when.getDate() + dayOffset);
-      when.setHours(hour, 0, 0, 0);
       if (isEdit && instance) {
         await editManualInstance(instance.id, { title, scheduledAt: when });
       } else {
@@ -1148,7 +1135,7 @@ function QuickAdversarySheet({
   };
 
   return (
-    <Sheet visible={!!battle} title={isEdit ? 'Modifier la mission' : 'Mission ponctuelle'} onClose={onClose}>
+    <Sheet visible={!!battle} title={isEdit ? 'Modifier la mission' : 'Mission ponctuelle'} onClose={onClose} scroll>
       <TextField
         label="Mission"
         icon="flash"
@@ -1156,7 +1143,8 @@ function QuickAdversarySheet({
         value={title}
         onChangeText={setTitle}
       />
-      <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>Quand ?</Text>
+
+      <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>Raccourcis</Text>
       <View style={styles.chipRow}>
         {[
           { label: "Aujourd'hui", value: 0 },
@@ -1164,25 +1152,23 @@ function QuickAdversarySheet({
           { label: 'Dans 3 j', value: 3 },
           { label: 'Dans 7 j', value: 7 },
         ].map((choice) => (
-          <Chip
-            key={choice.label}
-            label={choice.label}
-            selected={dayOffset === choice.value}
-            onPress={() => setDayOffset(choice.value)}
-          />
+          <Chip key={choice.label} label={choice.label} onPress={() => applyQuickOffset(choice.value)} />
         ))}
       </View>
-      <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>Heure</Text>
-      <View style={styles.chipRow}>
-        {HOUR_CHOICES.map((value) => (
-          <Chip key={value} label={`${value}h`} selected={hour === value} onPress={() => setHour(value)} />
-        ))}
-      </View>
+
+      <View style={{ height: spacing[3] }} />
+      <DateTimeField
+        label="Date et heure précises (à la minute)"
+        value={when}
+        onChange={setWhen}
+        minimumDate={new Date(new Date().setHours(0, 0, 0, 0))}
+      />
+
       <Button
         label={isEdit ? 'Enregistrer' : 'Ajouter la mission'}
         onPress={save}
         loading={saving}
-        disabled={!title.trim()}
+        disabled={!title.trim() || !when}
         fullWidth
         style={{ marginTop: spacing[5] }}
       />

@@ -77,6 +77,57 @@ describe('computeOccurrences', () => {
     );
     expect(result.every((ts) => ts >= base - DAY_MS)).toBe(true);
   });
+
+  test('interval_days : une occurrence tous les N jours exactement', () => {
+    const result = computeOccurrences(
+      {
+        frequency: 'interval_days',
+        startDate: base,
+        endDate: null,
+        specificDays: [],
+        hour: 10,
+        intervalDays: 3,
+      },
+      addDays(base, 10),
+    );
+    // Jours 0, 3, 6, 9 → 4 occurrences sur 10 jours.
+    expect(result).toHaveLength(4);
+    expect(result.every((ts, index) => Math.round((ts - base) / DAY_MS) === index * 3)).toBe(true);
+  });
+
+  test('la minute précise est respectée sur chaque occurrence', () => {
+    const result = computeOccurrences(
+      {
+        frequency: 'daily',
+        startDate: base,
+        endDate: null,
+        specificDays: [],
+        hour: 6,
+        minute: 45,
+      },
+      addDays(base, 3),
+    );
+    expect(result).toHaveLength(3);
+    expect(result.every((ts) => {
+      const d = new Date(ts);
+      return d.getHours() === 6 && d.getMinutes() === 45;
+    })).toBe(true);
+  });
+
+  test('interval_days avec un intervalle invalide retombe sur un rythme quotidien', () => {
+    const result = computeOccurrences(
+      {
+        frequency: 'interval_days',
+        startDate: base,
+        endDate: null,
+        specificDays: [],
+        hour: 8,
+        intervalDays: 0,
+      },
+      addDays(base, 2),
+    );
+    expect(result).toHaveLength(2);
+  });
 });
 
 describe('utilitaires de dates', () => {

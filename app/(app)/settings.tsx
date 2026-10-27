@@ -224,6 +224,7 @@ export default function SettingsScreen() {
           value="Visite guidée"
           onPress={() => useAppStore.getState().openTutorial()}
         />
+        <IdleCoachSettingsRow />
       </GlassCard>
 
       {/* Données */}
@@ -349,6 +350,38 @@ function NotificationSettingsRow() {
         thumbColor={enabled ? colors.textInverse : colors.textTertiary}
       />
     </GlassCard>
+  );
+}
+
+function IdleCoachSettingsRow() {
+  const { colors } = useTheme().theme;
+  const [enabled, setEnabled] = useState(() =>
+    getSettingBool(SETTING_KEYS.idleCoachEnabled, true),
+  );
+
+  const toggle = async (next: boolean) => {
+    setEnabled(next);
+    await setSettingBool(SETTING_KEYS.idleCoachEnabled, next);
+  };
+
+  return (
+    <View style={styles.settingRow}>
+      <View style={[styles.rowIcon, { backgroundColor: colors.primaryDim }]}>
+        <Ionicons name="bulb" size={20} color={colors.primary} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.rowLabel, { color: colors.text }]}>Astuces contextuelles</Text>
+        <Text style={[styles.rowValue, { color: colors.textMuted }]}>
+          Une proposition après 5 s d’inactivité
+        </Text>
+      </View>
+      <Switch
+        value={enabled}
+        onValueChange={toggle}
+        trackColor={{ false: colors.glassBorder, true: colors.primary }}
+        thumbColor={enabled ? colors.textInverse : colors.textTertiary}
+      />
+    </View>
   );
 }
 

@@ -437,6 +437,7 @@ function CategoryCreateSheet({
       visible={visible}
       title={kind === 'expense' ? 'Nouvelle catégorie de dépense' : 'Nouvelle catégorie de revenu'}
       onClose={onClose}
+      scroll
     >
       <TextField
         label="Nom de la catégorie"
@@ -562,6 +563,7 @@ function MovementSheet({
       visible={visible}
       title={type === 'expense' ? 'Nouvelle dépense' : 'Nouveau revenu'}
       onClose={onClose}
+      scroll
     >
       <TextInput
         value={amount}
@@ -722,6 +724,7 @@ function EditMovementSheet({
       visible={!!transaction}
       title={type === 'expense' ? 'Modifier la dépense' : 'Modifier le revenu'}
       onClose={onClose}
+      scroll
     >
       <TextInput
         value={amount}
@@ -847,7 +850,7 @@ function AccountSheet({ visible, onClose }: { visible: boolean; onClose: () => v
   };
 
   return (
-    <Sheet visible={visible} title="Nouveau compte" onClose={onClose}>
+    <Sheet visible={visible} title="Nouveau compte" onClose={onClose} scroll>
       <Text style={styles.sheetLabel}>Type de compte</Text>
       <View style={styles.chipWrap}>
         {ACCOUNT_PRESETS.map((item) => (
@@ -928,7 +931,7 @@ function BudgetSheet({ visible, onClose }: { visible: boolean; onClose: () => vo
   };
 
   return (
-    <Sheet visible={visible} title="Budget mensuel" onClose={onClose}>
+    <Sheet visible={visible} title="Budget mensuel" onClose={onClose} scroll>
       <Text style={styles.sheetLabel}>Catégorie</Text>
       <View style={styles.chipWrap}>
         {categories.map((meta) => (

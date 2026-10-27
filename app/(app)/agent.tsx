@@ -127,7 +127,13 @@ export default function AgentScreen() {
         return;
       }
 
-      const parsed = parseCommand(text);
+      const parsed = parseCommand(text, {
+        balance: snapshot?.balance ?? null,
+        pendingToday: snapshot?.day.pending ?? 0,
+        wonToday: snapshot?.day.won ?? 0,
+        overrunBudgets: snapshot?.budgets.filter((b) => b.spent > b.amount).length ?? 0,
+        activeWars: snapshot?.wars.length ?? 0,
+      });
 
       if (parsed.intent === 'day-review' && snapshot) {
         await addMessage('agent', buildDayReview(snapshot), ['day-review']);

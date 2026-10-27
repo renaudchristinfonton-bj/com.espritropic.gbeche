@@ -13,6 +13,10 @@ export interface RecurrenceInput {
   endDate: number | null;
   specificDays: number[]; // ISO 1..7 (lundi..dimanche), pour specific_days
   hour: number;
+  /** Minute précise (0..59), défaut 0 pour les anciens templates. */
+  minute?: number;
+  /** Nombre de jours entre deux occurrences, pour 'interval_days'. */
+  intervalDays?: number;
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -23,9 +27,9 @@ function startOfDay(ms: number): Date {
   return d;
 }
 
-function atHour(day: Date, hour: number): number {
+function atHour(day: Date, hour: number, minute = 0): number {
   const d = new Date(day);
-  d.setHours(hour, 0, 0, 0);
+  d.setHours(hour, minute, 0, 0);
   return d.getTime();
 }
 
@@ -38,14 +42,14 @@ function isoWeekday(date: Date): number {
  * Retourne la liste des timestamps planifiés (avec heure) jusqu'à `untilMs`.
  */
 export function computeOccurrences(input: RecurrenceInput, untilMs: number): number[] {
-  const { frequency, startDate, endDate, specificDays, hour } = input;
+  const { frequency, startDate, endDate, specificDays, hour, minute = 0, intervalDays = 0 } = input;
   const horizon = endDate ? Math.min(endDate, untilMs) : untilMs;
 
   const firstDay = startOfDay(startDate);
   const occurrences: number[] = [];
 
   if (frequency === 'once') {
-    if (startDate <= horizon) occurrences.push(atHour(firstDay, hour));
+    if (startDate <= horizon) occurrences.push(atHour(firstDay, hour, minute));
     return occurrences;
   }
 
@@ -55,14 +59,20 @@ export function computeOccurrences(input: RecurrenceInput, untilMs: number): num
   // Garde-fou : au maximum 3 ans d'itérations quotidiennes.
   let iterations = 0;
   const MAX_ITERATIONS = 366 * 3;
+  const step = Math.max(1, Math.floor(intervalDays || 1));
 
   while (cursor <= guard && iterations < MAX_ITERATIONS) {
     iterations += 1;
     let due = false;
+    const dayOffset = Math.round((startOfDay(cursor.getTime()).getTime() - firstDay.getTime()) / DAY_MS);
 
     switch (frequency) {
       case 'daily':
         due = true;
+        break;
+      case 'interval_days':
+        // Tous les `step` jours à partir du jour de début (step >= 2).
+        due = step >= 2 ? dayOffset % step === 0 : true;
         break;
       case 'weekly':
         due = isoWeekday(cursor) === isoWeekday(firstDay);
@@ -82,7 +92,7 @@ export function computeOccurrences(input: RecurrenceInput, untilMs: number): num
     }
 
     if (due) {
-      const scheduled = atHour(cursor, hour);
+      const scheduled = atHour(cursor, hour, minute);
       if (scheduled >= startDate && scheduled <= horizon) {
         occurrences.push(scheduled);
       }

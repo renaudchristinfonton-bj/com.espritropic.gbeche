@@ -246,6 +246,18 @@ export const MIGRATIONS: Migration[] = [
       );
     `,
   },
+  {
+    version: 5,
+    name: 'precise_scheduling',
+    sql: /* sql */ `
+      -- Liberté totale de planification : heure minute précise et
+      -- récurrence « tous les N jours ». Additif : les lignes existantes
+      -- gardent minute = 0 et interval_days = 0 (comportement hérité).
+      ALTER TABLE adversary_templates ADD COLUMN minute INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE adversary_templates ADD COLUMN interval_days INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE adversaries ADD COLUMN minute INTEGER NOT NULL DEFAULT 0;
+    `,
+  },
 ];
 
 export const LATEST_SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1].version;

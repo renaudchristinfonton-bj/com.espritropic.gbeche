@@ -29,6 +29,7 @@ const makeInstance = (overrides: Partial<AdversaryRow> = {}): AdversaryRow => ({
   xp_reward: 50,
   scheduled_at: Date.now(),
   hour: 8,
+  minute: 0,
   duration_min: 30,
   status: 'pending',
   completed_at: null,

@@ -10,6 +10,7 @@
 
 import { CATEGORIES, type CategoryMeta } from '../../domain/catalog';
 import { generateReply } from '../agent.service';
+import { askBrain, type BrainContext } from '../ai';
 import type { LifePlan } from './lifeProject.service';
 
 // ─── Actions proposées par l'agent (cartes à confirmer) ─────
@@ -347,7 +348,7 @@ function parseClause(raw: string): ParsedResult | null {
 const DAY_REVIEW_RE = /bilan|recap|resume|journee|s'est passee|se passe|raconte/;
 const FINANCE_REVIEW_RE = /budget|finance|depense|argent|solde|tresorerie|compte|economie/;
 
-export function parseCommand(raw: string): ParsedResult {
+export function parseCommand(raw: string, brainContext?: BrainContext): ParsedResult {
   const text = normalize(raw);
 
   // Bilans sur données réelles : le texte final est construit par
@@ -395,7 +396,19 @@ export function parseCommand(raw: string): ParsedResult {
   const single = parseClause(raw);
   if (single) return { ...single, suggestions: single.suggestions ?? COMMAND_SUGGESTIONS };
 
-  // Aucune action : réponses informatives déléguées au moteur d'intentions.
+  // Aucune action : le cerveau local tente d'abord une réponse riche
+  // (discussion, calculs, épargne, explications), puis le moteur de règles
+  // hérité prend le relais sur les questions de données courtes.
+  const brain = askBrain(raw, brainContext);
+  if (brain) {
+    return {
+      kind: 'reply',
+      intent: brain.intent,
+      text: brain.text,
+      suggestions: brain.suggestions ?? COMMAND_SUGGESTIONS,
+    };
+  }
+
   const fallback = generateReply(raw, {});
   return {
     kind: 'reply',

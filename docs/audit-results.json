@@ -1,16 +1,16 @@
 {
-  "generatedAt": "2026-10-26T15:25:12.600Z",
+  "generatedAt": "2026-10-27T11:15:21.780Z",
   "checks": {
     "security": {
       "source": "npm audit",
       "vulnerabilities": {
         "info": 0,
         "low": 0,
-        "moderate": 4,
-        "high": 6,
+        "moderate": 6,
+        "high": 3,
         "critical": 0
       },
-      "total": 10,
+      "total": 9,
       "dependencies": {
         "prod": 772,
         "dev": 373,
@@ -31,8 +31,8 @@
     },
     "tests": {
       "ok": true,
-      "suites": "31 passed, 31 total",
-      "tests": "297 passed, 297 total"
+      "suites": "34 passed, 34 total",
+      "tests": "331 passed, 331 total"
     },
     "lint": {
       "ok": true,
@@ -46,7 +46,7 @@
       }
     },
     "offline": {
-      "scannedFiles": 102,
+      "scannedFiles": 112,
       "networkReferences": [],
       "ok": true
     },

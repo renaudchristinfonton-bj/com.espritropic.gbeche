@@ -11,11 +11,12 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from '@/src/services/haptics';
 
 import { useTheme } from '../../theme/ThemeContext';
 import { radius, spacing, typography } from '../../theme';
-import { floatingRightStyle } from '../../theme/layout';
+import { floatingRightStyle, FLOATING_TAB_BAR_HEIGHT } from '../../theme/layout';
 
 export interface FabAction {
   key: string;
@@ -35,6 +36,12 @@ export function FAB({ actions, onSelect }: FABProps) {
   const [open, setOpen] = useState(false);
   const rotation = useSharedValue(0);
   const menuOpacity = useSharedValue(0);
+  const insets = useSafeAreaInsets();
+
+  // Positionné au-dessus de la pilule d'onglets flottante pour ne jamais
+  // la chevaucher (ni être masqué par elle).
+  const fabBottom = insets.bottom + 8 + FLOATING_TAB_BAR_HEIGHT + spacing[3];
+  const menuBottom = fabBottom + 70;
 
   const toggle = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -56,7 +63,7 @@ export function FAB({ actions, onSelect }: FABProps) {
         <Pressable style={StyleSheet.absoluteFill} onPress={toggle}>
           <View style={[styles.backdrop, { backgroundColor: colors.overlay }]} />
         </Pressable>
-        <View style={[styles.menu, floatingRightStyle]} pointerEvents="box-none">
+        <View style={[styles.menu, floatingRightStyle, { bottom: menuBottom }]} pointerEvents="box-none">
           <Animated.View style={menuStyle}>
             {actions.map((action, index) => (
               <Pressable
@@ -90,7 +97,7 @@ export function FAB({ actions, onSelect }: FABProps) {
         style={[
           styles.fab,
           floatingRightStyle,
-          { backgroundColor: colors.primary, shadowColor: colors.primary },
+          { bottom: fabBottom, backgroundColor: colors.primary, shadowColor: colors.primary },
         ]}
       >
         <Animated.View style={fabStyle}>
@@ -104,7 +111,6 @@ export function FAB({ actions, onSelect }: FABProps) {
 const styles = StyleSheet.create({
   fab: {
     position: 'absolute',
-    bottom: spacing[6],
     width: 60,
     height: 60,
     borderRadius: radius.full,
@@ -119,7 +125,6 @@ const styles = StyleSheet.create({
   backdrop: { flex: 1 },
   menu: {
     position: 'absolute',
-    bottom: 130,
     gap: spacing[3],
   },
   actionRow: {

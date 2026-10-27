@@ -117,6 +117,7 @@ export const INCOME_CATEGORIES = CATEGORIES.filter((c) => c.kind !== 'expense');
 export const FREQUENCY_LABELS: Record<Frequency, string> = {
   once: 'Une seule fois',
   daily: 'Tous les jours',
+  interval_days: 'Tous les N jours',
   weekly: 'Chaque semaine',
   specific_days: 'Jours précis',
   monthly: 'Chaque mois',

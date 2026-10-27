@@ -25,6 +25,10 @@ export interface CreateTemplateInput {
   frequency: Frequency;
   specificDays?: number[];
   hour: number;
+  /** Minute précise 0..59 (défaut 0). */
+  minute?: number;
+  /** Intervalle en jours pour la fréquence 'interval_days' (>= 2). */
+  intervalDays?: number;
   durationMin?: number;
   startDate?: Date;
   endDate?: Date | null;
@@ -50,8 +54,8 @@ export async function createTemplate(input: CreateTemplateInput): Promise<ID> {
 
   await run(
     `INSERT INTO adversary_templates
-       (id, battle_id, war_id, title, xp_reward, frequency, specific_days, hour, duration_min, start_date, end_date, is_active, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?);`,
+       (id, battle_id, war_id, title, xp_reward, frequency, specific_days, hour, minute, interval_days, duration_min, start_date, end_date, is_active, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?);`,
     [
       id,
       input.battleId,
@@ -61,6 +65,8 @@ export async function createTemplate(input: CreateTemplateInput): Promise<ID> {
       input.frequency,
       JSON.stringify(input.specificDays ?? []),
       input.hour,
+      input.minute ?? 0,
+      input.intervalDays ?? 0,
       input.durationMin ?? 30,
       start,
       input.endDate ? input.endDate.getTime() : null,
@@ -82,8 +88,8 @@ export async function createManualAdversary(
   const now = Date.now();
   await run(
     `INSERT INTO adversaries
-       (id, template_id, battle_id, war_id, title, xp_reward, scheduled_at, hour, duration_min, status, completed_at, created_at, updated_at)
-     VALUES (?, NULL, ?, ?, ?, ?, ?, ?, ?, 'pending', NULL, ?, ?);`,
+       (id, template_id, battle_id, war_id, title, xp_reward, scheduled_at, hour, minute, duration_min, status, completed_at, created_at, updated_at)
+     VALUES (?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', NULL, ?, ?);`,
     [
       id,
       input.battleId,
@@ -91,7 +97,8 @@ export async function createManualAdversary(
       input.title.trim(),
       input.xpReward ?? 50,
       input.scheduledAt.getTime(),
-      input.hour,
+      input.scheduledAt.getHours(),
+      input.scheduledAt.getMinutes(),
       input.durationMin ?? 30,
       now,
       now,
@@ -117,7 +124,11 @@ export interface UpdateTemplateInput {
   frequency?: Frequency;
   specificDays?: number[];
   hour?: number;
+  minute?: number;
+  intervalDays?: number;
   durationMin?: number;
+  startDate?: Date;
+  endDate?: Date | null;
 }
 
 /**
@@ -136,7 +147,7 @@ export async function updateTemplate(
   }
 
   const fields: string[] = [];
-  const params: (string | number)[] = [];
+  const params: (string | number | null)[] = [];
 
   if (input.title !== undefined) {
     fields.push('title = ?');
@@ -158,9 +169,25 @@ export async function updateTemplate(
     fields.push('hour = ?');
     params.push(input.hour);
   }
+  if (input.minute !== undefined) {
+    fields.push('minute = ?');
+    params.push(input.minute);
+  }
+  if (input.intervalDays !== undefined) {
+    fields.push('interval_days = ?');
+    params.push(input.intervalDays);
+  }
   if (input.durationMin !== undefined) {
     fields.push('duration_min = ?');
     params.push(input.durationMin);
+  }
+  if (input.startDate !== undefined) {
+    fields.push('start_date = ?');
+    params.push(input.startDate.getTime());
+  }
+  if (input.endDate !== undefined) {
+    fields.push('end_date = ?');
+    params.push(input.endDate ? input.endDate.getTime() : null);
   }
   if (fields.length === 0) return;
 
@@ -183,16 +210,17 @@ export async function updateTemplate(
   );
   for (const instance of rows) {
     const when = new Date(instance.scheduled_at);
-    when.setHours(next.hour, 0, 0, 0);
+    when.setHours(next.hour, next.minute ?? 0, 0, 0);
     await run(
       `UPDATE adversaries
-       SET title = ?, xp_reward = ?, hour = ?, duration_min = ?,
+       SET title = ?, xp_reward = ?, hour = ?, minute = ?, duration_min = ?,
            scheduled_at = ?, updated_at = ?
        WHERE id = ?;`,
       [
         next.title,
         next.xp_reward,
         next.hour,
+        next.minute ?? 0,
         next.duration_min,
         when.getTime(),
         now,
@@ -228,7 +256,7 @@ export async function updateManualInstance(
   }
 
   const fields: string[] = [];
-  const params: (string | number)[] = [];
+  const params: (string | number | null)[] = [];
 
   if (input.title !== undefined) {
     fields.push('title = ?');
@@ -245,7 +273,12 @@ export async function updateManualInstance(
   if (input.scheduledAt !== undefined) {
     fields.push('scheduled_at = ?');
     fields.push('hour = ?');
-    params.push(input.scheduledAt.getTime(), input.scheduledAt.getHours());
+    fields.push('minute = ?');
+    params.push(
+      input.scheduledAt.getTime(),
+      input.scheduledAt.getHours(),
+      input.scheduledAt.getMinutes(),
+    );
   }
   if (fields.length === 0) return;
 
@@ -287,6 +320,8 @@ export async function materializeTemplate(
       endDate: template.end_date,
       specificDays: safeParseDays(template.specific_days),
       hour: template.hour,
+      minute: template.minute ?? 0,
+      intervalDays: template.interval_days ?? 0,
     },
     until,
   );
@@ -299,8 +334,8 @@ export async function materializeTemplate(
     for (const scheduledAt of occurrences) {
       await database.runAsync(
         `INSERT OR IGNORE INTO adversaries
-           (id, template_id, battle_id, war_id, title, xp_reward, scheduled_at, hour, duration_min, status, completed_at, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', NULL, ?, ?);`,
+           (id, template_id, battle_id, war_id, title, xp_reward, scheduled_at, hour, minute, duration_min, status, completed_at, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', NULL, ?, ?);`,
         [
           created + ':' + scheduledAt,
           template.id,
@@ -310,6 +345,7 @@ export async function materializeTemplate(
           template.xp_reward,
           scheduledAt,
           template.hour,
+          template.minute ?? 0,
           template.duration_min,
           now,
           now,

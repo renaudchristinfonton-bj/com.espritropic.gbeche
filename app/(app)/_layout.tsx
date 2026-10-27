@@ -18,8 +18,11 @@ import { NotificationHost } from '@/src/components/ui/NotificationHost';
 import { StorageWarning } from '@/src/components/ui/StorageWarning';
 import { SwipeTabView } from '@/src/components/ui/SwipeTabView';
 import { TutorialHost } from '@/src/components/ui/Tutorial';
+import { AssistantFab } from '@/src/components/ui/AssistantFab';
+import { IdleCoach } from '@/src/components/ui/IdleCoach';
 import { floatingTabBarWebStyle, FLOATING_TAB_BAR_HEIGHT } from '@/src/theme/layout';
 import { radius, spacing } from '@/src/theme';
+import { pokeInteraction } from '@/src/services/interactionBus';
 
 function TabIcon({
   name,
@@ -52,11 +55,19 @@ export default function AppTabsLayout() {
   const bottomInset = Platform.OS === 'ios' ? insets.bottom : Math.max(insets.bottom, 8);
 
   return (
-    <>
+    <View
+      style={styles.root}
+      onStartShouldSetResponderCapture={() => {
+        pokeInteraction();
+        return false;
+      }}
+    >
       <SwipeTabView>
         <Tabs
           screenOptions={{
             headerShown: false,
+            // Transition coulissante douce entre les cinq onglets.
+            animation: 'shift',
             tabBarActiveTintColor: colors.tabActive,
             tabBarInactiveTintColor: colors.tabInactive,
             tabBarLabelStyle: {
@@ -157,15 +168,18 @@ export default function AppTabsLayout() {
           />
         </Tabs>
       </SwipeTabView>
+      <AssistantFab />
+      <IdleCoach />
       <StorageWarning />
       <NotificationHost />
       <FeedbackHost />
       <TutorialHost />
-    </>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  root: { flex: 1 },
   iconPill: {
     width: 40,
     height: 30,
