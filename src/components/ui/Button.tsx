@@ -18,7 +18,7 @@ import Animated, {
   withSpring,
 } from 'react-native-reanimated';
 import { Pressable } from 'react-native';
-import * as Haptics from 'expo-haptics';
+import * as Haptics from '@/src/services/haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '@/src/theme/ThemeContext';
 import { neon } from '@/src/theme/colors';

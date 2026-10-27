@@ -7,7 +7,7 @@
  *   const t = useTheme();
  */
 
-import { Platform, StyleSheet } from 'react-native';
+import { Platform } from 'react-native';
 import { darkColors, lightColors, neon, palette, type ColorScheme } from './colors';
 
 // ─── Typography ───────────────────────────────────────────

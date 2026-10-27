@@ -1,26 +1,32 @@
 {
   "expo": {
     "name": "GBECHE",
-    "slug": "gbeche",
-    "version": "1.0.0",
+    "slug": "GBECHE",
+    "version": "1.6.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "com.espritropic.gbeche",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.espritropic.gbeche",
+      "buildNumber": "7",
+      "infoPlist": {
+        "NSFaceIDUsageDescription": "GBECHE utilise Face ID pour verrouiller l'accès à tes données personnelles."
+      }
     },
     "android": {
+      "versionCode": 7,
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#070911",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false,
-      "package": "com.espritropic.gbeche"
+      "package": "com.espritropic.gbeche",
+      "permissions": []
     },
     "web": {
       "output": "static",
@@ -28,30 +34,42 @@
     },
     "plugins": [
       "expo-router",
-      "expo-notifications",
       [
         "expo-splash-screen",
         {
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff",
+          "backgroundColor": "#070911",
           "dark": {
-            "backgroundColor": "#000000"
+            "backgroundColor": "#070911"
+          },
+          "light": {
+            "backgroundColor": "#070911"
           }
         }
       ],
       "expo-secure-store",
-      "expo-local-authentication"
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "GBECHE utilise Face ID pour vérifier ton identité avant d'ouvrir ton Quartier Général."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/favicon.png"
+        }
+      ]
     ],
     "experiments": {
-      "typedRoutes": true,
-      "reactCompiler": true
+      "typedRoutes": true
     },
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "b783683a-12f2-4d44-b4b0-9e31a1ab2f64"
+        "projectId": "d94ea448-0d7a-49ac-af8f-6af36b7517ec"
       }
     }
   }

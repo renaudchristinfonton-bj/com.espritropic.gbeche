@@ -6,12 +6,13 @@
 
 import React, { useEffect, useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import Svg, { G, Path, Circle, Text as SvgText } from 'react-native-svg';
+import Svg, { Path, Circle } from 'react-native-svg';
 import Animated, {
   useSharedValue,
   useAnimatedProps,
   withTiming,
   Easing,
+  type SharedValue,
 } from 'react-native-reanimated';
 import { useTheme } from '@/src/theme/ThemeContext';
 
@@ -62,7 +63,7 @@ function DonutSlicePath({
 }: {
   cx: number; cy: number; r: number;
   startDeg: number; endDeg: number;
-  color: string; progress: Animated.SharedValue<number>;
+  color: string; progress: SharedValue<number>;
 }) {
   const animatedProps = useAnimatedProps(() => {
     const sweep = (endDeg - startDeg) * progress.value;

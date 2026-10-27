@@ -1,0 +1,68 @@
+/**
+ * Garde-fou anti-perte de données : les migrations de schéma doivent
+ * être additives et idempotentes. Aucune migration publiée ne peut
+ * contenir de DROP, DELETE ou TRUNCATE — la réinitialisation complète
+ * reste un acte explicite de l'utilisateur (resetDatabase).
+ */
+import { LATEST_SCHEMA_VERSION, MIGRATIONS } from '../migrations';
+
+const FORBIDDEN = [
+  /\bDROP\s+(TABLE|DATABASE|COLUMN|INDEX)\b/i,
+  /\bTRUNCATE\b/i,
+  /\bDELETE\s+FROM\b/i,
+  /\bALTER\s+TABLE\b.*\bDROP\b/i,
+];
+
+describe('migrations SQLite', () => {
+  test('sont numérotées de façon séquentielle sans doublon', () => {
+    const versions = MIGRATIONS.map((m) => m.version);
+    expect(versions).toEqual([...new Set(versions)].sort((a, b) => a - b));
+    expect(versions).toHaveLength(new Set(versions).size);
+    expect(LATEST_SCHEMA_VERSION).toBe(versions[versions.length - 1]);
+  });
+
+  test.each(MIGRATIONS)('la migration v$version ($name) est non destructive', (migration) => {
+    for (const pattern of FORBIDDEN) {
+      expect(migration.sql).not.toMatch(pattern);
+    }
+  });
+
+  test('chaque création de table est idempotente (IF NOT EXISTS)', () => {
+    for (const migration of MIGRATIONS) {
+      const creates = migration.sql.match(/CREATE TABLE/gi) ?? [];
+      const guarded = migration.sql.match(/CREATE TABLE IF NOT EXISTS/gi) ?? [];
+      expect(creates.length).toBe(guarded.length);
+    }
+  });
+
+  test('une migration couvre la table des catégories personnalisées', () => {
+    const categoriesMigration = MIGRATIONS.find((m) =>
+      /CREATE TABLE IF NOT EXISTS categories/.test(m.sql),
+    );
+    expect(categoriesMigration).toBeDefined();
+  });
+
+  test('la migration v3 ajoute les colonnes des cartes d action sans rien détruire', () => {
+    const v3 = MIGRATIONS.find((m) => m.version === 3);
+    expect(v3).toBeDefined();
+    expect(v3!.sql).toMatch(/ALTER TABLE chat_messages ADD COLUMN/);
+    expect(v3!.sql).not.toMatch(/DROP|DELETE|TRUNCATE/i);
+  });
+
+  test('la migration v4 crée la table des brouillons de projets de vie', () => {
+    const v4 = MIGRATIONS.find((m) => m.version === 4);
+    expect(v4).toBeDefined();
+    expect(v4!.sql).toMatch(/CREATE TABLE IF NOT EXISTS life_project_drafts/);
+    expect(v4!.sql).not.toMatch(/DROP|DELETE|TRUNCATE|ALTER/i);
+  });
+
+  test('la migration v5 ajoute la minute et l intervalle sans rien détruire', () => {
+    const v5 = MIGRATIONS.find((m) => m.version === 5);
+    expect(v5).toBeDefined();
+    expect(v5!.sql).toMatch(/ALTER TABLE adversary_templates ADD COLUMN minute/);
+    expect(v5!.sql).toMatch(/ALTER TABLE adversary_templates ADD COLUMN interval_days/);
+    expect(v5!.sql).toMatch(/ALTER TABLE adversaries ADD COLUMN minute/);
+    expect(v5!.sql).not.toMatch(/DROP|DELETE|TRUNCATE/i);
+    expect(LATEST_SCHEMA_VERSION).toBe(5);
+  });
+});

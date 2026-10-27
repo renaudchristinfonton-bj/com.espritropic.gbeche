@@ -5,14 +5,14 @@
  */
 
 import React, { useEffect, useMemo } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import Svg, { Rect, Path, Line, Text as SvgText, Circle, Defs, LinearGradient as SvgGrad, Stop } from 'react-native-svg';
+import { View } from 'react-native';
+import Svg, { Rect, Path, Text as SvgText, Circle, Defs, LinearGradient as SvgGrad, Stop } from 'react-native-svg';
 import Animated, {
   useSharedValue,
   useAnimatedProps,
   withTiming,
   Easing,
-  useDerivedValue,
+  type SharedValue,
 } from 'react-native-reanimated';
 import { useTheme } from '@/src/theme/ThemeContext';
 
@@ -52,7 +52,7 @@ function AnimatedBar({
   x, y, width, height, color, progress,
 }: {
   x: number; y: number; width: number; height: number;
-  color: string; progress: Animated.SharedValue<number>;
+  color: string; progress: SharedValue<number>;
 }) {
   const animProps = useAnimatedProps(() => ({
     y:      y + height * (1 - progress.value),
@@ -158,7 +158,7 @@ export function BarChart({
 // ─── LineChart ────────────────────────────────────────────
 
 function buildLinePath(
-  points: Array<{ x: number; y: number }>,
+  points: { x: number; y: number }[],
   smooth = false,
 ): string {
   if (points.length === 0) return '';
@@ -178,7 +178,7 @@ function buildLinePath(
 
 function buildAreaPath(
   linePath: string,
-  points: Array<{ x: number; y: number }>,
+  points: { x: number; y: number }[],
   bottomY: number,
 ): string {
   if (points.length === 0) return '';

@@ -1,0 +1,12 @@
+type,guerre,icone_guerre,couleur_guerre,bataille,description,priorite,echeance_jours,adversaire,frequence,heure,jours_iso,duree_min,xp,montant,categorie,compte
+guerre,Santé & Physique,fitness,#00FF88,,,,,,,,,,,,,
+guerre,Carrière & Business,briefcase,#00E5FF,,,,,,,,,,,,,
+bataille,Santé & Physique,,,Perdre 8 kg,Programme sportif complet,high,90,,,,,,,,,
+adversaire,Santé & Physique,,,Perdre 8 kg,,,,Séance de sport 45 min,daily,6,,45,60,,,
+adversaire,Santé & Physique,,,Perdre 8 kg,,,,Course du week-end,specific_days,8,"1,6",60,80,,,
+adversaire,Santé & Physique,,,Perdre 8 kg,,,,Pesée hebdomadaire,weekly,7,,10,30,,,
+adversaire,Santé & Physique,,,Perdre 8 kg,,,,Bilan mensuel,monthly,9,,15,40,,,
+bataille,Carrière & Business,,,Lancer mon activité,Prospection et trésorerie,medium,180,,,,,,,,,
+adversaire,Carrière & Business,,,Lancer mon activité,,,,Appeler un client prospect,once,10,,20,50,,,
+depense,,,,,,,,,,,,,,15000,transport,Cash
+revenu,,,,,,,,,,,,,,250000,business,MTN MoMo

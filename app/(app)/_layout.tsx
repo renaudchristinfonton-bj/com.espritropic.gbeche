@@ -1,145 +1,190 @@
 /**
- * GBECHE — App Tab Layout
- * Tabs thémés avec Ionicons, badge streak, couleurs dynamiques.
+ * GBECHE — Navigation principale (tabs).
+ * Barre d'onglets flottante de type pilule, avec flou, pastille active
+ * et navigation par balayage (SwipeTabView). Les écrans plein écran
+ * (agent, données) masquent la barre via leurs options d'écran.
  */
 
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
-import { Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useTheme } from '@/src/theme/ThemeContext';
-import { useAppStore } from '@/src/store';
+import { FeedbackHost } from '@/src/components/ui/FeedbackHost';
+import { NotificationHost } from '@/src/components/ui/NotificationHost';
+import { StorageWarning } from '@/src/components/ui/StorageWarning';
+import { SwipeTabView } from '@/src/components/ui/SwipeTabView';
+import { TutorialHost } from '@/src/components/ui/Tutorial';
+import { AssistantFab } from '@/src/components/ui/AssistantFab';
+import { IdleCoach } from '@/src/components/ui/IdleCoach';
+import { floatingTabBarWebStyle, FLOATING_TAB_BAR_HEIGHT } from '@/src/theme/layout';
+import { radius, spacing } from '@/src/theme';
+import { pokeInteraction } from '@/src/services/interactionBus';
 
 function TabIcon({
   name,
   focused,
   color,
-  badge,
 }: {
   name: keyof typeof Ionicons.glyphMap;
   focused: boolean;
   color: string;
-  badge?: number;
 }) {
+  const { colors } = useTheme().theme;
   return (
-    <View style={ti.wrap}>
-      <Ionicons
-        name={focused ? name : (`${name}-outline` as keyof typeof Ionicons.glyphMap)}
-        size={24}
-        color={color}
-      />
-      {badge ? (
-        <View style={ti.badge}>
-          <Text style={ti.badgeText}>{badge > 9 ? '9+' : badge}</Text>
-        </View>
-      ) : null}
+    <View
+      style={[
+        styles.iconPill,
+        focused && { backgroundColor: colors.primaryDim },
+      ]}
+    >
+      <Ionicons name={name} size={focused ? 22 : 21} color={color} />
     </View>
   );
 }
 
-const ti = StyleSheet.create({
-  wrap:      { position: 'relative', width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
-  badge:     { position: 'absolute', top: -4, right: -6, minWidth: 16, height: 16, borderRadius: 8, backgroundColor: '#FF4757', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 3 },
-  badgeText: { fontSize: 9, fontWeight: '900', color: '#fff' },
-});
+export default function AppTabsLayout() {
+  const { theme } = useTheme();
+  const { colors } = theme;
+  const insets = useSafeAreaInsets();
 
-export default function AppLayout() {
-  const { theme, themeMode } = useTheme();
-  const { colors }           = theme;
-  const warrior              = useAppStore(s => s.warrior);
-
-  const ACTIVE   = '#00E5FF';
-  const INACTIVE = colors.textMuted ?? '#666';
-  const BG       = colors.tabBar   ?? colors.background;
-
-  const isDark = BG.startsWith('rgba(0') || BG === '#0A0B10' || themeMode === 'dark';
+  const barHeight = FLOATING_TAB_BAR_HEIGHT;
+  const bottomInset = Platform.OS === 'ios' ? insets.bottom : Math.max(insets.bottom, 8);
 
   return (
-    <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor:   ACTIVE,
-        tabBarInactiveTintColor: INACTIVE,
-        tabBarStyle: {
-          backgroundColor:  BG,
-          borderTopColor:   colors.glassBorder,
-          borderTopWidth:   1,
-          height:           Platform.OS === 'ios' ? 84 : 64,
-          paddingBottom:    Platform.OS === 'ios' ? 24 : 8,
-          elevation:        0,
-        },
-        tabBarBackground: () =>
-          Platform.OS === 'ios' ? (
-            <BlurView
-              intensity={60}
-              tint={isDark ? 'dark' : 'light'}
-              style={StyleSheet.absoluteFill}
-            />
-          ) : null,
-        tabBarLabelStyle: {
-          fontSize:      10,
-          fontWeight:    '700',
-          letterSpacing: 0.3,
-        },
+    <View
+      style={styles.root}
+      onStartShouldSetResponderCapture={() => {
+        pokeInteraction();
+        return false;
       }}
     >
-      <Tabs.Screen
-        name="home"
-        options={{
-          title: 'Accueil',
-          tabBarIcon: ({ focused, color }) => (
-            <TabIcon name="home" focused={focused} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="wars"
-        options={{
-          title: 'Guerres',
-          tabBarIcon: ({ focused, color }) => (
-            <TabIcon name="flame" focused={focused} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="finance"
-        options={{
-          title: 'Finance',
-          tabBarIcon: ({ focused, color }) => (
-            <TabIcon name="wallet" focused={focused} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="calendar"
-        options={{
-          title: 'Agenda',
-          tabBarIcon: ({ focused, color }) => (
-            <TabIcon name="calendar" focused={focused} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="chat"
-        options={{
-          title: 'Agent',
-          tabBarIcon: ({ focused, color }) => (
-            <TabIcon name="chatbubble-ellipses" focused={focused} color={color} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="settings"
-        options={{
-          title: 'Réglages',
-          tabBarIcon: ({ focused, color }) => (
-            <TabIcon name="settings" focused={focused} color={color} />
-          ),
-        }}
-      />
-    </Tabs>
+      <SwipeTabView>
+        <Tabs
+          screenOptions={{
+            headerShown: false,
+            // Transition coulissante douce entre les cinq onglets.
+            animation: 'shift',
+            tabBarActiveTintColor: colors.tabActive,
+            tabBarInactiveTintColor: colors.tabInactive,
+            tabBarLabelStyle: {
+              fontSize: 10.5,
+              fontWeight: '800',
+              letterSpacing: 0.2,
+              marginTop: 2,
+            },
+            tabBarStyle: {
+              position: 'absolute',
+              left: spacing[4],
+              right: spacing[4],
+              bottom: bottomInset + 8,
+              height: barHeight,
+              borderRadius: radius['2xl'],
+              borderWidth: 1,
+              borderColor: colors.tabBarBorder,
+              backgroundColor: colors.tabBarBg,
+              elevation: 0,
+              shadowColor: '#000000',
+              shadowOpacity: 0.35,
+              shadowRadius: 20,
+              shadowOffset: { width: 0, height: 10 },
+              paddingTop: 8,
+              paddingBottom: 8,
+              // Sur web, la pilule reste centrée dans la colonne téléphone.
+              ...(Platform.OS === 'web' ? floatingTabBarWebStyle : {}),
+            },
+            tabBarBackground: () => (
+              <BlurView
+                tint={theme.isDark ? 'dark' : 'light'}
+                intensity={Platform.OS === 'ios' ? 72 : 90}
+                style={[StyleSheet.absoluteFill, { borderRadius: radius['2xl'], overflow: 'hidden' }]}
+              />
+            ),
+          }}
+        >
+          <Tabs.Screen
+            name="home"
+            options={{
+              title: 'QG',
+              tabBarIcon: ({ focused, color }) => (
+                <TabIcon name={focused ? 'home' : 'home-outline'} focused={focused} color={color} />
+              ),
+            }}
+          />
+          <Tabs.Screen
+            name="calendar"
+            options={{
+              title: 'Agenda',
+              tabBarIcon: ({ focused, color }) => (
+                <TabIcon name={focused ? 'calendar' : 'calendar-outline'} focused={focused} color={color} />
+              ),
+            }}
+          />
+          <Tabs.Screen
+            name="wars"
+            options={{
+              title: 'Guerres',
+              tabBarIcon: ({ focused, color }) => (
+                <TabIcon name={focused ? 'trophy' : 'trophy-outline'} focused={focused} color={color} />
+              ),
+            }}
+          />
+          <Tabs.Screen
+            name="finance"
+            options={{
+              title: 'Finances',
+              tabBarIcon: ({ focused, color }) => (
+                <TabIcon name={focused ? 'wallet' : 'wallet-outline'} focused={focused} color={color} />
+              ),
+            }}
+          />
+          <Tabs.Screen
+            name="settings"
+            options={{
+              title: 'Réglages',
+              tabBarIcon: ({ focused, color }) => (
+                <TabIcon name={focused ? 'settings' : 'settings-outline'} focused={focused} color={color} />
+              ),
+            }}
+          />
+          {/* Écrans plein écran atteints par navigation : pas de bouton dans la
+              barre (href: null) et barre masquée tant qu'ils sont au premier plan. */}
+          <Tabs.Screen
+            name="agent"
+            options={{
+              href: null,
+              tabBarStyle: { display: 'none' },
+            }}
+          />
+          <Tabs.Screen
+            name="data"
+            options={{
+              href: null,
+              tabBarStyle: { display: 'none' },
+            }}
+          />
+        </Tabs>
+      </SwipeTabView>
+      <AssistantFab />
+      <IdleCoach />
+      <StorageWarning />
+      <NotificationHost />
+      <FeedbackHost />
+      <TutorialHost />
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  root: { flex: 1 },
+  iconPill: {
+    width: 40,
+    height: 30,
+    borderRadius: radius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});

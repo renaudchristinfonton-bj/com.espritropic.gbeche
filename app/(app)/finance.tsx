@@ -1,539 +1,1057 @@
 /**
- * GBECHE — Finance "Trésorerie"
- * Comptes multi-wallets, transactions, budgets, DonutChart.
- * Thème dynamique + Ionicons (0 emojis).
+ * GBECHE — Écran Finances (Trésorerie).
+ * Soldes calculés, comptes, transactions, budgets mensuels et répartition
+ * des dépenses. Tous les montants dérivent de la base, jamais de cache.
  */
 
-import React, { useState } from 'react';
-import {
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
-import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
+import { useLocalSearchParams } from 'expo-router';
+import * as Haptics from '@/src/services/haptics';
 
-import { useTheme } from '@/src/theme/ThemeContext';
+import { Screen } from '@/src/components/ui/Screen';
+import { ScreenHeader } from '@/src/components/ui/ScreenHeader';
 import { GlassCard } from '@/src/components/ui/GlassCard';
+import { Button } from '@/src/components/ui/Button';
+import { Chip } from '@/src/components/ui/Chip';
+import { Sheet } from '@/src/components/ui/Sheet';
+import { TextField } from '@/src/components/ui/TextField';
+import { SegmentedControl } from '@/src/components/ui/SegmentedControl';
+import { ProgressBar } from '@/src/components/ui/ProgressBar';
+import { EmptyState } from '@/src/components/ui/EmptyState';
 import { DonutChart, type DonutSlice } from '@/src/components/charts/DonutChart';
-import { LineChart } from '@/src/components/charts/BarChart';
+import { useTheme } from '@/src/theme/ThemeContext';
+import { useRepoQuery } from '@/src/db/useRepoQuery';
+import type { AccountType, TxType } from '@/src/db/types';
+import {
+  ACCOUNT_PRESETS,
+  CATEGORIES,
+  CATEGORY_COLOR_CHOICES,
+  CATEGORY_ICON_CHOICES,
+  getCategory,
+  type CategoryMeta,
+} from '@/src/domain/catalog';
+import {
+  addCustomCategory,
+  getAllCategoryMetas,
+  getCategoryOptions,
+} from '@/src/services/category.service';
+import {
+  addMovement,
+  editTransaction,
+  getBalances,
+  getBreakdown,
+  getBudgets,
+  getMonthStats,
+  getTransactions,
+  removeTransaction,
+  setBudget,
+  addAccount,
+} from '@/src/services/finance.service';
+import { currentMonthKey, formatCurrency, formatDate, formatTime, monthLabel } from '@/src/services/format';
+import { radius, spacing, typography } from '@/src/theme';
+import { SCREEN_BOTTOM_PADDING } from '@/src/theme/layout';
 
-// ─── Types ────────────────────────────────────────────────
+type Tab = 'accounts' | 'transactions' | 'budgets';
 
-interface Account {
-  id:      string;
-  name:    string;
-  icon:    keyof typeof Ionicons.glyphMap;
-  color:   string;
-  balance: number;
-}
+export default function FinanceScreen() {
+  const { colors } = useTheme().theme;
+  const params = useLocalSearchParams<{ action?: string }>();
 
-interface Transaction {
-  id:       string;
-  label:    string;
-  category: string;
-  amount:   number;
-  icon:     keyof typeof Ionicons.glyphMap;
-  date:     string;
-  account:  string;
-}
+  const [tab, setTab] = useState<Tab>('accounts');
+  const [movementType, setMovementType] = useState<TxType>('expense');
+  const [movementSheet, setMovementSheet] = useState(false);
+  const [accountSheet, setAccountSheet] = useState(false);
+  const [budgetSheet, setBudgetSheet] = useState(false);
+  const [editingTx, setEditingTx] = useState<
+    (Awaited<ReturnType<typeof getTransactions>>)[number] | null
+  >(null);
 
-interface Budget {
-  category: string;
-  icon:     keyof typeof Ionicons.glyphMap;
-  spent:    number;
-  limit:    number;
-  color:    string;
-}
+  const balances = useRepoQuery(() => getBalances(), []);
+  const month = useRepoQuery(() => getMonthStats(), []);
+  const transactions = useRepoQuery(() => getTransactions({ limit: 100 }), []);
+  const budgets = useRepoQuery(() => getBudgets(), []);
+  const breakdown = useRepoQuery(() => getBreakdown(), []);
+  // Les catégories personnalisées vivent en base : on recharge la fusion.
+  const categoryMetas = useRepoQuery(() => getAllCategoryMetas(), []);
 
-// ─── Seed Data ────────────────────────────────────────────
+  const resolveCategory = useCallback(
+    (id: string): CategoryMeta =>
+      categoryMetas.data?.find((meta) => meta.id === id) ?? getCategory(id),
+    [categoryMetas.data],
+  );
 
-const ACCOUNTS: Account[] = [
-  { id:'a1', name:'MTN MOMO', icon:'phone-portrait', color:'#FFB300', balance: 450_000 },
-  { id:'a2', name:'Wave',     icon:'water',          color:'#00BCD4', balance: 280_000 },
-  { id:'a3', name:'Cash',     icon:'cash',           color:'#00FF88', balance: 110_500 },
-  { id:'a4', name:'Banque',   icon:'business',       color:'#A78BFA', balance: 400_000 },
-];
+  useEffect(() => {
+    if (params.action === 'expense' || params.action === 'income') {
+      setMovementType(params.action);
+      setMovementSheet(true);
+    }
+  }, [params.action]);
 
-const TRANSACTIONS: Transaction[] = [
-  { id:'t1', label:'Supermarché',      category:'Nourriture', amount:-12_500, icon:'cart',           date:"Aujourd'hui", account:'Cash'     },
-  { id:'t2', label:'Salaire',          category:'Revenu',     amount:450_000, icon:'briefcase',      date:'01 Avr',      account:'Banque'   },
-  { id:'t3', label:'Taxi',             category:'Transport',  amount:-3_500,  icon:'car',            date:'Hier',        account:'MTN MOMO' },
-  { id:'t4', label:'Frais scolaires',  category:'Éducation',  amount:-45_000, icon:'school',         date:'12 Avr',      account:'Banque'   },
-  { id:'t5', label:'Freelance',        category:'Revenu',     amount:75_000,  icon:'laptop',         date:'10 Avr',      account:'Wave'     },
-  { id:'t6', label:'Pharmacie',        category:'Santé',      amount:-8_200,  icon:'medical',        date:'09 Avr',      account:'Cash'     },
-];
+  const donutData: DonutSlice[] = (breakdown.data ?? [])
+    .filter((row) => row.total > 0)
+    .slice(0, 6)
+    .map((row) => {
+      const meta = resolveCategory(row.category);
+      return { label: meta.label, value: row.total, color: meta.color };
+    });
 
-const BUDGETS: Budget[] = [
-  { category:'Nourriture', icon:'restaurant', spent:78_000,  limit:100_000, color:'#FF6B35' },
-  { category:'Transport',  icon:'car',         spent:25_000,  limit:30_000,  color:'#00E5FF' },
-  { category:'Santé',      icon:'fitness',     spent:12_000,  limit:50_000,  color:'#00FF88' },
-  { category:'Loisirs',    icon:'game-controller', spent:42_000, limit:40_000, color:'#FF4757' },
-  { category:'Éducation',  icon:'school',      spent:45_000,  limit:80_000,  color:'#A78BFA' },
-];
-
-const TOTAL   = ACCOUNTS.reduce((s, a) => s + a.balance, 0);
-const INCOME  = TRANSACTIONS.filter(t => t.amount > 0).reduce((s, t) => s + t.amount, 0);
-const EXPENSE = TRANSACTIONS.filter(t => t.amount < 0).reduce((s, t) => s + Math.abs(t.amount), 0);
-
-const DONUT_DATA: DonutSlice[] = [
-  { label: 'Nourriture', value: 78_000,  color: '#FF6B35' },
-  { label: 'Transport',  value: 25_000,  color: '#00E5FF' },
-  { label: 'Éducation',  value: 45_000,  color: '#A78BFA' },
-  { label: 'Santé',      value: 12_000,  color: '#00FF88' },
-  { label: 'Loisirs',    value: 42_000,  color: '#FF4757' },
-];
-
-const BALANCE_TREND = [
-  { label: 'Oct', value: 870_000 },
-  { label: 'Nov', value: 920_000 },
-  { label: 'Déc', value: 800_000 },
-  { label: 'Jan', value: 1_050_000 },
-  { label: 'Fév', value: 980_000 },
-  { label: 'Mar', value: 1_120_000 },
-  { label: 'Avr', value: 1_240_500 },
-];
-
-// ─── Format helpers ───────────────────────────────────────
-
-const fmt = (n: number) => n.toLocaleString('fr-FR');
-
-// ─── Components ───────────────────────────────────────────
-
-function AccountCard({ account }: { account: Account }) {
-  const { theme } = useTheme();
   return (
-    <GlassCard
-      style={[styles.accountCard, { borderColor: account.color + '44' }]}
-      accentColor={account.color}
-    >
-      <View style={[styles.accountIconWrap, { backgroundColor: account.color + '22' }]}>
-        <Ionicons name={account.icon} size={20} color={account.color} />
+    <Screen padded={false}>
+      <View style={{ paddingHorizontal: spacing[5], paddingBottom: spacing[3] }}>
+        <ScreenHeader title="Trésorerie" subtitle="Tes comptes, mouvements et budgets mensuels." />
+
+        <GlassCard noPadding elevated style={styles.balanceCard}>
+          <LinearGradient
+            colors={['rgba(255,215,0,0.14)', 'rgba(255,159,67,0.06)']}
+            style={styles.balanceGradient}
+          >
+            <Text style={[styles.balanceLabel, { color: colors.textMuted }]}>Solde total</Text>
+            <Text adjustsFontSizeToFit numberOfLines={1} style={[styles.balanceValue, { color: colors.text }]}>
+              {formatCurrency(balances.data?.total ?? 0)}
+            </Text>
+            <View style={styles.monthRow}>
+              <View style={styles.monthPill}>
+                <Ionicons name="arrow-up" size={14} color={colors.success} />
+                <Text style={[styles.monthText, { color: colors.success }]}>
+                  {formatCurrency(month.data?.income ?? 0)}
+                </Text>
+              </View>
+              <View style={styles.monthPill}>
+                <Ionicons name="arrow-down" size={14} color={colors.danger} />
+                <Text style={[styles.monthText, { color: colors.danger }]}>
+                  {formatCurrency(month.data?.expense ?? 0)}
+                </Text>
+              </View>
+            </View>
+          </LinearGradient>
+        </GlassCard>
       </View>
-      <Text style={[styles.accountName, { color: theme.colors.textMuted }]}>{account.name}</Text>
-      <Text style={[styles.accountBalance, { color: theme.colors.text }]}>
-        {fmt(account.balance)}
+
+      <View style={{ paddingHorizontal: spacing[5] }}>
+        <SegmentedControl<Tab>
+          segments={[
+            { value: 'accounts', label: 'Comptes' },
+            { value: 'transactions', label: 'Transactions' },
+            { value: 'budgets', label: 'Budgets' },
+          ]}
+          value={tab}
+          onChange={setTab}
+        />
+      </View>
+
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: spacing[5], paddingBottom: SCREEN_BOTTOM_PADDING, gap: spacing[3] }}
+        showsVerticalScrollIndicator={false}
+      >
+        {tab === 'accounts' ? (
+          <AccountsTab onAdd={() => setAccountSheet(true)} accounts={balances.data?.accounts ?? []} />
+        ) : null}
+
+        {tab === 'transactions' ? (
+          <TransactionsTab
+            transactions={transactions.data ?? []}
+            resolveCategory={resolveCategory}
+            onAdd={(type) => {
+              setMovementType(type);
+              setMovementSheet(true);
+            }}
+            onEdit={(tx) => setEditingTx(tx)}
+          />
+        ) : null}
+
+        {tab === 'budgets' ? (
+          <BudgetsTab
+            budgets={budgets.data ?? []}
+            donut={donutData}
+            resolveCategory={resolveCategory}
+            onAdd={() => setBudgetSheet(true)}
+          />
+        ) : null}
+      </ScrollView>
+
+      {/* Feuilles */}
+      <MovementSheet
+        visible={movementSheet}
+        type={movementType}
+        onClose={() => setMovementSheet(false)}
+        accounts={balances.data?.accounts ?? []}
+      />
+      <EditMovementSheet
+        transaction={editingTx}
+        onClose={() => setEditingTx(null)}
+        accounts={balances.data?.accounts ?? []}
+        resolveCategory={resolveCategory}
+      />
+      <AccountSheet visible={accountSheet} onClose={() => setAccountSheet(false)} />
+      <BudgetSheet visible={budgetSheet} onClose={() => setBudgetSheet(false)} />
+    </Screen>
+  );
+}
+
+// ─── Onglet comptes ───────────────────────────────────────
+function AccountsTab({
+  accounts,
+  onAdd,
+}: {
+  accounts: Awaited<ReturnType<typeof getBalances>>['accounts'];
+  onAdd: () => void;
+}) {
+  const { colors } = useTheme().theme;
+
+  if (accounts.length === 0) {
+    return (
+      <EmptyState
+        icon="wallet-outline"
+        title="Aucun compte"
+        description="Ajoute ton Mobile Money, ton cash ou ton compte bancaire pour suivre tes soldes."
+        actionLabel="Ajouter un compte"
+        onAction={onAdd}
+      />
+    );
+  }
+
+  return (
+    <>
+      {accounts.map((account) => (
+        <GlassCard key={account.id} style={styles.accountCard}>
+          <View style={[styles.accountIcon, { backgroundColor: `${account.color}1A` }]}>
+            <Ionicons name={account.icon as never} size={22} color={account.color} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.accountName, { color: colors.text }]}>{account.name}</Text>
+            <Text style={[styles.accountType, { color: colors.textMuted }]}>
+              Solde initial : {formatCurrency(account.initial_balance)}
+            </Text>
+          </View>
+          <Text
+            adjustsFontSizeToFit
+            numberOfLines={1}
+            style={[
+              styles.accountBalance,
+              { color: account.balance < 0 ? colors.danger : colors.text },
+            ]}
+          >
+            {formatCurrency(account.balance)}
+          </Text>
+        </GlassCard>
+      ))}
+      <Button label="Ajouter un compte" variant="glass" onPress={onAdd} fullWidth />
+    </>
+  );
+}
+
+// ─── Onglet transactions ──────────────────────────────────
+function TransactionsTab({
+  transactions,
+  resolveCategory,
+  onAdd,
+  onEdit,
+}: {
+  transactions: Awaited<ReturnType<typeof getTransactions>>;
+  resolveCategory: (id: string) => CategoryMeta;
+  onAdd: (type: TxType) => void;
+  onEdit: (tx: Awaited<ReturnType<typeof getTransactions>>[number]) => void;
+}) {
+  const { colors } = useTheme().theme;
+
+  return (
+    <>
+      <View style={styles.txActions}>
+        <Button
+          label="Dépense"
+          variant="danger"
+          size="sm"
+          icon={<Ionicons name="arrow-down" size={16} color="#fff" />}
+          onPress={() => onAdd('expense')}
+          style={{ flex: 1 }}
+        />
+        <Button
+          label="Revenu"
+          size="sm"
+          icon={<Ionicons name="arrow-up" size={16} color={colors.textInverse} />}
+          onPress={() => onAdd('income')}
+          style={{ flex: 1 }}
+        />
+      </View>
+
+      {transactions.length === 0 ? (
+        <EmptyState
+          icon="receipt-outline"
+          title="Aucune transaction"
+          description="Enregistre ta première dépense ou ton premier revenu pour construire tes graphes."
+        />
+      ) : (
+        <GlassCard animated={false} noPadding style={{ overflow: 'hidden' }}>
+          {transactions.map((tx, index) => {
+            const meta = resolveCategory(tx.category);
+            const signed = tx.type === 'expense' ? -Math.abs(tx.amount) : Math.abs(tx.amount);
+            return (
+              <Pressable
+                key={tx.id}
+                onPress={() => onEdit(tx)}
+                style={[
+                  styles.txRow,
+                  index > 0 && { borderTopWidth: 1, borderTopColor: colors.separator },
+                ]}
+              >
+                <View style={[styles.txIcon, { backgroundColor: `${meta.color}1A` }]}>
+                  <Ionicons name={meta.icon as never} size={18} color={meta.color} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text numberOfLines={1} style={[styles.txLabel, { color: colors.text }]}>
+                    {tx.label || meta.label}
+                  </Text>
+                  <Text style={[styles.txMeta, { color: colors.textMuted }]}>
+                    {formatDate(tx.timestamp)} · {formatTime(tx.timestamp)} · {tx.account_name}
+                  </Text>
+                </View>
+                <Text
+                  style={[
+                    styles.txAmount,
+                    { color: signed < 0 ? colors.danger : colors.success },
+                  ]}
+                >
+                  {signed > 0 ? '+' : '−'}
+                  {formatCurrency(Math.abs(signed))}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </GlassCard>
+      )}
+    </>
+  );
+}
+
+// ─── Onglet budgets ───────────────────────────────────────
+function BudgetsTab({
+  budgets,
+  donut,
+  resolveCategory,
+  onAdd,
+}: {
+  budgets: Awaited<ReturnType<typeof getBudgets>>;
+  donut: DonutSlice[];
+  resolveCategory: (id: string) => CategoryMeta;
+  onAdd: () => void;
+}) {
+  const { colors } = useTheme().theme;
+
+  return (
+    <>
+      <Text style={[styles.monthTitle, { color: colors.textMuted }]}>
+        {monthLabel(currentMonthKey())}
       </Text>
-      <Text style={[styles.accountCurrency, { color: account.color }]}>FCFA</Text>
-    </GlassCard>
+
+      {donut.length > 0 ? (
+        <GlassCard style={{ alignItems: 'center' }}>
+          <DonutChart data={donut} size={190} strokeWidth={22} centerLabel="Dépenses" />
+        </GlassCard>
+      ) : (
+        <EmptyState
+          icon="pie-chart-outline"
+          title="Pas encore de dépenses ce mois"
+          description="Le camembert se construira dès ta première transaction."
+        />
+      )}
+
+      {budgets.map((budget) => {
+        const meta = resolveCategory(budget.category);
+        const ratio = budget.amount ? budget.spent / budget.amount : 0;
+        const over = ratio > 1;
+        return (
+          <GlassCard key={budget.id}>
+            <View style={styles.budgetHead}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+                <Ionicons name={meta.icon as never} size={18} color={meta.color} />
+                <Text style={[styles.budgetName, { color: colors.text }]}>{meta.label}</Text>
+              </View>
+              <Text style={[styles.budgetAmount, { color: over ? colors.danger : colors.textMuted }]}>
+                {formatCurrency(budget.spent)} / {formatCurrency(budget.amount)}
+              </Text>
+            </View>
+            <ProgressBar
+              progress={ratio}
+              color={over ? colors.danger : meta.color}
+              height={8}
+            />
+          </GlassCard>
+        );
+      })}
+
+      <Button label="Définir un budget" variant="glass" onPress={onAdd} fullWidth />
+    </>
   );
 }
 
-function TransactionRow({ tx }: { tx: Transaction }) {
-  const { theme } = useTheme();
-  const isIncome = tx.amount > 0;
+// ─── Sheet : création d'une catégorie personnalisée ───────
+function CategoryCreateSheet({
+  visible,
+  kind,
+  onClose,
+  onCreated,
+}: {
+  visible: boolean;
+  kind: 'expense' | 'income';
+  onClose: () => void;
+  onCreated: (id: string) => void;
+}) {
+  const { colors } = useTheme().theme;
+  const [label, setLabel] = useState('');
+  const [icon, setIcon] = useState<string>(CATEGORY_ICON_CHOICES[0]);
+  const [color, setColor] = useState<string>(CATEGORY_COLOR_CHOICES[0]);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
 
-  return (
-    <View style={[styles.txRow, { borderBottomColor: theme.colors.glassBorder }]}>
-      <View style={[styles.txIconWrap, { backgroundColor: isIncome ? '#00FF8822' : '#FF475722' }]}>
-        <Ionicons name={tx.icon} size={18} color={isIncome ? '#00FF88' : '#FF4757'} />
-      </View>
-      <View style={{ flex: 1 }}>
-        <Text style={[styles.txLabel, { color: theme.colors.text }]}>{tx.label}</Text>
-        <Text style={[styles.txMeta, { color: theme.colors.textMuted }]}>
-          {tx.category} · {tx.date} · {tx.account}
-        </Text>
-      </View>
-      <Text style={[styles.txAmount, { color: isIncome ? '#00FF88' : '#FF4757' }]}>
-        {isIncome ? '+' : ''}{fmt(tx.amount)}
-      </Text>
-    </View>
-  );
-}
+  useEffect(() => {
+    if (visible) {
+      setLabel('');
+      setIcon(CATEGORY_ICON_CHOICES[0]);
+      setColor(CATEGORY_COLOR_CHOICES[0]);
+      setError('');
+      setSaving(false);
+    }
+  }, [visible]);
 
-function BudgetBar({ budget }: { budget: Budget }) {
-  const { theme } = useTheme();
-  const pct       = Math.min(budget.spent / budget.limit, 1);
-  const over      = budget.spent > budget.limit;
-
-  return (
-    <View style={styles.budgetRow}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <Ionicons name={budget.icon} size={14} color={over ? '#FF4757' : budget.color} />
-          <Text style={[styles.budgetLabel, { color: theme.colors.text }]}>{budget.category}</Text>
-        </View>
-        <Text style={[styles.budgetAmt, { color: over ? '#FF4757' : theme.colors.textMuted }]}>
-          {fmt(budget.spent)} / {fmt(budget.limit)}
-        </Text>
-      </View>
-      <View style={[styles.budgetTrack, { backgroundColor: theme.colors.glass }]}>
-        <View style={[
-          styles.budgetFill,
-          { width: `${pct * 100}%`, backgroundColor: over ? '#FF4757' : budget.color },
-        ]} />
-      </View>
-    </View>
-  );
-}
-
-// ─── Add Transaction Modal ────────────────────────────────
-
-function AddTxModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
-  const { theme } = useTheme();
-  const [type, setType]   = useState<'expense' | 'income'>('expense');
-  const [amount, setAmount] = useState('');
-  const [label,  setLabel]  = useState('');
-  const [account, setAccount] = useState('a1');
-
-  const submit = () => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    onClose();
-    setAmount(''); setLabel('');
+  const save = async () => {
+    if (!label.trim() || saving) return;
+    setSaving(true);
+    setError('');
+    try {
+      const id = await addCustomCategory({ label, icon, color, kind });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      onCreated(id);
+      onClose();
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'Création impossible.');
+      setSaving(false);
+    }
   };
 
   return (
-    <Modal transparent visible={visible} animationType="slide" onRequestClose={onClose}>
-      <Pressable style={styles.modalOverlay} onPress={onClose}>
-        <Pressable style={[styles.modalSheet, { backgroundColor: theme.colors.surfaceHigh }]}>
-          {/* Handle */}
-          <View style={[styles.handle, { backgroundColor: theme.colors.glassBorder }]} />
-          <Text style={[styles.modalTitle, { color: theme.colors.text }]}>Nouvelle opération</Text>
+    <Sheet
+      visible={visible}
+      title={kind === 'expense' ? 'Nouvelle catégorie de dépense' : 'Nouvelle catégorie de revenu'}
+      onClose={onClose}
+      scroll
+    >
+      <TextField
+        label="Nom de la catégorie"
+        icon="pricetag"
+        placeholder="Ex : Crédit bancaire, Dons à l'église…"
+        value={label}
+        onChangeText={setLabel}
+      />
+      {error ? (
+        <Text style={[styles.helper, { color: colors.danger, marginTop: spacing[2] }]}>{error}</Text>
+      ) : null}
 
-          {/* Type toggle */}
-          <View style={styles.typeRow}>
-            {(['expense', 'income'] as const).map(t => (
-              <Pressable
-                key={t}
-                onPress={() => setType(t)}
-                style={[
-                  styles.typeBtn,
-                  {
-                    backgroundColor: type === t
-                      ? (t === 'expense' ? '#FF475722' : '#00FF8822')
-                      : 'transparent',
-                    borderColor: type === t
-                      ? (t === 'expense' ? '#FF4757' : '#00FF88')
-                      : theme.colors.glassBorder,
-                  },
-                ]}
-              >
-                <Ionicons
-                  name={t === 'expense' ? 'arrow-down-circle' : 'arrow-up-circle'}
-                  size={18}
-                  color={type === t ? (t === 'expense' ? '#FF4757' : '#00FF88') : theme.colors.textMuted}
-                />
-                <Text style={[styles.typeBtnLabel, {
-                  color: type === t ? (t === 'expense' ? '#FF4757' : '#00FF88') : theme.colors.textMuted
-                }]}>
-                  {t === 'expense' ? 'Dépense' : 'Revenu'}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-
-          {/* Fields */}
-          <TextInput
-            value={amount}
-            onChangeText={setAmount}
-            keyboardType="numeric"
-            placeholder="Montant (FCFA)"
-            placeholderTextColor={theme.colors.textMuted}
-            style={[styles.input, { color: theme.colors.text, borderColor: theme.colors.glassBorder, backgroundColor: theme.colors.glass }]}
-          />
-          <TextInput
-            value={label}
-            onChangeText={setLabel}
-            placeholder="Description"
-            placeholderTextColor={theme.colors.textMuted}
-            style={[styles.input, { color: theme.colors.text, borderColor: theme.colors.glassBorder, backgroundColor: theme.colors.glass }]}
-          />
-
-          {/* Account selector */}
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginVertical: 12 }}>
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              {ACCOUNTS.map(a => (
-                <Pressable
-                  key={a.id}
-                  onPress={() => setAccount(a.id)}
-                  style={[
-                    styles.acctChip,
-                    {
-                      borderColor:     account === a.id ? a.color : theme.colors.glassBorder,
-                      backgroundColor: account === a.id ? a.color + '22' : 'transparent',
-                    },
-                  ]}
-                >
-                  <Ionicons name={a.icon} size={14} color={account === a.id ? a.color : theme.colors.textMuted} />
-                  <Text style={{ fontSize: 12, fontWeight: '700', color: account === a.id ? a.color : theme.colors.textMuted }}>
-                    {a.name}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          </ScrollView>
-
-          {/* Submit */}
-          <Pressable onPress={submit} style={styles.submitBtn}>
-            <LinearGradient
-              colors={type === 'expense' ? ['#FF4757', '#CC2030'] : ['#00FF88', '#00CC66']}
-              start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
-              style={styles.submitInner}
-            >
-              <Text style={styles.submitText}>Enregistrer</Text>
-            </LinearGradient>
-          </Pressable>
-        </Pressable>
-      </Pressable>
-    </Modal>
-  );
-}
-
-// ─── Tab bar ──────────────────────────────────────────────
-
-type Tab = 'overview' | 'transactions' | 'budgets';
-
-// ─── Main Screen ──────────────────────────────────────────
-
-export default function FinanceScreen() {
-  const { theme } = useTheme();
-  const { colors } = theme;
-
-  const [tab,     setTab]     = useState<Tab>('overview');
-  const [addModal, setAdd]    = useState(false);
-
-  const saved = INCOME - EXPENSE;
-  const savedPct = INCOME > 0 ? saved / INCOME : 0;
-
-  return (
-    <View style={[styles.root, { backgroundColor: colors.background }]}>
-      {/* Header */}
-      <LinearGradient
-        colors={['rgba(255,215,0,0.07)', 'transparent']}
-        style={styles.headerGrad}
-      >
-        <View style={styles.header}>
-          <View>
-            <Text style={[styles.headerLabel, { color: colors.textMuted }]}>Trésorerie totale</Text>
-            <Text style={[styles.totalBalance, { color: colors.text }]}>
-              {fmt(TOTAL)} <Text style={styles.fcfa}>FCFA</Text>
-            </Text>
-          </View>
+      <Text style={styles.sheetLabel}>Icône</Text>
+      <View style={styles.iconGrid}>
+        {CATEGORY_ICON_CHOICES.map((name) => (
           <Pressable
-            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); setAdd(true); }}
-            style={styles.addBtn}
+            key={name}
+            onPress={() => setIcon(name)}
+            style={[
+              styles.iconCell,
+              {
+                backgroundColor: name === icon ? `${color}1F` : colors.glass,
+                borderColor: name === icon ? color : colors.glassBorder,
+              },
+            ]}
           >
-            <LinearGradient
-              colors={['#FFD700', '#FF9F43']}
-              style={styles.addBtnInner}
-            >
-              <Ionicons name="add" size={22} color="#000" />
-            </LinearGradient>
-          </Pressable>
-        </View>
-
-        {/* Stats */}
-        <View style={styles.statsRow}>
-          {[
-            { label: 'Revenus',  value: fmt(INCOME),   color: '#00FF88', icon: 'trending-up' as const },
-            { label: 'Dépenses', value: fmt(EXPENSE),  color: '#FF4757', icon: 'trending-down' as const },
-            { label: 'Épargné',  value: `${Math.round(savedPct*100)}%`, color: '#A78BFA', icon: 'save' as const },
-          ].map((s, i) => (
-            <View key={i} style={[styles.statItem, { backgroundColor: colors.glass, borderColor: colors.glassBorder }]}>
-              <Ionicons name={s.icon} size={14} color={s.color} />
-              <Text style={[styles.statValue, { color: s.color }]}>{s.value}</Text>
-              <Text style={[styles.statLabel, { color: colors.textMuted }]}>{s.label}</Text>
-            </View>
-          ))}
-        </View>
-      </LinearGradient>
-
-      {/* Tabs */}
-      <View style={[styles.tabRow, { borderBottomColor: colors.glassBorder }]}>
-        {([
-          { id: 'overview',      label: 'Vue d\'ensemble' },
-          { id: 'transactions',  label: 'Transactions' },
-          { id: 'budgets',       label: 'Budgets' },
-        ] as const).map(t => (
-          <Pressable
-            key={t.id}
-            onPress={() => { setTab(t.id); Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); }}
-            style={[styles.tabItem, tab === t.id && { borderBottomColor: '#FFD700', borderBottomWidth: 2 }]}
-          >
-            <Text style={[styles.tabLabel, { color: tab === t.id ? '#FFD700' : colors.textMuted }]}>
-              {t.label}
-            </Text>
+            <Ionicons name={name as never} size={20} color={name === icon ? color : colors.textMuted} />
           </Pressable>
         ))}
       </View>
 
-      {/* Content */}
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
-        {tab === 'overview' && (
-          <Animated.View entering={FadeIn.duration(300)} style={{ gap: 16 }}>
-            {/* Accounts horizontal scroll */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              <View style={{ flexDirection: 'row', gap: 12, paddingRight: 16 }}>
-                {ACCOUNTS.map(a => <AccountCard key={a.id} account={a} />)}
-              </View>
-            </ScrollView>
+      <Text style={styles.sheetLabel}>Couleur</Text>
+      <View style={styles.colorRow}>
+        {CATEGORY_COLOR_CHOICES.map((value) => (
+          <Pressable
+            key={value}
+            onPress={() => setColor(value)}
+            style={[styles.colorSwatch, { backgroundColor: value, borderWidth: value === color ? 3 : 0, borderColor: colors.text }]}
+          >
+            {value === color ? <Ionicons name="checkmark" size={16} color="#0B0D12" /> : null}
+          </Pressable>
+        ))}
+      </View>
 
-            {/* Donut chart — expense breakdown */}
-            <GlassCard>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>Répartition des dépenses</Text>
-              <View style={{ alignItems: 'center', marginTop: 16 }}>
-                <DonutChart
-                  data={DONUT_DATA}
-                  size={180}
-                  strokeWidth={36}
-                  centerLabel={fmt(EXPENSE)}
-                  centerSub="FCFA dépensés"
-                />
-              </View>
-            </GlassCard>
-
-            {/* Balance trend */}
-            <GlassCard>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>Évolution du solde</Text>
-              <View style={{ marginTop: 12 }}>
-                <LineChart
-                  data={BALANCE_TREND}
-                  height={140}
-                  color="#FFD700"
-                  showArea
-                  formatValue={v => `${Math.round(v/1000)}k`}
-                />
-              </View>
-            </GlassCard>
-          </Animated.View>
-        )}
-
-        {tab === 'transactions' && (
-          <Animated.View entering={FadeIn.duration(300)}>
-            <GlassCard noPadding>
-              {TRANSACTIONS.map(tx => (
-                <TransactionRow key={tx.id} tx={tx} />
-              ))}
-            </GlassCard>
-          </Animated.View>
-        )}
-
-        {tab === 'budgets' && (
-          <Animated.View entering={FadeIn.duration(300)} style={{ gap: 16 }}>
-            <GlassCard>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>Budgets du mois</Text>
-              <View style={{ gap: 14, marginTop: 14 }}>
-                {BUDGETS.map((b, i) => <BudgetBar key={i} budget={b} />)}
-              </View>
-            </GlassCard>
-            {/* Savings tip */}
-            <GlassCard accentColor="#00FF88" style={{ borderColor: '#00FF8833' }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-                <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: '#00FF8822', alignItems: 'center', justifyContent: 'center' }}>
-                  <Ionicons name="bulb" size={20} color="#00FF88" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 13, fontWeight: '800', color: '#00FF88' }}>Conseil du Guerrier</Text>
-                  <Text style={{ fontSize: 12, color: colors.textMuted, marginTop: 2, lineHeight: 16 }}>
-                    Tes loisirs dépassent le budget de 2 000 FCFA. Réduis pour atteindre ton objectif d'épargne.
-                  </Text>
-                </View>
-              </View>
-            </GlassCard>
-          </Animated.View>
-        )}
-
-        <View style={{ height: 100 }} />
-      </ScrollView>
-
-      {/* Modal */}
-      <AddTxModal visible={addModal} onClose={() => setAdd(false)} />
-    </View>
+      <Button
+        label="Créer la catégorie"
+        onPress={save}
+        loading={saving}
+        disabled={!label.trim()}
+        fullWidth
+        style={{ marginTop: spacing[4] }}
+      />
+    </Sheet>
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────
+// ─── Sheet : mouvement (dépense / revenu) ─────────────────
+function MovementSheet({
+  visible,
+  type,
+  accounts,
+  onClose,
+}: {
+  visible: boolean;
+  type: TxType;
+  accounts: Awaited<ReturnType<typeof getBalances>>['accounts'];
+  onClose: () => void;
+}) {
+  const { colors } = useTheme().theme;
+  const [amount, setAmount] = useState('');
+  const [accountId, setAccountId] = useState<string | null>(null);
+  const [category, setCategory] = useState('');
+  const [label, setLabel] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [categoryCreator, setCategoryCreator] = useState(false);
+
+  const optionsQuery = useRepoQuery(
+    () => getCategoryOptions(type === 'expense' ? 'expense' : 'income'),
+    [type, visible],
+  );
+  const categories = optionsQuery.data ?? CATEGORIES;
+
+  useEffect(() => {
+    if (visible) {
+      setAmount('');
+      setAccountId(accounts[0]?.id ?? null);
+      setLabel('');
+      setSaving(false);
+      setCategoryCreator(false);
+    }
+  }, [visible, type, accounts]);
+
+  useEffect(() => {
+    // Sélection par défaut : la première catégorie disponible du type.
+    if (visible && categories.length > 0 && !categories.some((meta) => meta.id === category)) {
+      setCategory(categories[0].id);
+    }
+  }, [visible, categories, category]);
+
+  const valid = Number(amount) > 0 && accountId && category;
+
+  const save = async () => {
+    if (!valid || !accountId) return;
+    setSaving(true);
+    try {
+      await addMovement({
+        accountId,
+        type,
+        amount: Number(amount),
+        category,
+        label,
+      });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      onClose();
+    } catch (error) {
+      console.error(error);
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Sheet
+      visible={visible}
+      title={type === 'expense' ? 'Nouvelle dépense' : 'Nouveau revenu'}
+      onClose={onClose}
+      scroll
+    >
+      <TextInput
+        value={amount}
+        onChangeText={(text) => setAmount(text.replace(/[^0-9]/g, ''))}
+        keyboardType="numeric"
+        placeholder="Montant en FCFA"
+        placeholderTextColor={colors.textTertiary}
+        style={[styles.amountInput, { color: colors.text, backgroundColor: colors.glass, borderColor: colors.glassBorder }]}
+      />
+
+      <Text style={styles.sheetLabel}>Compte</Text>
+      <View style={styles.chipWrap}>
+        {accounts.length === 0 ? (
+          <Text style={{ color: colors.danger, ...styles.helper }}>
+            Crée d'abord un compte dans l'onglet Comptes.
+          </Text>
+        ) : (
+          accounts.map((account) => (
+            <Chip
+              key={account.id}
+              label={account.name}
+              icon={account.icon as never}
+              color={account.color}
+              selected={accountId === account.id}
+              onPress={() => setAccountId(account.id)}
+            />
+          ))
+        )}
+      </View>
+
+      <Text style={styles.sheetLabel}>Catégorie</Text>
+      <View style={styles.chipWrap}>
+        {categories.map((meta) => (
+          <Chip
+            key={meta.id}
+            label={meta.label}
+            icon={meta.icon as never}
+            color={meta.color}
+            selected={category === meta.id}
+            onPress={() => setCategory(meta.id)}
+          />
+        ))}
+        <Chip
+          label="Nouvelle catégorie"
+          icon="add-circle"
+          color={colors.primary}
+          selected={false}
+          onPress={() => setCategoryCreator(true)}
+        />
+      </View>
+
+      <TextField
+        label="Description (optionnel)"
+        icon="create-outline"
+        placeholder="Ex : Déjeuner, course taxi…"
+        value={label}
+        onChangeText={setLabel}
+      />
+
+      <Button
+        label={type === 'expense' ? 'Enregistrer la dépense' : 'Enregistrer le revenu'}
+        variant={type === 'expense' ? 'danger' : 'primary'}
+        onPress={save}
+        loading={saving}
+        disabled={!valid}
+        fullWidth
+        style={{ marginTop: spacing[3] }}
+      />
+
+      <CategoryCreateSheet
+        visible={categoryCreator}
+        kind={type === 'expense' ? 'expense' : 'income'}
+        onClose={() => setCategoryCreator(false)}
+        onCreated={(id) => setCategory(id)}
+      />
+    </Sheet>
+  );
+}
+
+// ─── Sheet : modification / suppression d'une transaction ─
+function EditMovementSheet({
+  transaction,
+  accounts,
+  resolveCategory,
+  onClose,
+}: {
+  transaction: (Awaited<ReturnType<typeof getTransactions>>)[number] | null;
+  accounts: Awaited<ReturnType<typeof getBalances>>['accounts'];
+  resolveCategory: (id: string) => CategoryMeta;
+  onClose: () => void;
+}) {
+  const { colors } = useTheme().theme;
+  const type: TxType = transaction?.type ?? 'expense';
+  const [amount, setAmount] = useState('');
+  const [accountId, setAccountId] = useState<string | null>(null);
+  const [category, setCategory] = useState('');
+  const [label, setLabel] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const optionsQuery = useRepoQuery(
+    () => getCategoryOptions(type === 'expense' ? 'expense' : 'income'),
+    [type, transaction?.id],
+  );
+  const categories = optionsQuery.data ?? CATEGORIES;
+  const [categoryCreator, setCategoryCreator] = useState(false);
+
+  useEffect(() => {
+    if (transaction) {
+      setAmount(String(Math.abs(transaction.amount)));
+      setAccountId(transaction.account_id);
+      setCategory(transaction.category);
+      setLabel(transaction.label);
+      setSaving(false);
+      setConfirmDelete(false);
+      setCategoryCreator(false);
+    }
+  }, [transaction]);
+
+  if (!transaction) return null;
+
+  const valid = Number(amount) > 0 && accountId && category;
+
+  const save = async () => {
+    if (!valid || !accountId || !transaction) return;
+    setSaving(true);
+    try {
+      await editTransaction(transaction.id, {
+        accountId,
+        type,
+        amount: Number(amount),
+        category,
+        label,
+      });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      onClose();
+    } catch (error) {
+      console.error(error);
+      setSaving(false);
+    }
+  };
+
+  const remove = async () => {
+    if (!transaction) return;
+    setSaving(true);
+    try {
+      await removeTransaction(transaction.id);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      onClose();
+    } catch (error) {
+      console.error(error);
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Sheet
+      visible={!!transaction}
+      title={type === 'expense' ? 'Modifier la dépense' : 'Modifier le revenu'}
+      onClose={onClose}
+      scroll
+    >
+      <TextInput
+        value={amount}
+        onChangeText={(text) => setAmount(text.replace(/[^0-9]/g, ''))}
+        keyboardType="numeric"
+        placeholder="Montant en FCFA"
+        placeholderTextColor={colors.textTertiary}
+        style={[styles.amountInput, { color: colors.text, backgroundColor: colors.glass, borderColor: colors.glassBorder }]}
+      />
+
+      <Text style={styles.sheetLabel}>Compte</Text>
+      <View style={styles.chipWrap}>
+        {accounts.map((account) => (
+          <Chip
+            key={account.id}
+            label={account.name}
+            icon={account.icon as never}
+            color={account.color}
+            selected={accountId === account.id}
+            onPress={() => setAccountId(account.id)}
+          />
+        ))}
+      </View>
+
+      <Text style={styles.sheetLabel}>Catégorie</Text>
+      <View style={styles.chipWrap}>
+        {categories.map((meta) => (
+          <Chip
+            key={meta.id}
+            label={meta.label}
+            icon={meta.icon as never}
+            color={meta.color}
+            selected={category === meta.id}
+            onPress={() => setCategory(meta.id)}
+          />
+        ))}
+        <Chip
+          label="Nouvelle catégorie"
+          icon="add-circle"
+          color={colors.primary}
+          selected={false}
+          onPress={() => setCategoryCreator(true)}
+        />
+      </View>
+
+      <TextField
+        label="Description (optionnel)"
+        icon="create-outline"
+        value={label}
+        onChangeText={setLabel}
+      />
+
+      <View style={{ flexDirection: 'row', gap: spacing[3], marginTop: spacing[4] }}>
+        <Button
+          label="Supprimer"
+          variant="danger"
+          onPress={() => setConfirmDelete(true)}
+          disabled={saving}
+          style={{ flex: 1 }}
+        />
+        <Button
+          label="Enregistrer"
+          onPress={save}
+          loading={saving}
+          disabled={!valid}
+          style={{ flex: 1 }}
+        />
+      </View>
+
+      {confirmDelete ? (
+        <View style={[styles.confirmStrip, { borderColor: colors.danger }]}>
+          <Text style={[styles.helper, { color: colors.danger, flex: 1 }]}>
+            Supprimer cette transaction ?
+          </Text>
+          <Button label="Annuler" variant="glass" size="sm" onPress={() => setConfirmDelete(false)} />
+          <Button label="Confirmer" variant="danger" size="sm" onPress={remove} loading={saving} />
+        </View>
+      ) : null}
+
+      <CategoryCreateSheet
+        visible={categoryCreator}
+        kind={type === 'expense' ? 'expense' : 'income'}
+        onClose={() => setCategoryCreator(false)}
+        onCreated={(id) => setCategory(id)}
+      />
+    </Sheet>
+  );
+}
+
+// ─── Sheet : compte ───────────────────────────────────────
+function AccountSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+  const [preset, setPreset] = useState(ACCOUNT_PRESETS[0]);
+  const [name, setName] = useState(ACCOUNT_PRESETS[0].name);
+  const [balance, setBalance] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (visible) {
+      setPreset(ACCOUNT_PRESETS[0]);
+      setName(ACCOUNT_PRESETS[0].name);
+      setBalance('');
+      setSaving(false);
+    }
+  }, [visible]);
+
+  const save = async () => {
+    if (!name.trim()) return;
+    setSaving(true);
+    try {
+      await addAccount({
+        name,
+        type: preset.type as AccountType,
+        icon: preset.icon,
+        color: preset.color,
+        initialBalance: Number(balance) || 0,
+      });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      onClose();
+    } catch (error) {
+      console.error(error);
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Sheet visible={visible} title="Nouveau compte" onClose={onClose} scroll>
+      <Text style={styles.sheetLabel}>Type de compte</Text>
+      <View style={styles.chipWrap}>
+        {ACCOUNT_PRESETS.map((item) => (
+          <Chip
+            key={item.name}
+            label={item.name}
+            icon={item.icon as never}
+            color={item.color}
+            selected={preset.name === item.name}
+            onPress={() => {
+              setPreset(item);
+              setName(item.name);
+            }}
+          />
+        ))}
+      </View>
+
+      <TextField
+        label="Nom du compte"
+        icon="bookmark"
+        value={name}
+        onChangeText={setName}
+      />
+      <TextField
+        label="Solde initial"
+        icon="cash"
+        keyboardType="numeric"
+        placeholder="0"
+        suffix="FCFA"
+        value={balance}
+        onChangeText={(text) => setBalance(text.replace(/[^0-9]/g, ''))}
+      />
+
+      <Button
+        label="Créer le compte"
+        onPress={save}
+        loading={saving}
+        disabled={!name.trim()}
+        fullWidth
+        style={{ marginTop: spacing[3] }}
+      />
+    </Sheet>
+  );
+}
+
+// ─── Sheet : budget ───────────────────────────────────────
+function BudgetSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+  const optionsQuery = useRepoQuery(() => getCategoryOptions('expense'), [visible]);
+  const categories = optionsQuery.data ?? CATEGORIES;
+  const [category, setCategory] = useState('');
+  const [amount, setAmount] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (visible) {
+      setAmount('');
+      setSaving(false);
+    }
+  }, [visible]);
+
+  useEffect(() => {
+    if (visible && categories.length > 0 && !categories.some((meta) => meta.id === category)) {
+      setCategory(categories[0].id);
+    }
+  }, [visible, categories, category]);
+
+  const save = async () => {
+    if (!(Number(amount) > 0)) return;
+    setSaving(true);
+    try {
+      await setBudget(category, Number(amount));
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      onClose();
+    } catch (error) {
+      console.error(error);
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Sheet visible={visible} title="Budget mensuel" onClose={onClose} scroll>
+      <Text style={styles.sheetLabel}>Catégorie</Text>
+      <View style={styles.chipWrap}>
+        {categories.map((meta) => (
+          <Chip
+            key={meta.id}
+            label={meta.label}
+            icon={meta.icon as never}
+            color={meta.color}
+            selected={category === meta.id}
+            onPress={() => setCategory(meta.id)}
+          />
+        ))}
+      </View>
+      <TextField
+        label="Plafond mensuel"
+        icon="speedometer"
+        keyboardType="numeric"
+        placeholder="Ex : 50 000"
+        suffix="FCFA"
+        value={amount}
+        onChangeText={(text) => setAmount(text.replace(/[^0-9]/g, ''))}
+      />
+      <Button
+        label="Enregistrer le budget"
+        onPress={save}
+        loading={saving}
+        disabled={!(Number(amount) > 0)}
+        fullWidth
+        style={{ marginTop: spacing[3] }}
+      />
+    </Sheet>
+  );
+}
+
 const styles = StyleSheet.create({
-  root:         { flex: 1 },
-  headerGrad:   { paddingTop: 60, paddingBottom: 16, paddingHorizontal: 20 },
-  header:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 },
-  headerLabel:  { fontSize: 12, fontWeight: '600', letterSpacing: 0.5, marginBottom: 4 },
-  totalBalance: { fontSize: 32, fontWeight: '900', letterSpacing: -1.5 },
-  fcfa:         { fontSize: 14, fontWeight: '600', letterSpacing: 0 },
-
-  addBtn:       { marginTop: 4 },
-  addBtnInner:  { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-
-  statsRow:     { flexDirection: 'row', gap: 10 },
-  statItem:     { flex: 1, borderRadius: 12, borderWidth: 1, padding: 10, alignItems: 'center', gap: 4 },
-  statValue:    { fontSize: 13, fontWeight: '900' },
-  statLabel:    { fontSize: 9, fontWeight: '700', letterSpacing: 0.3 },
-
-  tabRow:       { flexDirection: 'row', marginHorizontal: 20, borderBottomWidth: 1 },
-  tabItem:      { flex: 1, paddingVertical: 10, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: 'transparent' },
-  tabLabel:     { fontSize: 11, fontWeight: '800', letterSpacing: 0.2 },
-
-  content:      { padding: 16, gap: 16, paddingBottom: 100 },
-  sectionTitle: { fontSize: 14, fontWeight: '800', letterSpacing: -0.2 },
-
-  // Account card
-  accountCard:     { width: 140, padding: 14 },
-  accountIconWrap: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
-  accountName:     { fontSize: 10, fontWeight: '700', letterSpacing: 0.3, marginBottom: 4 },
-  accountBalance:  { fontSize: 16, fontWeight: '900', letterSpacing: -0.5 },
-  accountCurrency: { fontSize: 9, fontWeight: '700', marginTop: 2 },
-
-  // Transactions
-  txRow:      { flexDirection: 'row', alignItems: 'center', padding: 14, gap: 12, borderBottomWidth: 1 },
-  txIconWrap: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  txLabel:    { fontSize: 13, fontWeight: '700' },
-  txMeta:     { fontSize: 10, fontWeight: '500', marginTop: 2 },
-  txAmount:   { fontSize: 14, fontWeight: '900' },
-
-  // Budget
-  budgetRow:    { gap: 0 },
-  budgetLabel:  { fontSize: 12, fontWeight: '700' },
-  budgetAmt:    { fontSize: 11, fontWeight: '600' },
-  budgetTrack:  { height: 6, borderRadius: 3, overflow: 'hidden' },
-  budgetFill:   { height: '100%', borderRadius: 3 },
-
-  // Modal
-  modalOverlay: {
-    flex:            1,
-    backgroundColor: 'rgba(0,0,0,0.75)',
-    justifyContent:  'flex-end',
-  },
-  modalSheet: {
-    borderTopLeftRadius:  28,
-    borderTopRightRadius: 28,
-    padding:              24,
-    paddingBottom:        48,
-  },
-  handle:     { width: 36, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: 20 },
-  modalTitle: { fontSize: 18, fontWeight: '900', marginBottom: 20, letterSpacing: -0.5 },
-
-  typeRow:    { flexDirection: 'row', gap: 10, marginBottom: 16 },
-  typeBtn:    { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderWidth: 1, borderRadius: 12, paddingVertical: 12 },
-  typeBtnLabel:{ fontSize: 13, fontWeight: '800' },
-
-  input: {
-    borderWidth:   1,
-    borderRadius:  12,
-    padding:       14,
-    fontSize:      15,
-    fontWeight:    '600',
-    marginBottom:  10,
-  },
-  acctChip: {
-    flexDirection:   'row',
-    alignItems:      'center',
-    gap:             6,
-    borderWidth:     1,
-    borderRadius:    20,
+  balanceCard: { borderRadius: radius['2xl'], overflow: 'hidden' },
+  balanceGradient: { padding: spacing[6], gap: 6 },
+  balanceLabel: { fontSize: typography.sizes.base, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6 },
+  balanceValue: { fontSize: 34, fontWeight: '800', letterSpacing: -1 },
+  monthRow: { flexDirection: 'row', gap: spacing[3], marginTop: spacing[3] },
+  monthPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderRadius: radius.full,
+    paddingHorizontal: spacing[3],
     paddingVertical: 6,
-    paddingHorizontal: 12,
   },
-  submitBtn:   { borderRadius: 14, overflow: 'hidden', marginTop: 4 },
-  submitInner: { paddingVertical: 16, alignItems: 'center' },
-  submitText:  { fontSize: 15, fontWeight: '900', color: '#000', letterSpacing: -0.2 },
+  monthText: { fontSize: typography.sizes.sm, fontWeight: '800' },
+  accountCard: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], borderRadius: radius.lg },
+  accountIcon: { width: 46, height: 46, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
+  accountName: { fontSize: typography.sizes.md, fontWeight: '800' },
+  accountType: { fontSize: typography.sizes.xs, marginTop: 2, fontWeight: '600' },
+  accountBalance: { fontSize: typography.sizes.lg, fontWeight: '800', maxWidth: 150 },
+  txActions: { flexDirection: 'row', gap: spacing[3], marginBottom: spacing[2] },
+  txRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[3], padding: spacing[4] },
+  txIcon: { width: 40, height: 40, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
+  txLabel: { fontSize: typography.sizes.base, fontWeight: '700' },
+  txMeta: { fontSize: typography.sizes.xs, marginTop: 2, fontWeight: '600' },
+  txAmount: { fontSize: typography.sizes.md, fontWeight: '800', maxWidth: 140 },
+  monthTitle: {
+    fontSize: typography.sizes.sm,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
+  budgetHead: { flexDirection: 'row', alignItems: 'center', marginBottom: spacing[3], gap: spacing[2] },
+  budgetName: { fontSize: typography.sizes.base, fontWeight: '700' },
+  budgetAmount: { fontSize: typography.sizes.sm, fontWeight: '800' },
+  sheetLabel: {
+    fontSize: typography.sizes.sm,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+    color: '#9AA1B8',
+    marginTop: spacing[3],
+    marginBottom: spacing[2],
+  },
+  chipWrap: { flexDirection: 'row', flexWrap: 'wrap' },
+  helper: { fontSize: typography.sizes.base, fontWeight: '600' },
+  amountInput: {
+    borderWidth: 1,
+    borderRadius: radius.lg,
+    minHeight: 64,
+    paddingHorizontal: spacing[4],
+    fontSize: 28,
+    fontWeight: '800',
+    textAlign: 'center',
+    marginBottom: spacing[2],
+  },
+  iconGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing[2.5],
+    marginBottom: spacing[2],
+  },
+  iconCell: {
+    width: 52,
+    height: 52,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  colorRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing[3], marginBottom: spacing[2] },
+  colorSwatch: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  confirmStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+    borderWidth: 1,
+    borderRadius: radius.md,
+    padding: spacing[3],
+    marginTop: spacing[3],
+  },
 });

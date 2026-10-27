@@ -1,50 +1,63 @@
-# Welcome to your Expo app 👋
+# GBECHE — Quartier Général de discipline personnelle
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Application mobile **100 % hors-ligne** qui transforme ta vie en stratégie militaire :
 
-## Get started
+- **Guerres** = tes domaines de vie (Finance, Santé, Carrière, Spirituel, Relations, Éducation, Loisirs)
+- **Batailles** = tes objectifs mesurables avec échéance
+- **Adversaires** = tes tâches, ponctuelles ou récurrentes
+- **Victoires / Défaites** = XP, combos, streaks et rangs de guerrier
 
-1. Install dependencies
+Aucun serveur, aucune connexion Internet, aucune télémétrie : toutes les données
+restent dans SQLite sur l'appareil, derrière un verrou PIN / biométrie.
 
-   ```bash
-   npm install
-   ```
+## Stack
 
-2. Start the app
+| Brique | Choix |
+|---|---|
+| Socle | Expo SDK 54 · React Native 0.81 (nouvelle architecture) · TypeScript strict |
+| Navigation | expo-router (Stack + Tabs) |
+| Persistance | **expo-sqlite** (SQLite / WAL) via couche repository + migrations |
+| Sécurité | expo-secure-store, expo-local-authentication, expo-crypto (PIN salé + haché) |
+| État UI | zustand + immer (les données métier restent dans SQLite) |
+| UI | Design system maison (tokens, glassmorphism, Reanimated 4 + Worklets, haptics) |
+| Graphes | SVG sur-mesure (donut, barres, radar, heatmap) |
+| Build | EAS Build — APK de test interne, AAB de production |
 
-   ```bash
-   npx expo start
-   ```
+## Architecture
 
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
+```
+app/                     Routes expo-router : onboarding, auth (PIN), app (tabs)
+src/
+  db/                    Client SQLite, migrations, settings, hook réactif
+    repositories/        Accès SQL par table (wars, battles, adversaries, finance…)
+  domain/                Catalogue métier (guerres par défaut, catégories, présets)
+  services/              Logique : sécurité, gamification, finances, récurrence, seed
+  store/                 Store zustand (session, feedback XP, actions rapides)
+  theme/  i18n/  components/
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+Principe directeur : **un écran n'écrit jamais de SQL**, un repository ne contient
+pas de logique d'écran, et il n'existe aucune donnée fictive — tout chiffre affiché
+provient de la base.
 
-## Learn more
+## Commandes
 
-To learn more about developing your project with Expo, look at the following resources:
+```bash
+npm install
+npm run typecheck                 # TypeScript strict
+npx eslint .                      # lint (0 erreur)
+npx expo start --dev-client       # avec un development build sur appareil
+npx eas-cli build -p android --profile preview     # APK de test
+```
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+Voir **[docs/BUILD.md](docs/BUILD.md)** pour la procédure EAS complète et
+**[docs/CAHIER_DES_CHARGES.md](docs/CAHIER_DES_CHARGES.md)** pour la spécification
+produit et technique (Phase 1 livrée, Phase 2 roadmap).
 
-## Join the community
+## Phases
 
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+- **Phase 1 (livrée)** — socle SQLite, sécurité, onboarding réel, Quartier Général,
+  Guerres/Batailles/Adversaires avec récurrence glissante, Finances
+  (comptes, transactions, budgets, graphes), réglages, build EAS.
+- **Phase 2 (roadmap)** — calendrier et suivi horaire, notifications,
+  réajustement automatique, agent NLP local, export/import CSV, santé/humeur.
