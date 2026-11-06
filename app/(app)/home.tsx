@@ -30,7 +30,7 @@ import { listWars } from '@/src/db/repositories/wars.repo';
 import { getTotalBalance } from '@/src/db/repositories/accounts.repo';
 import { getWarriorProfile, rankForLevel, winAdversary } from '@/src/services/gamification.service';
 import { getTodayExpense } from '@/src/services/finance.service';
-import { loadReview, reviewOneLiner } from '@/src/services/review.service';
+import { loadReviewTrend } from '@/src/services/review.service';
 import { useAppStore } from '@/src/store/useAppStore';
 import { formatCurrency, formatDateLong, formatTime, greeting } from '@/src/services/format';
 import { radius, spacing, typography } from '@/src/theme';
@@ -51,7 +51,7 @@ export default function HomeScreen() {
   const todayExpense = useRepoQuery(() => getTodayExpense(), []);
   const profile = useRepoQuery(() => getWarriorProfile(), []);
   // Bilan 7 jours : le QG montre l'essentiel, l'onglet Bilan donne le détail.
-  const weekReview = useRepoQuery(() => loadReview(7), []);
+  const weekTrend = useRepoQuery(() => loadReviewTrend(4), []);
 
   const instances = todayInstances.data ?? [];
   const stats = dayStats.data ?? { total: 0, won: 0, pending: 0, lost: 0 };
@@ -146,7 +146,11 @@ export default function HomeScreen() {
               <View style={{ flex: 1 }}>
                 <Text style={[styles.reviewTitle, { color: colors.text }]}>Ton bilan de la semaine</Text>
                 <Text style={[styles.reviewMeta, { color: colors.textMuted }]}>
-                  {weekReview.data ? reviewOneLiner(weekReview.data) : 'Calcul en cours…'}
+                  {weekTrend.data
+                    ? weekTrend.data.target.reached
+                      ? `Objectif ${weekTrend.data.target.target}/100 tenu · ${weekTrend.data.target.current}/100`
+                      : `Objectif ${weekTrend.data.target.target}/100 · tu es à ${weekTrend.data.target.current}`
+                    : 'Calcul en cours…'}
                 </Text>
               </View>
               <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />

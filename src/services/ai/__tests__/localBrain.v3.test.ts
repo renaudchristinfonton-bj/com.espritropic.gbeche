@@ -125,3 +125,39 @@ describe('non-régression des réponses existantes', () => {
     expect(ask('comment enregistrer une dépense')?.intent).toBe('brain-help-expense');
   });
 });
+
+describe('objectif de la semaine', () => {
+  it('donne la cible réelle et le retard', () => {
+    const answer = ask('c est quoi mon objectif de la semaine', {
+      weeklyTarget: 62,
+      weeklyReached: false,
+      score: 55,
+    });
+    expect(answer?.intent).toBe('brain-goal-open');
+    expect(answer?.text).toContain('62/100');
+    expect(answer?.text).toContain('7 points');
+    expect(answer?.action?.route).toBe('/(app)/review');
+  });
+
+  it('confirme un objectif tenu et propose de monter d’un cran', () => {
+    const answer = ask('j ai tenu mon objectif', {
+      weeklyTarget: 60,
+      weeklyReached: true,
+      score: 64,
+    });
+    expect(answer?.intent).toBe('brain-goal-reached');
+    expect(answer?.text).toContain('Objectif tenu');
+    expect(answer?.text).toContain('63');
+  });
+
+  it('reste honnête sans cible calculable', () => {
+    const answer = ask('objectif hebdo', {});
+    expect(answer?.intent).toBe('brain-goal-empty');
+    expect(answer?.text).toContain('Bilan');
+  });
+
+  it('n’invente pas de score manquant', () => {
+    const answer = ask('mon objectif', { weeklyTarget: 70, weeklyReached: false });
+    expect(answer?.text).toBe('Ton objectif de la semaine est de 70/100.');
+  });
+});

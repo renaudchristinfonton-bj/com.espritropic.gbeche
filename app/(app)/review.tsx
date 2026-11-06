@@ -31,6 +31,8 @@ import { SectionHeader } from '@/src/components/ui/SectionHeader';
 import { ProgressBar } from '@/src/components/ui/ProgressBar';
 import { ProgressRing } from '@/src/components/ui/XPBar';
 import { BarChart } from '@/src/components/charts/BarChart';
+import { WeeklyTargetCard } from '@/src/components/review/WeeklyTargetCard';
+import { WarBreakdown } from '@/src/components/review/WarBreakdown';
 import { DonutChart } from '@/src/components/charts/DonutChart';
 import { HeatMap } from '@/src/components/charts/HeatMap';
 import { useTheme } from '@/src/theme/ThemeContext';
@@ -39,6 +41,8 @@ import { listInstancesInRange } from '@/src/db/repositories/adversaries.repo';
 import { listTransactions } from '@/src/db/repositories/transactions.repo';
 import { budgetsWithSpent } from '@/src/db/repositories/budgets.repo';
 import { getWarriorProfile } from '@/src/services/gamification.service';
+import { loadReviewTrend } from '@/src/services/review.service';
+import { scoreSeries } from '@/src/domain/reviewSeries';
 import { currentMonthKey, formatCompact, formatCurrency } from '@/src/services/format';
 import { useAppStore } from '@/src/store/useAppStore';
 import {
@@ -85,9 +89,11 @@ export default function ReviewScreen() {
     return buildReview({ period, now, transactions, adversaries, budgets, profile });
   }, [period]);
 
+  const trend = useRepoQuery(() => loadReviewTrend(4), []);
   const review = query.data;
 
   const chart = useMemo(() => (review ? buildChart(review.days, review.period) : []), [review]);
+  const scorePoints = useMemo(() => (trend.data ? scoreSeries(trend.data.series) : []), [trend.data]);
 
   const onExport = useCallback(async () => {
     if (!review) return;
@@ -242,8 +248,15 @@ export default function ReviewScreen() {
         </GlassCard>
       </Animated.View>
 
+      {/* Objectif calibré + tendance */}
+      {trend.data ? (
+        <Animated.View entering={enter(1)} style={{ marginBottom: spacing[4] }}>
+          <WeeklyTargetCard target={trend.data.target} points={scorePoints} animated={!reduceMotion} />
+        </Animated.View>
+      ) : null}
+
       {/* Indicateurs */}
-      <Animated.View entering={enter(1)} style={[styles.kpiGrid, wide && styles.kpiGridWide]}>
+      <Animated.View entering={enter(2)} style={[styles.kpiGrid, wide && styles.kpiGridWide]}>
         <KpiTile
           icon="arrow-down"
           label="Entrées"
@@ -279,7 +292,7 @@ export default function ReviewScreen() {
       </Animated.View>
 
       {/* Flux des dépenses */}
-      <Animated.View entering={enter(2)}>
+      <Animated.View entering={enter(3)}>
         <SectionHeader title="Dépenses dans le temps" />
         <GlassCard style={{ gap: spacing[3] }}>
           {review.kpi.expense === 0 ? (
@@ -309,7 +322,7 @@ export default function ReviewScreen() {
 
       {/* Répartition */}
       {review.categories.length > 0 ? (
-        <Animated.View entering={enter(3)}>
+        <Animated.View entering={enter(4)}>
           <SectionHeader title="Où part l’argent" />
           <GlassCard style={[styles.donutCard, wide && styles.row]}>
             <DonutChart
@@ -344,7 +357,7 @@ export default function ReviewScreen() {
       ) : null}
 
       {/* Régularité */}
-      <Animated.View entering={enter(4)}>
+      <Animated.View entering={enter(5)}>
         <SectionHeader title="Régularité" />
         <GlassCard style={{ gap: spacing[4] }}>
           <View style={styles.heatHeader}>
@@ -364,8 +377,14 @@ export default function ReviewScreen() {
         </GlassCard>
       </Animated.View>
 
+      {/* Comparaison par guerre */}
+      <Animated.View entering={enter(6)}>
+        <SectionHeader title="Tes guerres" />
+        <WarBreakdown lines={review.wars} />
+      </Animated.View>
+
       {/* Constats */}
-      <Animated.View entering={enter(5)}>
+      <Animated.View entering={enter(7)}>
         <SectionHeader title="Ce que ça dit" />
         <View style={{ gap: spacing[2.5] }}>
           {review.insights.length === 0 ? (
@@ -382,7 +401,7 @@ export default function ReviewScreen() {
 
       {/* Budgets */}
       {review.budgets.length > 0 ? (
-        <Animated.View entering={enter(6)}>
+        <Animated.View entering={enter(8)}>
           <SectionHeader title="Budgets du mois" />
           <GlassCard style={{ gap: spacing[4] }}>
             {review.budgets.slice(0, 5).map((budget) => (
@@ -405,7 +424,7 @@ export default function ReviewScreen() {
       ) : null}
 
       {/* Prochaines actions */}
-      <Animated.View entering={enter(7)}>
+      <Animated.View entering={enter(9)}>
         <SectionHeader title="Et maintenant" />
         <View style={{ gap: spacing[2.5] }}>
           {review.actions.map((action, index) => (

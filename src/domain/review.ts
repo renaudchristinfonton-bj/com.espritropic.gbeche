@@ -136,6 +136,8 @@ export interface Review {
   days: ReviewDay[];
   heat: { date: string; value: number }[];
   budgets: ReviewBudgetLine[];
+  /** Répartition des missions par guerre sur la période. */
+  wars: ReviewWarLine[];
   score: ReviewScore;
   headline: string;
   insights: ReviewInsight[];
@@ -149,6 +151,7 @@ export interface ReviewInput {
   adversaries: AdversaryRow[];
   budgets?: BudgetWithSpent[];
   profile?: Partial<Pick<GamificationRow, 'streak' | 'level' | 'xp' | 'wins' | 'best_combo'>> | null;
+  /** Catalogue des guerres, pour nommer et colorer la répartition. */
   wars?: WarRow[];
 }
 
@@ -336,6 +339,87 @@ export function relativeDelta(current: number, previous: number): number | null 
 
 const clamp01 = (value: number): number => Math.max(0, Math.min(1, value));
 
+// ─── Comparaison par guerre ──────────────────────────────
+
+export interface ReviewWarLine {
+  id: string;
+  title: string;
+  icon: string;
+  color: string;
+  wins: number;
+  losses: number;
+  pending: number;
+  /** Missions planifiées sur la période, tous statuts confondus. */
+  total: number;
+  /** Victoires / missions tranchées ; null si rien n'a été tranché. */
+  completionRate: number | null;
+  /** XP effectivement gagnée sur la période (missions gagnées seulement). */
+  xp: number;
+  /** Part des victoires de la période, 0..1. */
+  share: number;
+}
+
+/**
+ * Répartit les missions de la période par guerre. Les guerres sans aucune
+ * mission sont conservées si elles sont demandées explicitement, mais
+ * l'affichage les ignore : une guerre vide n'est pas un échec.
+ * Tri : taux de réussite décroissant, puis volume de victoires.
+ */
+export function warBreakdownOf(
+  adversaries: AdversaryRow[],
+  wars: WarRow[],
+  w: ReviewWindow,
+): ReviewWarLine[] {
+  const byWar = new Map<string, { wins: number; losses: number; pending: number; xp: number }>();
+  for (const row of adversaries) {
+    if (!inWindow(row.scheduled_at, w)) continue;
+    const bucket = byWar.get(row.war_id) ?? { wins: 0, losses: 0, pending: 0, xp: 0 };
+    if (row.status === 'won') {
+      bucket.wins += 1;
+      // L'XP réellement créditée est celle de l'instance ; on ne la fabrique pas.
+      bucket.xp += Math.max(0, row.xp_reward);
+    } else if (row.status === 'lost') bucket.losses += 1;
+    else bucket.pending += 1;
+    byWar.set(row.war_id, bucket);
+  }
+
+  const totalWins = [...byWar.values()].reduce((sum, value) => sum + value.wins, 0);
+  const titles = new Map(wars.map((war) => [war.id, war]));
+
+  return [...byWar.entries()]
+    .map(([id, value]) => {
+      const war = titles.get(id);
+      const decided = value.wins + value.losses;
+      return {
+        id,
+        title: war?.title ?? 'Guerre archivée',
+        icon: war?.icon ?? 'flag',
+        color: war?.color ?? '#8E94A8',
+        wins: value.wins,
+        losses: value.losses,
+        pending: value.pending,
+        total: value.wins + value.losses + value.pending,
+        completionRate: decided > 0 ? value.wins / decided : null,
+        xp: value.xp,
+        share: totalWins > 0 ? value.wins / totalWins : 0,
+      };
+    })
+    .sort((a, b) => (b.completionRate ?? -1) - (a.completionRate ?? -1) || b.wins - a.wins);
+}
+
+/** Guerre la plus solide (assez de matière) et la plus fragile, ou null. */
+export function warExtremes(lines: ReviewWarLine[]): {
+  best: ReviewWarLine | null;
+  weakest: ReviewWarLine | null;
+} {
+  const judged = lines.filter((line) => line.completionRate !== null && line.wins + line.losses >= 2);
+  if (judged.length === 0) return { best: null, weakest: null };
+  const best = judged[0];
+  const weakest = judged[judged.length - 1];
+  if (best.id === weakest.id) return { best, weakest: null };
+  return { best, weakest };
+}
+
 // ─── Score ───────────────────────────────────────────────
 
 /**
@@ -410,6 +494,10 @@ export function insightsOf(input: {
   budgets: ReviewBudgetLine[];
   profile?: ReviewInput['profile'];
   days: number;
+  /** Optionnel : active les constats par guerre. */
+  adversaries?: AdversaryRow[];
+  wars?: WarRow[];
+  window?: ReviewWindow;
 }): ReviewInsight[] {
   const { kpi, delta, categories, budgets, profile, days } = input;
   const insights: ReviewInsight[] = [];
@@ -523,7 +611,31 @@ export function insightsOf(input: {
     });
   }
 
-  // 6. Série
+  // 6. Guerres : là où la discipline tient, et là où elle lâche.
+  const warLines = input.window
+    ? warBreakdownOf(input.adversaries ?? [], input.wars ?? [], input.window)
+    : [];
+  const { best, weakest } = warExtremes(warLines);
+  if (best && best.completionRate !== null && best.completionRate >= 0.8) {
+    insights.push({
+      id: 'war-strongest',
+      tone: 'good',
+      icon: best.icon,
+      title: `${best.title} : ${percent(best.completionRate)} de réussite`,
+      body: `${best.wins} victoire${best.wins > 1 ? 's' : ''} sur ${best.wins + best.losses} missions tranchées, ${best.xp} XP gagnée${best.xp > 1 ? 's' : ''}. C'est ta guerre la plus solide, appuie-toi dessus.`,
+    });
+  }
+  if (weakest && weakest.completionRate !== null && weakest.completionRate < 0.5) {
+    insights.push({
+      id: 'war-weakest',
+      tone: 'warn',
+      icon: weakest.icon,
+      title: `${weakest.title} décroche (${percent(weakest.completionRate)})`,
+      body: `${weakest.losses} mission${weakest.losses > 1 ? 's' : ''} perdue${weakest.losses > 1 ? 's' : ''} sur ${weakest.wins + weakest.losses} tranchées. Réduis la taille des missions de cette guerre avant de l'abandonner.`,
+    });
+  }
+
+  // 7. Série
   const streak = profile?.streak ?? 0;
   if (streak >= 3) {
     insights.push({
@@ -645,8 +757,19 @@ export function buildReview(input: ReviewInput): Review {
   };
 
   const score = scoreOf({ kpi, days: period, previousWins: missionsBefore.wins });
-  const insights = insightsOf({ kpi, delta, categories, budgets: budgetLines, profile, days: period });
+  const insights = insightsOf({
+    kpi,
+    delta,
+    categories,
+    budgets: budgetLines,
+    profile,
+    days: period,
+    adversaries,
+    wars: input.wars ?? [],
+    window,
+  });
   const actions = actionsOf({ kpi, budgets: budgetLines });
+  const warLines = warBreakdownOf(adversaries, input.wars ?? [], window);
 
   return {
     period,
@@ -658,6 +781,7 @@ export function buildReview(input: ReviewInput): Review {
     days,
     heat: days.map((d) => ({ date: d.date, value: d.intensity })),
     budgets: budgetLines,
+    wars: warLines,
     score,
     headline: headlineOf(kpi, period),
     insights,
@@ -702,6 +826,15 @@ export function buildReviewText(review: Review): string {
     lines.push('Top dépenses :');
     for (const category of review.categories.slice(0, 3)) {
       lines.push(`  - ${category.label} : ${formatCurrency(category.amount)}`);
+    }
+  }
+  const warLines = review.wars.filter((war) => war.total > 0);
+  if (warLines.length > 0) {
+    lines.push('');
+    lines.push('Par guerre :');
+    for (const war of warLines.slice(0, 5)) {
+      const rate = war.completionRate === null ? '—' : `${Math.round(war.completionRate * 100)} %`;
+      lines.push(`  - ${war.title} : ${war.wins} V / ${war.losses} D (${rate})`);
     }
   }
   if (review.insights.length > 0) {

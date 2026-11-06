@@ -41,3 +41,25 @@ export const REVIEW_FIXTURE = buildReview({
   adversaries: [],
   profile: { streak: 4, level: 3 },
 });
+
+/** Tendance : deux semaines rejouées + objectif calibré. */
+export const PAST_WEEK_FIXTURE = buildReview({
+  period: 7,
+  now: NOW - 7 * 86_400_000,
+  transactions: [],
+  adversaries: [],
+});
+
+export const TREND_FIXTURE = {
+  series: [PAST_WEEK_FIXTURE, REVIEW_FIXTURE],
+  target: {
+    target: 55,
+    baseline: 40,
+    current: REVIEW_FIXTURE.score.value,
+    historyWeeks: 0,
+    gap: REVIEW_FIXTURE.score.value - 55,
+    reached: REVIEW_FIXTURE.score.value >= 55,
+    mode: 'start' as const,
+    message: 'Objectif d’amorce : 55/100.',
+  },
+};

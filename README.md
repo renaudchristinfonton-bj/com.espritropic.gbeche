@@ -7,7 +7,8 @@ Application mobile **100 % hors-ligne** qui transforme ta vie en stratégie mili
 - **Adversaires** = tes tâches, ponctuelles ou récurrentes
 - **Victoires / Défaites** = XP, combos, streaks et rangs de guerrier
 - **Bilan** = rapport de guerre sur 7 / 30 / 90 jours : score sur 100, comparaison
-  avec la période précédente, constats chiffrés et prochaines actions
+  avec la période précédente, constats chiffrés, comparaison par guerre et
+  **objectif hebdomadaire calibré** sur les semaines réellement vécues
 
 Aucun serveur, aucune connexion Internet, aucune télémétrie : toutes les données
 restent dans SQLite sur l'appareil, derrière un verrou PIN / biométrie.

@@ -39,7 +39,7 @@ import {
   type ChatMessageStatus,
 } from '@/src/db/repositories/chat.repo';
 import { welcomeMessage } from '@/src/services/agent.service';
-import { loadReview, reviewToChat } from '@/src/services/review.service';
+import { loadReview, loadReviewTrend, reviewToChat } from '@/src/services/review.service';
 import {
   buildOpenIntents,
   isInternalRoute,
@@ -96,6 +96,8 @@ export default function AgentScreen() {
   const snapshotQuery = useRepoQuery(() => getAgentSnapshot(), []);
   // Bilan glissant : nourrit l'assistant avec les vrais chiffres de la période.
   const reviewQuery = useRepoQuery(() => loadReview(30), []);
+  // Objectif hebdomadaire calibré : même lecture que le Bilan.
+  const trendQuery = useRepoQuery(() => loadReviewTrend(4), []);
   const snapshot = snapshotQuery.data;
 
   // Message d'accueil automatique à la première ouverture.
@@ -150,14 +152,25 @@ export default function AgentScreen() {
         score: reviewQuery.data?.score.value ?? null,
         nextMissionTitle: nextMission?.title ?? null,
         nextMissionAt: nextMission?.scheduled_at ?? null,
+        weeklyTarget: trendQuery.data?.target.target ?? null,
+        weeklyMode: trendQuery.data?.target.mode ?? null,
+        weeklyHistoryWeeks: trendQuery.data?.target.historyWeeks ?? null,
+        weeklyReached: trendQuery.data?.target.reached ?? null,
       });
 
       if (parsed.intent === 'period-review') {
         // Bilan de période : lu en base puis formulé. Si la lecture échoue,
         // on le dit franchement plutôt que d'inventer des chiffres.
         try {
-          const review = await loadReview(parsed.period ?? 7);
-          const answer = reviewToChat(review);
+          const period = parsed.period ?? 7;
+          // Sur 7 jours, la tendance fournit déjà le bilan courant ET
+          // l'objectif calibré : une seule lecture de la base.
+          const trend = period === 7 ? await loadReviewTrend(4) : null;
+          const review =
+            trend && trend.series.length > 0
+              ? trend.series[trend.series.length - 1]
+              : await loadReview(period);
+          const answer = reviewToChat(review, trend?.target ?? null);
           await addMessage('agent', answer.text, ['period-review', ...buildOpenIntents(answer.action)]);
         } catch {
           await addMessage(

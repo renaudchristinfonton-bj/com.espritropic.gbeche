@@ -6,9 +6,15 @@
  * src/domain/__tests__/review.test.ts.
  */
 jest.mock('@/src/db/useRepoQuery', () => {
-  const { REVIEW_FIXTURE } = jest.requireActual('./fixtures/reviewFixture');
+  const { REVIEW_FIXTURE, TREND_FIXTURE } = jest.requireActual('./fixtures/reviewFixture');
+  // L'écran interroge d'abord le bilan, puis la tendance.
+  let call = 0;
   return {
-    useRepoQuery: () => ({ data: REVIEW_FIXTURE, status: 'ready', error: null, reload: jest.fn() }),
+    useRepoQuery: () => {
+      const data = call === 0 ? REVIEW_FIXTURE : TREND_FIXTURE;
+      call += 1;
+      return { data, status: 'ready', error: null, reload: jest.fn() };
+    },
   };
 });
 jest.mock('@/src/db/repositories/adversaries.repo', () => ({
@@ -80,6 +86,8 @@ describe('écran Bilan', () => {
     expect(joined).toContain('Et maintenant');
     expect(joined).toContain('Régularité');
     expect(joined).toContain('Entrées');
+    expect(joined).toContain('Objectif de la semaine');
+    expect(joined).toContain('Tes guerres');
     expect(joined).not.toContain('undefined');
     expect(joined).not.toContain('NaN');
 

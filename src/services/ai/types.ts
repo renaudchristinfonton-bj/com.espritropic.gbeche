@@ -23,6 +23,11 @@ export interface BrainContext {
   /** Prochaine mission encore en attente aujourd'hui. */
   nextMissionTitle?: string | null;
   nextMissionAt?: number | null;
+  /** Objectif hebdomadaire calibré (voir domain/reviewSeries). */
+  weeklyTarget?: number | null;
+  weeklyMode?: 'start' | 'climb' | 'hold' | null;
+  weeklyHistoryWeeks?: number | null;
+  weeklyReached?: boolean | null;
 }
 
 /** Écran que l'assistant propose d'ouvrir après sa réponse. */

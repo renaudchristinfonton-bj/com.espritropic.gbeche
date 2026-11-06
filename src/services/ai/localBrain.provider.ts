@@ -257,6 +257,40 @@ export class LocalBrainProvider implements AiProvider {
       return this.improvementPlan(context);
     }
 
+    const asksGoal = hasAny(text, [
+      'mon objectif',
+      'objectif de la semaine',
+      'j ai tenu mon objectif',
+      'objectif hebdo',
+      'je suis dans les temps',
+      'je tiens le rythme',
+    ]);
+    if (asksGoal) {
+      if (typeof context.weeklyTarget !== 'number') {
+        return reply(
+          'brain-goal-empty',
+          'Ton objectif se calcule à partir de tes semaines réelles. Ouvre le Bilan : il te donnera une cible chiffrée dès la première semaine terminée.',
+          { action: { label: 'Ouvrir le bilan', route: '/(app)/review' }, topic: 'objectif' },
+        );
+      }
+      if (context.weeklyReached) {
+        return reply(
+          'brain-goal-reached',
+          `Objectif tenu : ${context.score ?? context.weeklyTarget}/${context.weeklyTarget} cette semaine. Tu peux viser ${Math.min(95, context.weeklyTarget + 3)} la semaine prochaine.`,
+          { action: { label: 'Voir le détail', route: '/(app)/review' }, topic: 'objectif' },
+        );
+      }
+      const current = typeof context.score === 'number' ? context.score : null;
+      const gap = current === null ? null : Math.max(0, context.weeklyTarget - current);
+      return reply(
+        'brain-goal-open',
+        gap === null
+          ? `Ton objectif de la semaine est de ${context.weeklyTarget}/100.`
+          : `Ton objectif de la semaine est de ${context.weeklyTarget}/100 et tu es à ${current} : il manque ${gap} point${gap > 1 ? 's' : ''}. Une mission courte suffit souvent à combler ça.`,
+        { action: { label: 'Ouvrir le bilan', route: '/(app)/review' }, topic: 'objectif' },
+      );
+    }
+
     const asksScore = hasAny(text, ['mon score', 'ma note', 'combien je vaux', 'ma performance', 'mon niveau']);
     if (asksScore) {
       if (typeof context.score !== 'number') {
