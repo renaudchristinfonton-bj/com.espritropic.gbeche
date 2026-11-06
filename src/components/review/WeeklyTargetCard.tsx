@@ -52,7 +52,12 @@ export function WeeklyTargetCard({ target, points, animated = true }: WeeklyTarg
         </View>
       </View>
 
-      <View style={styles.numbers}>
+      <View
+        style={styles.numbers}
+        accessible
+        accessibilityRole="text"
+        accessibilityLabel={`Score de la semaine : ${Math.round(target.current)} sur un objectif de ${Math.round(target.target)} sur 100.`}
+      >
         <Text
           style={[styles.current, { color: accent }]}
           accessibilityLabel={`Score actuel ${target.current} sur un objectif de ${target.target}`}

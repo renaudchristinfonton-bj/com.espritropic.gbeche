@@ -48,7 +48,12 @@ export function WarBreakdown({ lines, emptyLabel = 'Aucune mission planifiée su
                 ? colors.warning
                 : colors.danger;
         return (
-          <View key={line.id} style={styles.row}>
+          <View
+            key={line.id}
+            style={styles.row}
+            accessible
+            accessibilityLabel={`${line.title} : ${rate === null ? 'aucune mission tranchée' : `${Math.round(rate * 100)} % de réussite`}, ${line.wins} victoire${line.wins > 1 ? 's' : ''}, ${line.losses} défaite${line.losses > 1 ? 's' : ''}${line.pending > 0 ? `, ${line.pending} en attente` : ''}${line.xp > 0 ? `, ${line.xp} XP gagnée${line.xp > 1 ? 's' : ''}` : ''}.`}
+          >
             <View style={styles.rowHeader}>
               <View style={[styles.warIcon, { backgroundColor: `${line.color}1A` }]}>
                 <Ionicons name={line.icon as keyof typeof Ionicons.glyphMap} size={15} color={line.color} />

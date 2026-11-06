@@ -494,10 +494,8 @@ export function insightsOf(input: {
   budgets: ReviewBudgetLine[];
   profile?: ReviewInput['profile'];
   days: number;
-  /** Optionnel : active les constats par guerre. */
-  adversaries?: AdversaryRow[];
-  wars?: WarRow[];
-  window?: ReviewWindow;
+  /** Répartition déjà calculée : évite un second parcours des missions. */
+  warLines?: ReviewWarLine[];
 }): ReviewInsight[] {
   const { kpi, delta, categories, budgets, profile, days } = input;
   const insights: ReviewInsight[] = [];
@@ -612,10 +610,7 @@ export function insightsOf(input: {
   }
 
   // 6. Guerres : là où la discipline tient, et là où elle lâche.
-  const warLines = input.window
-    ? warBreakdownOf(input.adversaries ?? [], input.wars ?? [], input.window)
-    : [];
-  const { best, weakest } = warExtremes(warLines);
+  const { best, weakest } = warExtremes(input.warLines ?? []);
   if (best && best.completionRate !== null && best.completionRate >= 0.8) {
     insights.push({
       id: 'war-strongest',
@@ -647,7 +642,14 @@ export function insightsOf(input: {
     });
   }
 
-  return insights.slice(0, 5);
+  // Priorité d'affichage : une alerte passe avant une réussite, qui passe
+  // avant une note de contexte. À ton égal, l'ordre de rédaction est gardé.
+  const rank: Record<InsightTone, number> = { warn: 0, good: 1, info: 2 };
+  return insights
+    .map((insight, index) => ({ insight, index }))
+    .sort((a, b) => rank[a.insight.tone] - rank[b.insight.tone] || a.index - b.index)
+    .slice(0, 5)
+    .map((entry) => entry.insight);
 }
 
 // ─── Prochaines actions ──────────────────────────────────
@@ -757,6 +759,7 @@ export function buildReview(input: ReviewInput): Review {
   };
 
   const score = scoreOf({ kpi, days: period, previousWins: missionsBefore.wins });
+  const warLines = warBreakdownOf(adversaries, input.wars ?? [], window);
   const insights = insightsOf({
     kpi,
     delta,
@@ -764,12 +767,9 @@ export function buildReview(input: ReviewInput): Review {
     budgets: budgetLines,
     profile,
     days: period,
-    adversaries,
-    wars: input.wars ?? [],
-    window,
+    warLines,
   });
   const actions = actionsOf({ kpi, budgets: budgetLines });
-  const warLines = warBreakdownOf(adversaries, input.wars ?? [], window);
 
   return {
     period,

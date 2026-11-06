@@ -424,3 +424,46 @@ describe('résumé texte', () => {
     expect(text).toContain('Généré hors-ligne');
   });
 });
+
+describe('priorité des constats', () => {
+  it('garde les alertes quand la limite de cinq est atteinte', () => {
+    const review = buildReview({
+      period: 30,
+      now: NOW,
+      transactions: [
+        tx({ amount: 100_000, timestamp: NOW - 2 * DAY_MS, type: 'income' }),
+        tx({ amount: -95_000, timestamp: NOW - 2 * DAY_MS, type: 'expense', category: 'food' }),
+      ],
+      adversaries: [
+        adv({ scheduled_at: NOW - DAY_MS, status: 'won' }),
+        adv({ scheduled_at: NOW - DAY_MS, status: 'lost' }),
+        adv({ scheduled_at: NOW - 2 * DAY_MS, status: 'lost' }),
+      ],
+      budgets: [budget('food', 10_000, 95_000)],
+      profile: { streak: 8 },
+    });
+    const tones = review.insights.map((insight) => insight.tone);
+    expect(review.insights.length).toBeLessThanOrEqual(5);
+    // Toutes les alertes disponibles doivent survivre à la troncature.
+    const warnCount = review.insights.filter((i) => i.tone === 'warn').length;
+    expect(warnCount).toBeGreaterThan(0);
+    expect(tones[0]).toBe('warn');
+    expect(review.insights.some((i) => i.id === 'budget-overrun')).toBe(true);
+  });
+
+  it('ne dépasse jamais cinq constats même avec beaucoup de matière', () => {
+    const review = buildReview({
+      period: 30,
+      now: NOW,
+      transactions: [
+        tx({ amount: 500_000, timestamp: NOW - DAY_MS, type: 'income' }),
+        tx({ amount: -400_000, timestamp: NOW - DAY_MS, type: 'expense' }),
+        tx({ amount: -100_000, timestamp: NOW - 2 * DAY_MS, type: 'expense' }),
+      ],
+      adversaries: [1, 2, 3, 4, 5].map((d) => adv({ scheduled_at: NOW - d * DAY_MS, status: 'lost' })),
+      budgets: [budget('food', 1000, 5000), budget('transport', 1000, 3000)],
+      profile: { streak: 10 },
+    });
+    expect(review.insights.length).toBe(5);
+  });
+});
