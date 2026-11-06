@@ -420,6 +420,73 @@ export function warExtremes(lines: ReviewWarLine[]): {
   return { best, weakest };
 }
 
+export interface WarPerformance {
+  /** Guerre étudiée (jamais null : les champs sont ceux du catalogue fourni). */
+  warId: string;
+  /** Ligne de la période courante, ou null si aucune mission planifiée. */
+  current: ReviewWarLine | null;
+  /** Ligne de la période précédente de même durée, ou null. */
+  previous: ReviewWarLine | null;
+  /** Écart de taux de réussite (courant − précédent), null si incomparable. */
+  rateDelta: number | null;
+  /** Écart du nombre de victoires. */
+  winsDelta: number | null;
+}
+
+/**
+ * Performance d'une guerre sur deux fenêtres consécutives. Sert à l'écran
+ * Guerres pour montrer « ça monte » ou « ça décroche » sans changer de page.
+ */
+export function warPerformance(
+  adversaries: AdversaryRow[],
+  war: WarRow,
+  now: number,
+  days = 30,
+): WarPerformance {
+  const current = reviewWindow(now, days);
+  const previous = previousWindow(current, days);
+  const lineOf = (window: ReviewWindow): ReviewWarLine | null =>
+    warBreakdownOf(adversaries, [war], window).find((line) => line.id === war.id) ?? null;
+
+  const currentLine = lineOf(current);
+  const previousLine = lineOf(previous);
+  const rateDelta =
+    currentLine?.completionRate !== null &&
+    currentLine !== null &&
+    previousLine?.completionRate !== null &&
+    previousLine !== null
+      ? currentLine.completionRate - previousLine.completionRate
+      : null;
+
+  return {
+    warId: war.id,
+    current: currentLine,
+    previous: previousLine,
+    rateDelta,
+    winsDelta: currentLine && previousLine ? currentLine.wins - previousLine.wins : null,
+  };
+}
+
+/**
+ * Guerre à relancer : la plus fragile, mais seulement si
+ *  - son taux de réussite est strictement inférieur à 50 %,
+ *  - elle a au moins deux missions tranchées (voir warExtremes),
+ *  - aucune mission n'y est déjà prévue aujourd'hui (inutile de harceler
+ *    quelqu'un qui a déjà planifié).
+ * Renvoie null dès qu'une de ces conditions manque.
+ */
+export function focusWarOf(
+  lines: ReviewWarLine[],
+  warIdsWithPendingToday: readonly string[],
+  threshold = 0.5,
+): ReviewWarLine | null {
+  const { weakest } = warExtremes(lines);
+  if (!weakest) return null;
+  if (weakest.completionRate === null || weakest.completionRate >= threshold) return null;
+  if (warIdsWithPendingToday.includes(weakest.id)) return null;
+  return weakest;
+}
+
 // ─── Score ───────────────────────────────────────────────
 
 /**

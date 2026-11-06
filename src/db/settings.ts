@@ -20,6 +20,10 @@ export const SETTING_KEYS = {
   scheduledReminders: 'scheduled_reminders',
   // Astuces contextuelles après 5 s d'inactivité (IdleCoach).
   idleCoachEnabled: 'idle_coach_enabled',
+  // Rappel « guerre qui décroche » : activé par défaut, au plus 1 fois/jour.
+  focusNudgeEnabled: 'focus_nudge_enabled',
+  // Date (YYYY-MM-DD locale) du dernier rappel émis.
+  focusNudgeDate: 'focus_nudge_date',
 } as const;
 
 export type SettingKey = (typeof SETTING_KEYS)[keyof typeof SETTING_KEYS];

@@ -7,6 +7,7 @@
 import React, { useEffect, useRef } from 'react';
 import { AppState, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useTheme } from '../../theme/ThemeContext';
@@ -14,6 +15,7 @@ import { radius, spacing, typography } from '../../theme';
 import { useAppStore } from '../../store/useAppStore';
 import { checkDueReminders } from '../../services/reminders.service';
 import { syncReminderSchedule } from '../../services/reminderScheduler.service';
+import { maybeNudgeFragileWar } from '../../services/focusNudge.service';
 import * as Haptics from '../../services/haptics';
 
 const POLL_INTERVAL_MS = 30_000;
@@ -23,6 +25,7 @@ export function NotificationHost() {
   const reminders = useAppStore((state) => state.reminders);
   const pushReminder = useAppStore((state) => state.pushReminder);
   const dismissReminder = useAppStore((state) => state.dismissReminder);
+  const router = useRouter();
   const mounted = useRef(true);
 
   useEffect(() => {
@@ -36,6 +39,11 @@ export function NotificationHost() {
       syncReminderSchedule().catch((error) =>
         console.warn('[reminders] schedule', error),
       );
+      // Rappel « guerre qui décroche » : au plus une fois par jour, et
+      // jamais de notification système pour ce cas.
+      maybeNudgeFragileWar((reminder) => {
+        if (mounted.current) pushReminder(reminder);
+      }).catch((error) => console.warn('[focus-nudge]', error));
     };
 
     run();
@@ -58,9 +66,16 @@ export function NotificationHost() {
       {reminders.slice(0, 3).map((reminder) => (
         <Pressable
           key={reminder.id}
+          accessibilityRole="button"
+          accessibilityHint={reminder.route ? 'Ouvre l’écran concerné' : undefined}
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             dismissReminder(reminder.id);
+            // Seules les routes internes sont acceptées : un rappel ne peut
+            // pas faire sortir de l'application.
+            if (reminder.route && reminder.route.startsWith('/(app)/')) {
+              router.push(reminder.route as never);
+            }
           }}
           style={[
             styles.banner,

@@ -21,6 +21,7 @@ import { TextField } from '@/src/components/ui/TextField';
 import { DateTimeField } from '@/src/components/ui/DateTimeField';
 import { FrequencySelector, DEFAULT_FREQUENCY, type FrequencyValue } from '@/src/components/ui/FrequencySelector';
 import { SegmentedControl } from '@/src/components/ui/SegmentedControl';
+import { WarPerformanceStrip } from '@/src/components/war/WarPerformanceStrip';
 import { ProgressBar } from '@/src/components/ui/ProgressBar';
 import { EmptyState } from '@/src/components/ui/EmptyState';
 import { useTheme } from '@/src/theme/ThemeContext';
@@ -31,6 +32,8 @@ import {
   listBattlesByWar,
   type BattleProgress,
 } from '@/src/db/repositories/battles.repo';
+import { listInstancesInRange } from '@/src/db/repositories/adversaries.repo';
+import { warPerformance } from '@/src/domain/review';
 import type {
   AdversaryRow,
   AdversaryTemplateRow,
@@ -389,14 +392,28 @@ function WarSection({
   const battlesQuery = useRepoQuery(() => listBattlesByWar(war.id), [war.id]);
   const battles = battlesQuery.data ?? [];
 
+  // 60 jours couvrent la période affichée et sa période de comparaison.
+  const instancesQuery = useRepoQuery(async () => {
+    const now = Date.now();
+    const rows = await listInstancesInRange(now - 60 * 86_400_000, now);
+    return rows.filter((row) => row.war_id === war.id);
+  }, [war.id]);
+  const performance = useMemo(
+    () => warPerformance(instancesQuery.data ?? [], war, Date.now(), 30),
+    [instancesQuery.data, war],
+  );
+
   if (battles.length === 0) {
     return (
-      <EmptyState
-        icon="flag-outline"
-        title="Aucune bataille pour l'instant"
-        description={`Définis ton premier objectif dans la guerre « ${war.title} ».`}
-        color={war.color}
-      />
+      <>
+        <WarPerformanceStrip performance={performance} color={war.color} />
+        <EmptyState
+          icon="flag-outline"
+          title="Aucune bataille pour l'instant"
+          description={`Définis ton premier objectif dans la guerre « ${war.title} ».`}
+          color={war.color}
+        />
+      </>
     );
   }
 
@@ -420,6 +437,8 @@ function WarSection({
           <Ionicons name="create-outline" size={18} color={colors.textMuted} />
         </Pressable>
       </GlassCard>
+
+      <WarPerformanceStrip performance={performance} color={war.color} />
 
       {battles.map((battle) => (
         <BattleCard key={battle.id} battle={battle} onPress={() => onOpenBattle(battle)} onEdit={() => onOpenBattle(battle)} />

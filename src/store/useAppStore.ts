@@ -21,6 +21,8 @@ export interface InAppReminder {
   title: string;
   body: string;
   createdAt: number;
+  /** Écran à ouvrir quand on touche le rappel (routes internes uniquement). */
+  route?: string;
 }
 
 interface AppState {

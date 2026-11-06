@@ -225,6 +225,7 @@ export default function SettingsScreen() {
           onPress={() => useAppStore.getState().openTutorial()}
         />
         <IdleCoachSettingsRow />
+        <FocusNudgeSettingsRow />
       </GlassCard>
 
       {/* Données */}
@@ -379,6 +380,38 @@ function IdleCoachSettingsRow() {
         value={enabled}
         onValueChange={toggle}
         trackColor={{ false: colors.glassBorder, true: colors.primary }}
+        thumbColor={enabled ? colors.textInverse : colors.textTertiary}
+      />
+    </View>
+  );
+}
+
+function FocusNudgeSettingsRow() {
+  const { colors } = useTheme().theme;
+  const [enabled, setEnabled] = useState(() =>
+    getSettingBool(SETTING_KEYS.focusNudgeEnabled, true),
+  );
+
+  const toggle = async (next: boolean) => {
+    setEnabled(next);
+    await setSettingBool(SETTING_KEYS.focusNudgeEnabled, next);
+  };
+
+  return (
+    <View style={styles.settingRow}>
+      <View style={[styles.rowIcon, { backgroundColor: colors.warningBg }]}>
+        <Ionicons name="shield-half" size={20} color={colors.warning} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.rowLabel, { color: colors.text }]}>Alerte guerre fragile</Text>
+        <Text style={[styles.rowValue, { color: colors.textMuted }]}>
+          Un rappel par jour si une guerre décroche
+        </Text>
+      </View>
+      <Switch
+        value={enabled}
+        onValueChange={toggle}
+        trackColor={{ false: colors.glassBorder, true: colors.warning }}
         thumbColor={enabled ? colors.textInverse : colors.textTertiary}
       />
     </View>
