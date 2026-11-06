@@ -31,7 +31,8 @@ const AUTO_HIDE_MS = 9000;
 export interface CoachTip {
   text: string;
   icon: keyof typeof Ionicons.glyphMap;
-  route: '/(app)/agent';
+  /** Écran à ouvrir ; null quand l'astuce ne fait que commenter l'écran courant. */
+  route: '/(app)/agent' | null;
 }
 
 /** Proposition contextuelle par écran (pur, donc testable sans rendu). */
@@ -48,6 +49,13 @@ export function coachTipForPath(pathname: string): CoachTip | null {
   }
   if (pathname.startsWith('/finance')) {
     return { text: 'Voulez-vous enregistrer une dépense ou un revenu ?', icon: 'wallet', route: '/(app)/agent' };
+  }
+  if (pathname.startsWith('/review')) {
+    return {
+      text: 'Ton bilan est prêt : regarde le constat du haut, il te dit quoi corriger.',
+      icon: 'stats-chart',
+      route: null,
+    };
   }
   if (pathname.startsWith('/settings')) {
     return { text: 'Voulez-vous ajuster tes rappels et notifications ?', icon: 'settings', route: '/(app)/agent' };
@@ -138,7 +146,7 @@ export function IdleCoach() {
   const accept = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     hide();
-    router.push(tip.route);
+    if (tip.route) router.push(tip.route);
   };
 
   const disablePermanently = async () => {

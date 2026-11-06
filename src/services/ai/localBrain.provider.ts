@@ -16,8 +16,14 @@ const SUGGESTIONS = [
   'C’est quoi une guerre ?',
 ];
 
-function reply(intent: string, text: string): BrainReply {
-  return { intent, text, suggestions: SUGGESTIONS };
+function reply(intent: string, text: string, extra: Partial<BrainReply> = {}): BrainReply {
+  return { intent, text, suggestions: SUGGESTIONS, ...extra };
+}
+
+/** « 7 h 05 » à partir d'un timestamp. */
+function clockOf(ms: number): string {
+  const date = new Date(ms);
+  return `${date.getHours()} h ${`${date.getMinutes()}`.padStart(2, '0')}`;
 }
 
 function roundFcfa(value: number): string {
@@ -101,9 +107,32 @@ const EXPLANATIONS: { id: string; keywords: string[]; title: string; body: strin
 export class LocalBrainProvider implements AiProvider {
   readonly name = 'local-brain';
 
+  /**
+   * Mémoire courte du dernier échange. Elle vit en RAM, jamais sur disque,
+   * et sert uniquement à ne pas répéter mot pour mot la même réponse.
+   */
+  private last: { text: string; topic: string } | null = null;
+
   respond({ raw, context = {} }: { raw: string; context?: BrainContext }): BrainReply | null {
     const text = normalizeText(raw);
     if (text.length < 2) return null;
+
+    // Question strictement identique : le dire franchement vaut mieux que
+    // rejouer la même phrase une deuxième fois.
+    if (this.last && this.last.text === text) {
+      return reply(
+        'brain-repeat',
+        'Je t’ai déjà répondu juste au-dessus. Si ce n’est pas clair, précise : un calcul, une mission, ou ton argent.',
+        { topic: this.last.topic },
+      );
+    }
+
+    const out = this.compose(text, raw, context);
+    this.last = { text, topic: out?.topic ?? 'discussion' };
+    return out;
+  }
+
+  private compose(text: string, raw: string, context: BrainContext): BrainReply | null {
 
     // 1. Salutations et formules sociales.
     if (hasAny(text, ['cc', 'slt', 'salut', 'bonjour', 'bonsoir', 'coucou', 'hello', 'wesh'])) {
@@ -134,7 +163,11 @@ export class LocalBrainProvider implements AiProvider {
       );
     }
 
-    // 2. Explications de fonctionnalités.
+    // 2. Le quotidien : quoi faire maintenant, comment progresser, mon score.
+    const now = this.whatNow(text, context);
+    if (now) return now;
+
+    // 3. Explications de fonctionnalités.
     if (hasAny(text, ['comment', 'quoi', 'explique', 'marche', 'aide', 'aide moi', 'c est quoi'])) {
       for (const guide of EXPLANATIONS) {
         if (guide.keywords.some((keyword) => hasWord(text, keyword))) {
@@ -147,7 +180,7 @@ export class LocalBrainProvider implements AiProvider {
       );
     }
 
-    // 3. Calculs de pourcentage.
+    // 4. Calculs de pourcentage.
     const percent = percentOf(raw);
     if (percent) {
       return reply(
@@ -156,21 +189,131 @@ export class LocalBrainProvider implements AiProvider {
       );
     }
 
-    // 4. Arithmétique parlée.
+    // 5. Arithmétique parlée.
     const value = evaluate(raw);
     if (value !== null) {
       return reply('brain-calc', `Résultat : ${formatNumber(value)}.`);
     }
 
-    // 5. Enveloppe d'épargne selon une fréquence libre.
+    // 6. Enveloppe d'épargne selon une fréquence libre.
     const savings = this.handleSavings(text);
     if (savings) return savings;
 
-    // 6. Conseil contextuel sur les vraies données.
+    // 7. Conseil contextuel sur les vraies données.
     const advice = this.contextualAdvice(text, context);
     if (advice) return advice;
 
     return null;
+  }
+
+  /**
+   * Répond à « je fais quoi maintenant ? », « par quoi commencer ? »,
+   * « comment progresser ? » et « c'est quoi mon score ? ».
+   * Tout part du bilan réel transmis par l'écran ; rien n'est supposé.
+   */
+  private whatNow(text: string, context: BrainContext): BrainReply | null {
+    const asksNext = hasAny(text, [
+      'je fais quoi',
+      'quoi faire',
+      'par quoi commencer',
+      'prochaine mission',
+      'etape suivante',
+      'on attaque quoi',
+      'aujourd hui je fais',
+    ]);
+    if (asksNext) {
+      if (context.nextMissionTitle) {
+        const when = context.nextMissionAt ? ` à ${clockOf(context.nextMissionAt)}` : '';
+        return reply(
+          'brain-next-mission',
+          `Ta prochaine mission : « ${context.nextMissionTitle} »${when}. Commence par elle : une victoire courte crée l'élan pour le reste.`,
+          { action: { label: 'Voir mes missions', route: '/(app)/home' }, topic: 'missions' },
+        );
+      }
+      if ((context.pendingToday ?? 0) > 0) {
+        return reply(
+          'brain-next-mission',
+          `Il te reste ${context.pendingToday} mission(s) aujourd'hui. Ouvre l'ordre de bataille et prends la plus courte.`,
+          { action: { label: 'Ordre de bataille', route: '/(app)/home' }, topic: 'missions' },
+        );
+      }
+      return reply(
+        'brain-next-empty',
+        'Rien n’est programmé pour aujourd’hui. Pose une mission de 10 minutes maintenant : sans plan, la journée décide pour toi.',
+        { action: { label: 'Planifier', route: '/(app)/calendar' }, topic: 'missions' },
+      );
+    }
+
+    const asksProgress = hasAny(text, [
+      'progresser',
+      'ameliorer',
+      'mieux faire',
+      'monter',
+      'meilleur score',
+      'augmenter mon score',
+      'gagner des points',
+    ]);
+    if (asksProgress) {
+      return this.improvementPlan(context);
+    }
+
+    const asksScore = hasAny(text, ['mon score', 'ma note', 'combien je vaux', 'ma performance', 'mon niveau']);
+    if (asksScore) {
+      if (typeof context.score !== 'number') {
+        return reply(
+          'brain-score-empty',
+          'Je n’ai pas encore de bilan sous la main. Demande-moi « bilan de la semaine » et je te sors ton score détaillé.',
+          { action: { label: 'Ouvrir le bilan', route: '/(app)/review' }, topic: 'score' },
+        );
+      }
+      return reply(
+        'brain-score',
+        `Ton score sur ${context.periodDays ?? 30} jours est de ${Math.round(context.score)}/100. Le détail (discipline, régularité, épargne, élan) est dans l’onglet Bilan.`,
+        { action: { label: 'Voir le détail', route: '/(app)/review' }, topic: 'score' },
+      );
+    }
+
+    return null;
+  }
+
+  /** Nomme le levier le plus faible, un seul, avec un geste concret. */
+  private improvementPlan(context: BrainContext): BrainReply {
+    const savings = context.savingsRate ?? null;
+    const completion = context.completionRate ?? null;
+
+    if (completion !== null && completion < 0.6) {
+      return reply(
+        'brain-improve-discipline',
+        `Ton levier numéro un, c’est la constance : ${Math.round(completion * 100)} % de missions tenues. Réduis la taille des missions à 10 minutes et gagne-en une aujourd’hui, même petite.`,
+        { action: { label: 'Ajuster mes missions', route: '/(app)/wars' }, topic: 'progression' },
+      );
+    }
+    if (savings !== null && savings < 0.1) {
+      return reply(
+        'brain-improve-savings',
+        `Ton levier numéro un, c’est la marge : tu gardes ${Math.round(Math.max(0, savings) * 100)} % de ce qui rentre. Fixe une enveloppe automatique dès l’entrée d’argent, même 5 %.`,
+        { action: { label: 'Créer une enveloppe', route: '/(app)/agent' }, topic: 'progression' },
+      );
+    }
+    if ((context.overrunBudgets ?? 0) > 0) {
+      return reply(
+        'brain-improve-budget',
+        `${context.overrunBudgets} budget(s) sont dépassés. Coupe d’abord dans la catégorie la plus lourde : c’est là que chaque franc rendu compte double.`,
+        { action: { label: 'Voir mes budgets', route: '/(app)/finance' }, topic: 'progression' },
+      );
+    }
+    if (typeof context.score === 'number') {
+      return reply(
+        'brain-improve-steady',
+        `Ton score est de ${Math.round(context.score)}/100 et rien ne fuit. Pour franchir un palier, ajoute une mission récurrente courte les jours où tu n’en as aucune : la régularité pèse plus lourd que l’intensité.`,
+        { action: { label: 'Ouvrir le bilan', route: '/(app)/review' }, topic: 'progression' },
+      );
+    }
+    return reply(
+      'brain-improve-empty',
+      'Commence par trois jours d’affilée avec une mission gagnée : c’est la base de tout le reste. Ensuite je te montre les chiffres.',
+      { action: { label: 'Programmer une mission', route: '/(app)/calendar' }, topic: 'progression' },
+    );
   }
 
   private handleSavings(text: string): BrainReply | null {

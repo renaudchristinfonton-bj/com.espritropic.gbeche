@@ -19,7 +19,7 @@ import { router, useSegments } from 'expo-router';
 
 import * as Haptics from '../../services/haptics';
 
-export const TAB_ORDER = ['home', 'calendar', 'wars', 'finance', 'settings'] as const;
+export const TAB_ORDER = ['home', 'calendar', 'wars', 'finance', 'review', 'settings'] as const;
 export type TabName = (typeof TAB_ORDER)[number];
 
 const SWIPE_DISTANCE = 90;

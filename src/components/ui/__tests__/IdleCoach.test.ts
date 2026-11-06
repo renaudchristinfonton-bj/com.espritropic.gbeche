@@ -11,6 +11,7 @@ describe('coachTipForPath', () => {
     expect(coachTipForPath('/wars')?.text).toMatch(/guerre/i);
     expect(coachTipForPath('/finance')?.text).toMatch(/dépense|revenu/i);
     expect(coachTipForPath('/settings')?.text).toMatch(/rappels|notifications/i);
+    expect(coachTipForPath('/review')?.text).toMatch(/bilan|constat/i);
   });
 
   test('reste muet sur la conversation et les données', () => {
@@ -22,6 +23,13 @@ describe('coachTipForPath', () => {
     for (const path of ['/home', '/calendar', '/wars', '/finance', '/settings']) {
       expect(coachTipForPath(path)?.route).toBe('/(app)/agent');
     }
+  });
+
+  test('l’astuce du bilan commente l’écran sans naviguer ailleurs', () => {
+    const tip = coachTipForPath('/review');
+    expect(tip).not.toBeNull();
+    expect(tip?.route).toBeNull();
+    expect(tip?.icon).toBe('stats-chart');
   });
 
   test('un chemin inconnu ne propose rien', () => {

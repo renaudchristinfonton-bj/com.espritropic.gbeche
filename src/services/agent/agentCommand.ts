@@ -10,7 +10,8 @@
 
 import { CATEGORIES, type CategoryMeta } from '../../domain/catalog';
 import { generateReply } from '../agent.service';
-import { askBrain, type BrainContext } from '../ai';
+import { askBrain, type BrainAction, type BrainContext } from '../ai';
+import { periodFromText, type ReviewPeriod } from '@/src/domain/review';
 import type { LifePlan } from './lifeProject.service';
 
 // ─── Actions proposées par l'agent (cartes à confirmer) ─────
@@ -34,6 +35,10 @@ export interface ParsedResult {
   text: string;
   suggestions: string[];
   actions?: AgentAction[];
+  /** Renseigné pour l'intention `period-review` : durée demandée en jours. */
+  period?: ReviewPeriod;
+  /** Écran que l'assistant propose d'ouvrir après sa réponse. */
+  action?: BrainAction;
 }
 
 // ─── Normalisation ─────────────────────────────────────────
@@ -353,6 +358,22 @@ export function parseCommand(raw: string, brainContext?: BrainContext): ParsedRe
 
   // Bilans sur données réelles : le texte final est construit par
   // agentActions.service.ts à partir du snapshot (zéro donnée inventée).
+  // Bilan sur une période explicite (« bilan de la semaine », « du mois ») :
+  // il est construit depuis SQLite par l'écran, jamais inventé ici.
+  const wantsPeriodReview = /bilan|recap|resume|point|review|rapport/.test(text);
+  if (wantsPeriodReview) {
+    const requested = periodFromText(raw);
+    if (requested) {
+      return {
+        kind: 'reply',
+        intent: 'period-review',
+        text: '',
+        suggestions: COMMAND_SUGGESTIONS,
+        period: requested,
+      };
+    }
+  }
+
   const asksQuestion = /comment|quel|quels|quelles|bilan|recap|resume|point|conseil|va/.test(text);
   if (asksQuestion && parseAmount(text) === null) {
     if (DAY_REVIEW_RE.test(text) && !FINANCE_REVIEW_RE.test(text)) {
@@ -406,6 +427,7 @@ export function parseCommand(raw: string, brainContext?: BrainContext): ParsedRe
       intent: brain.intent,
       text: brain.text,
       suggestions: brain.suggestions ?? COMMAND_SUGGESTIONS,
+      action: brain.action,
     };
   }
 

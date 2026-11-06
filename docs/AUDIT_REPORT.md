@@ -1,6 +1,6 @@
 # Rapport d'audit GBECHE
 
-Généré le 06/11/2026 15:55:15 — 100 % hors-ligne.
+Généré le 06/11/2026 16:18:40 — 100 % hors-ligne.
 
 ## Synthèse
 
@@ -9,9 +9,9 @@ Généré le 06/11/2026 15:55:15 — 100 % hors-ligne.
 | Sécurité (npm audit) | 34 vulnérabilité(s) (build/audit) |
 | Migrations non destructives | ✅ |
 | TypeScript | ✅ |
-| Tests fonctionnels (337 passed, 337 total) | ✅ |
-| ESLint / accessibilité (0 erreur, 13 avertissement) | ✅ |
-| Aucun appel réseau (112 fichiers) | ✅ |
+| Tests fonctionnels (437 passed, 437 total) | ✅ |
+| ESLint / accessibilité (0 erreur, 12 avertissement) | ✅ |
+| Aucun appel réseau (118 fichiers) | ✅ |
 | Tous les écrans défilent | ✅ |
 | Assets de marque présents | ✅ |
 
@@ -19,7 +19,7 @@ Généré le 06/11/2026 15:55:15 — 100 % hors-ligne.
 
 | Règle | Erreurs | Avertissements |
 | --- | --: | --: |
-| react-hooks/exhaustive-deps | 0 | 13 |
+| react-hooks/exhaustive-deps | 0 | 12 |
 
 ## Assets de marque
 

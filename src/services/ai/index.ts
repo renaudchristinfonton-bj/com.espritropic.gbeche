@@ -7,7 +7,7 @@
  * écrans ni au parseur de commandes.
  */
 import { LocalBrainProvider } from './localBrain.provider';
-import type { AiProvider, BrainContext, BrainReply } from './types';
+import type { AiProvider, BrainAction, BrainContext, BrainReply } from './types';
 
 let provider: AiProvider | null = null;
 
@@ -20,4 +20,4 @@ export function askBrain(raw: string, context?: BrainContext): BrainReply | null
   return getAiProvider().respond({ raw, context });
 }
 
-export type { AiProvider, BrainContext, BrainReply };
+export type { AiProvider, BrainAction, BrainContext, BrainReply };

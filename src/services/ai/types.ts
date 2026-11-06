@@ -14,12 +14,30 @@ export interface BrainContext {
   wonToday?: number;
   overrunBudgets?: number;
   activeWars?: number;
+  /** Bilan glissant déjà calculé (30 jours par défaut). */
+  periodDays?: number;
+  periodExpense?: number;
+  savingsRate?: number | null;
+  completionRate?: number | null;
+  score?: number | null;
+  /** Prochaine mission encore en attente aujourd'hui. */
+  nextMissionTitle?: string | null;
+  nextMissionAt?: number | null;
+}
+
+/** Écran que l'assistant propose d'ouvrir après sa réponse. */
+export interface BrainAction {
+  label: string;
+  route: string;
 }
 
 export interface BrainReply {
   intent: string;
   text: string;
   suggestions?: string[];
+  action?: BrainAction;
+  /** Sujet retenu pour la mémoire courte de la conversation. */
+  topic?: string;
 }
 
 export interface AiProvider {

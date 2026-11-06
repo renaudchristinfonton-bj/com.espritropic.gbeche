@@ -70,12 +70,15 @@ export default function AppTabsLayout() {
             animation: 'shift',
             tabBarActiveTintColor: colors.tabActive,
             tabBarInactiveTintColor: colors.tabInactive,
+            // Six onglets : libellés légèrement resserrés pour rester
+            // lisibles sans jamais tronquer « Finances » ou « Réglages ».
             tabBarLabelStyle: {
-              fontSize: 10.5,
+              fontSize: 9.5,
               fontWeight: '800',
-              letterSpacing: 0.2,
-              marginTop: 2,
+              letterSpacing: 0,
+              marginTop: 1,
             },
+            tabBarItemStyle: { paddingHorizontal: 2 },
             tabBarStyle: {
               position: 'absolute',
               left: spacing[4],
@@ -142,6 +145,15 @@ export default function AppTabsLayout() {
             }}
           />
           <Tabs.Screen
+            name="review"
+            options={{
+              title: 'Bilan',
+              tabBarIcon: ({ focused, color }) => (
+                <TabIcon name={focused ? 'stats-chart' : 'stats-chart-outline'} focused={focused} color={color} />
+              ),
+            }}
+          />
+          <Tabs.Screen
             name="settings"
             options={{
               title: 'Réglages',
@@ -181,8 +193,8 @@ export default function AppTabsLayout() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   iconPill: {
-    width: 40,
-    height: 30,
+    width: 34,
+    height: 28,
     borderRadius: radius.full,
     alignItems: 'center',
     justifyContent: 'center',

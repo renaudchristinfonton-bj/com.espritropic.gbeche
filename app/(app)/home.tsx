@@ -30,6 +30,7 @@ import { listWars } from '@/src/db/repositories/wars.repo';
 import { getTotalBalance } from '@/src/db/repositories/accounts.repo';
 import { getWarriorProfile, rankForLevel, winAdversary } from '@/src/services/gamification.service';
 import { getTodayExpense } from '@/src/services/finance.service';
+import { loadReview, reviewOneLiner } from '@/src/services/review.service';
 import { useAppStore } from '@/src/store/useAppStore';
 import { formatCurrency, formatDateLong, formatTime, greeting } from '@/src/services/format';
 import { radius, spacing, typography } from '@/src/theme';
@@ -49,6 +50,8 @@ export default function HomeScreen() {
   const balance = useRepoQuery(() => getTotalBalance(), []);
   const todayExpense = useRepoQuery(() => getTodayExpense(), []);
   const profile = useRepoQuery(() => getWarriorProfile(), []);
+  // Bilan 7 jours : le QG montre l'essentiel, l'onglet Bilan donne le détail.
+  const weekReview = useRepoQuery(() => loadReview(7), []);
 
   const instances = todayInstances.data ?? [];
   const stats = dayStats.data ?? { total: 0, won: 0, pending: 0, lost: 0 };
@@ -127,6 +130,26 @@ export default function HomeScreen() {
                   {profile.data?.xp ?? 0} XP · {profile.data?.wins ?? 0} batailles gagnées
                 </Text>
               </View>
+            </View>
+          </GlassCard>
+
+          {/* Accès au bilan */}
+          <GlassCard
+            onPress={() => router.push('/(app)/review')}
+            accentColor={colors.primary}
+            style={styles.reviewCard}
+          >
+            <View style={styles.reviewRow}>
+              <View style={[styles.reviewIcon, { backgroundColor: colors.primaryDim }]}>
+                <Ionicons name="stats-chart" size={18} color={colors.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.reviewTitle, { color: colors.text }]}>Ton bilan de la semaine</Text>
+                <Text style={[styles.reviewMeta, { color: colors.textMuted }]}>
+                  {weekReview.data ? reviewOneLiner(weekReview.data) : 'Calcul en cours…'}
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
             </View>
           </GlassCard>
 
@@ -290,6 +313,17 @@ const styles = StyleSheet.create({
   },
   chipText: { fontSize: typography.sizes.sm, fontWeight: '800' },
   heroCard: { overflow: 'hidden' },
+  reviewCard: { marginTop: spacing[4] },
+  reviewRow: { flexDirection: 'row', alignItems: 'center', gap: spacing[3] },
+  reviewIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  reviewTitle: { fontSize: typography.sizes.base, fontWeight: '800' },
+  reviewMeta: { fontSize: typography.sizes.xs, fontWeight: '600', marginTop: 2 },
   heroContent: {
     flexDirection: 'row',
     alignItems: 'center',

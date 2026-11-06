@@ -39,6 +39,13 @@ import {
   type ChatMessageStatus,
 } from '@/src/db/repositories/chat.repo';
 import { welcomeMessage } from '@/src/services/agent.service';
+import { loadReview, reviewToChat } from '@/src/services/review.service';
+import {
+  buildOpenIntents,
+  isInternalRoute,
+  parseOpenAction,
+  parseIntents,
+} from '@/src/services/agent/navigationIntent';
 import {
   COMMAND_SUGGESTIONS,
   describeAction,
@@ -87,6 +94,8 @@ export default function AgentScreen() {
   const messagesQuery = useRepoQuery(() => listMessages(), []);
   const messages = messagesQuery.data ?? [];
   const snapshotQuery = useRepoQuery(() => getAgentSnapshot(), []);
+  // Bilan glissant : nourrit l'assistant avec les vrais chiffres de la période.
+  const reviewQuery = useRepoQuery(() => loadReview(30), []);
   const snapshot = snapshotQuery.data;
 
   // Message d'accueil automatique à la première ouverture.
@@ -127,15 +136,37 @@ export default function AgentScreen() {
         return;
       }
 
+      const nextMission = snapshot?.pendingToday?.[0] ?? null;
       const parsed = parseCommand(text, {
         balance: snapshot?.balance ?? null,
         pendingToday: snapshot?.day.pending ?? 0,
         wonToday: snapshot?.day.won ?? 0,
         overrunBudgets: snapshot?.budgets.filter((b) => b.spent > b.amount).length ?? 0,
         activeWars: snapshot?.wars.length ?? 0,
+        periodDays: 30,
+        periodExpense: reviewQuery.data?.kpi.expense,
+        savingsRate: reviewQuery.data?.kpi.savingsRate ?? null,
+        completionRate: reviewQuery.data?.kpi.completionRate ?? null,
+        score: reviewQuery.data?.score.value ?? null,
+        nextMissionTitle: nextMission?.title ?? null,
+        nextMissionAt: nextMission?.scheduled_at ?? null,
       });
 
-      if (parsed.intent === 'day-review' && snapshot) {
+      if (parsed.intent === 'period-review') {
+        // Bilan de période : lu en base puis formulé. Si la lecture échoue,
+        // on le dit franchement plutôt que d'inventer des chiffres.
+        try {
+          const review = await loadReview(parsed.period ?? 7);
+          const answer = reviewToChat(review);
+          await addMessage('agent', answer.text, ['period-review', ...buildOpenIntents(answer.action)]);
+        } catch {
+          await addMessage(
+            'agent',
+            'Je n’ai pas réussi à lire tes données pour ce bilan. Vérifie que la base est disponible puis redemande.',
+            ['period-review-error'],
+          );
+        }
+      } else if (parsed.intent === 'day-review' && snapshot) {
         await addMessage('agent', buildDayReview(snapshot), ['day-review']);
       } else if (parsed.intent === 'finance-review' && snapshot) {
         await addMessage('agent', buildFinanceReview(snapshot), ['finance-review']);
@@ -160,7 +191,10 @@ export default function AgentScreen() {
           );
           return;
         }
-        await addMessage('agent', parsed.text, [parsed.intent]);
+        await addMessage('agent', parsed.text, [
+          parsed.intent,
+          ...(parsed.action ? buildOpenIntents(parsed.action) : []),
+        ]);
       }
     } catch (error) {
       console.error('[agent]', error);
@@ -406,8 +440,10 @@ function MessageBubble({
   busy: boolean;
 }) {
   const { colors } = useTheme().theme;
+  const router = useRouter();
   const actions = parsePayload(message);
   const isUser = message.role === 'user';
+  const openAction = isUser ? null : parseOpenAction(parseIntents(message.intents_json));
 
   return (
     <View style={[styles.bubbleRow, isUser ? styles.bubbleRowRight : styles.bubbleRowLeft]}>
@@ -430,6 +466,23 @@ function MessageBubble({
           <Text style={[styles.bubbleText, { color: isUser ? colors.textInverse : colors.text }]}>
             {message.text}
           </Text>
+          {openAction && isInternalRoute(openAction.route) ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={openAction.label}
+              onPress={() => {
+                Haptics.selectionAsync().catch(() => {});
+                router.push(openAction.route as never);
+              }}
+              style={({ pressed }) => [
+                styles.openBtn,
+                { borderColor: colors.primary, opacity: pressed ? 0.6 : 1 },
+              ]}
+            >
+              <Ionicons name="arrow-forward-circle" size={16} color={colors.primary} />
+              <Text style={[styles.openBtnText, { color: colors.primary }]}>{openAction.label}</Text>
+            </Pressable>
+          ) : null}
           {actions.length > 0 ? (
             <ActionCard
               actions={actions}
@@ -577,6 +630,18 @@ const styles = StyleSheet.create({
   suggestRow: { paddingHorizontal: spacing[5], gap: spacing[2], paddingBottom: spacing[2] },
   suggestChip: { borderWidth: 1, borderRadius: radius.full, paddingHorizontal: spacing[3], paddingVertical: 6 },
   suggestText: { fontSize: typography.sizes.sm, fontWeight: '700' },
+  openBtn: {
+    marginTop: spacing[2.5],
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 6,
+    borderWidth: 1,
+    borderRadius: radius.full,
+    paddingHorizontal: spacing[3],
+    paddingVertical: 6,
+  },
+  openBtnText: { fontSize: typography.sizes.sm, fontWeight: '800' },
   inputRow: { flexDirection: 'row', gap: spacing[2], paddingHorizontal: spacing[5] },
   input: {
     flex: 1,

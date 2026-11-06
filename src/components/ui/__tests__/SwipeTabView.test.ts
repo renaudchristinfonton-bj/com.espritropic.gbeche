@@ -26,6 +26,6 @@ describe('decideSwipe — navigation par balayage', () => {
   });
 
   test('les onglets sont ordonnés de façon stable', () => {
-    expect(TAB_ORDER).toEqual(['home', 'calendar', 'wars', 'finance', 'settings']);
+    expect(TAB_ORDER).toEqual(['home', 'calendar', 'wars', 'finance', 'review', 'settings']);
   });
 });
