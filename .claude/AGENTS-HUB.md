@@ -1,6 +1,6 @@
 # Agents & compétences installés (hub open source)
 
-Généré le 2026-11-06 — **92 sous-agents**, **45 compétences**.
+Installé par `node scripts/install-agents-hub.mjs` — **92 sous-agents**, **45 compétences**.
 Aucun agent ne nécessite de clé API : ce sont des prompts/policies locaux exécutés par la session.
 
 ## Sous-agents par domaine

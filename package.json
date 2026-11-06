@@ -12,7 +12,8 @@
     "test": "jest",
     "test:coverage": "jest --coverage",
     "agents": "node scripts/agents-hub.mjs",
-    "agents:doctor": "node scripts/agents-hub.mjs doctor"
+    "agents:doctor": "node scripts/agents-hub.mjs doctor",
+    "agents:install": "node scripts/install-agents-hub.mjs"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
