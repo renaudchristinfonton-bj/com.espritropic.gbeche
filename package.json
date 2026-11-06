@@ -10,7 +10,9 @@
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
     "test": "jest",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "agents": "node scripts/agents-hub.mjs",
+    "agents:doctor": "node scripts/agents-hub.mjs doctor"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",

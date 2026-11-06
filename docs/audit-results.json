@@ -1,16 +1,16 @@
 {
-  "generatedAt": "2026-10-27T11:15:21.780Z",
+  "generatedAt": "2026-11-06T15:55:15.624Z",
   "checks": {
     "security": {
       "source": "npm audit",
       "vulnerabilities": {
         "info": 0,
-        "low": 0,
-        "moderate": 6,
-        "high": 3,
+        "low": 6,
+        "moderate": 22,
+        "high": 6,
         "critical": 0
       },
-      "total": 9,
+      "total": 34,
       "dependencies": {
         "prod": 772,
         "dev": 373,
@@ -31,8 +31,8 @@
     },
     "tests": {
       "ok": true,
-      "suites": "34 passed, 34 total",
-      "tests": "331 passed, 331 total"
+      "suites": "35 passed, 35 total",
+      "tests": "337 passed, 337 total"
     },
     "lint": {
       "ok": true,

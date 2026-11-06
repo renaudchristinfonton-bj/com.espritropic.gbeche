@@ -7,7 +7,17 @@ const nodeGlobals = require('globals');
 module.exports = defineConfig([
   // Bloc d'ignorés global (doit rester un objet ne contenant que `ignores`).
   {
-    ignores: ['dist/', 'dist/**', '/tmp/*', 'coverage/**', 'node_modules/**'],
+    ignores: [
+      'dist/',
+      'dist/**',
+      '/tmp/*',
+      'coverage/**',
+      'node_modules/**',
+      // Club d'agents open source : code tiers vendu tel quel (prompts,
+      // scripts de vérification). Il n'entre pas dans le bundle applicatif.
+      '.claude/',
+      '.claude/**',
+    ],
   },
   expoConfig,
   {

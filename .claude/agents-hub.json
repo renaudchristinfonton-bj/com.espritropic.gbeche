@@ -1,0 +1,1001 @@
+{
+  "generatedAt": "2026-11-06T15:58:58.083Z",
+  "note": "Sous-agents et compétences 100% open source, textuels, sans clé API.",
+  "sources": [
+    {
+      "repo": "wshobson/agents",
+      "license": "MIT",
+      "sha": "4bde316"
+    },
+    {
+      "repo": "VoltAgent/awesome-claude-code-subagents",
+      "license": "MIT",
+      "sha": "ed74d11"
+    },
+    {
+      "repo": "contains-studio/agents",
+      "license": "non déclarée",
+      "sha": "a5a480c"
+    },
+    {
+      "repo": "0xSteph/pentest-ai-agents",
+      "license": "MIT",
+      "sha": "e5d7aa0"
+    },
+    {
+      "repo": "iannuttall/claude-agents",
+      "license": "MIT",
+      "sha": "f7df2c3"
+    },
+    {
+      "repo": "mustafakendiguzel/claude-code-ui-agents",
+      "license": "MIT",
+      "sha": "e224ca0"
+    }
+  ],
+  "agents": [
+    {
+      "slug": "design-system-architect",
+      "role": "design",
+      "source": "wshobson/agents",
+      "license": "MIT",
+      "sha": "4bde316",
+      "description": "Expert design system architect specializing in design tokens, component libraries, theming infrastructure, and scalable design operations. Masters tok"
+    },
+    {
+      "slug": "ui-designer",
+      "role": "design",
+      "source": "wshobson/agents",
+      "license": "MIT",
+      "sha": "4bde316",
+      "description": "Expert UI designer specializing in component creation, layout systems, and visual design implementation. Masters modern design patterns, responsive la"
+    },
+    {
+      "slug": "brand-guardian",
+      "role": "design",
+      "source": "contains-studio/agents",
+      "license": "non déclarée",
+      "sha": "a5a480c",
+      "description": "Use this agent when establishing brand guidelines, ensuring visual consistency, managing brand assets, or evolving brand identity. This agent speciali"
+    },
+    {
+      "slug": "visual-storyteller",
+      "role": "design",
+      "source": "contains-studio/agents",
+      "license": "non déclarée",
+      "sha": "a5a480c",
+      "description": "Use this agent when creating visual narratives, designing infographics, building presentations, or communicating complex ideas through imagery. This a"
+    },
+    {
+      "slug": "whimsy-injector",
+      "role": "design",
+      "source": "contains-studio/agents",
+      "license": "non déclarée",
+      "sha": "a5a480c",
+      "description": "PROACTIVELY use this agent after any UI/UX changes to ensure delightful, playful elements are incorporated. This agent specializes in adding joy, surp"
+    },
+    {
+      "slug": "design-bridge",
+      "role": "design",
+      "source": "VoltAgent/awesome-claude-code-subagents",
+      "license": "MIT",
+      "sha": "ed74d11",
+      "description": "Use this agent when you need to translate a DESIGN.md from the VoltAgent/awesome-design-md repository into polished Claude Code instructions for build"
+    },
+    {
+      "slug": "ui-visual-validator",
+      "role": "design",
+      "source": "wshobson/agents",
+      "license": "MIT",
+      "sha": "4bde316",
+      "description": "Rigorous visual validation expert specializing in UI testing, design system compliance, and accessibility verification. Masters screenshot analysis, v"
+    },
+    {
+      "slug": "frontend-designer",
+      "role": "design",
+      "source": "iannuttall/claude-agents",
+      "license": "MIT",
+      "sha": "f7df2c3",
+      "description": "Use this agent when you need to convert design mockups, wireframes, or visual concepts into detailed technical specifications and implementation guide"
+    },
+    {
+      "slug": "ux-researcher",
+      "role": "ux",
+      "source": "VoltAgent/awesome-claude-code-subagents",
+      "license": "MIT",
+      "sha": "ed74d11",
+      "description": "Use this agent when you need to conduct user research, analyze user behavior, or generate actionable insights to validate design decisions and uncover"
+    },
+    {
+      "slug": "ux-microcopy-reviewer",
+      "role": "ux",
+      "source": "VoltAgent/awesome-claude-code-subagents",
+      "license": "MIT",
+      "sha": "ed74d11",
+      "description": "Use this agent after changing user-facing interface text (buttons, error messages, empty states, form labels, confirmations, toasts) to review it for "
+    },
+    {
+      "slug": "ui-ux-tester",
+      "role": "ux",
+      "source": "VoltAgent/awesome-claude-code-subagents",
+      "license": "MIT",
+      "sha": "ed74d11",
+      "description": "Use this agent when you need exhaustive UI and UX functionality testing driven by documented user flows, with browser or desktop interaction tooling a"
+    },
+    {
+      "slug": "frontend-developer",
+      "role": "codeur",
+      "source": "wshobson/agents",
+      "license": "MIT",
+      "sha": "4bde316",
+      "description": "Build React components, implement responsive layouts, and handle client-side state management. Masters React 19, Next.js 15, and modern frontend archi"
+    },
+    {
+      "slug": "mobile-developer",
+      "role": "codeur",
+      "source": "wshobson/agents",
+      "license": "MIT",
+      "sha": "4bde316",
+      "description": "Develop React Native, Flutter, or native mobile apps with modern architecture patterns. Masters cross-platform development, native integrations, offli"
+    },
+    {
+      "slug": "fullstack-developer",
+      "role": "codeur",
+      "source": "VoltAgent/awesome-claude-code-subagents",
+      "license": "MIT",
+      "sha": "ed74d11",
+      "description": "Use this agent when you need to build complete features spanning database, API, and frontend layers together as a cohesive unit."
+    },
+    {
+      "slug": "backend-developer",
+      "role": "codeur",
+      "source": "VoltAgent/awesome-claude-code-subagents",
+      "license": "MIT",
+      "sha": "ed74d11",
+      "description": "Use this agent when building server-side APIs, microservices, and backend systems that require robust architecture, scalability planning, and producti"
+    },
+    {
+      "slug": "rapid-prototyper",
+      "role": "codeur",
+      "source": "contains-studio/agents",
+      "license": "non déclarée",
+      "sha": "a5a480c",
+      "description": "Use this agent when you need to quickly create a new application prototype, MVP, or proof-of-concept within the 6-day development cycle. This agent sp"
+    },
+    {
+      "slug": "mobile-app-builder",
+      "role": "codeur",
+      "source": "contains-studio/agents",
+      "license": "non déclarée",
+      "sha": "a5a480c",
+      "description": "Use this agent when developing native iOS or Android applications, implementing React Native features, or optimizing mobile performance. This agent sp"
+    },
+    {
+      "slug": "code-refactorer",
+      "role": "codeur",
+      "source": "iannuttall/claude-agents",
+      "license": "MIT",
+      "sha": "f7df2c3",
+      "description": "Use this agent when you need to improve existing code structure, readability, or maintainability without changing functionality. This includes cleanin"
+    },
+    {
+      "slug": "typescript-pro",
+      "role": "codeur",
+      "source": "wshobson/agents",
+      "license": "MIT",
+      "sha": "4bde316",
+      "description": "Master TypeScript with advanced types, generics, and strict type safety. Handles complex type systems, decorators, and enterprise-grade patterns. Use "
+    },
+    {
+      "slug": "backend-architect",
+      "role": "backend",
+      "source": "wshobson/agents",
+      "license": "MIT",
+      "sha": "4bde316",
+      "description": "Expert backend architect specializing in scalable API design, microservices architecture, and distributed systems. Masters REST/GraphQL/gRPC APIs, eve"
+    },
+    {
+      "slug": "database-architect",
+      "role": "backend",
+      "source": "wshobson/agents",
+      "license": "MIT",
+      "sha": "4bde316",
+      "description": "Expert database architect specializing in data layer design from scratch, technology selection, schema modeling, and scalable database architectures. "
+    },
+    {
+      "slug": "backend-security-coder",
+      "role": "backend",
+      "source": "wshobson/agents",
+      "license": "MIT",
+      "sha": "4bde316",
+      "description": "Expert in secure backend coding practices specializing in input validation, authentication, and API security. Use PROACTIVELY for backend security imp"
+    },
+    {
+      "slug": "sql-pro",
+      "role": "backend",
+      "source": "wshobson/agents",
+      "license": "MIT",
+      "sha": "4bde316",
+      "description": "Master modern SQL with cloud-native databases, OLTP/OLAP optimization, and advanced query techniques. Expert in performance tuning, data modeling, and"
+    },
+    {
+      "slug": "microservices-architect",
+      "role": "backend",
+      "source": "VoltAgent/awesome-claude-code-subagents",
+      "license": "MIT",
+      "sha": "ed74d11",
+      "description": "Use when designing distributed system architecture, decomposing monolithic applications into independent microservices, or establishing communication "
+    },
+    {
+      "slug": "auth-integration-engineer",
+      "role": "backend",
+      "source": "VoltAgent/awesome-claude-code-subagents",
+      "license": "MIT",
+      "sha": "ed74d11",
+      "description": "Use this agent when implementing authentication and authorization — OAuth 2.1/OIDC flows, SAML enterprise SSO, session and token management, multi-ten"
+    },
+    {
+      "slug": "api-designer",
+      "role": "api",
+      "source": "VoltAgent/awesome-claude-code-subagents",
+      "license": "MIT",
+      "sha": "ed74d11",
+      "description": "Use this agent when designing new APIs, creating API specifications, or refactoring existing API architecture for scalability and developer experience"
+    },
+    {
+      "slug": "graphql-architect",
+      "role": "api",
+      "source": "wshobson/agents",
+      "license": "MIT",
+      "sha": "4bde316",
+      "description": "Master modern GraphQL with federation, performance optimization, and enterprise security. Build scalable schemas, implement advanced caching, and desi"
+    },
+    {
+      "slug": "websocket-engineer",
+      "role": "api",
+      "source": "VoltAgent/awesome-claude-code-subagents",
+      "license": "MIT",
+      "sha": "ed74d11",
+      "description": "Use this agent when implementing real-time bidirectional communication features using WebSockets, Socket.IO, or similar technologies at scale."
+    },
+    {
+      "slug": "webhook-engineer",
+      "role": "api",
+      "source": "VoltAgent/awesome-claude-code-subagents",
+      "license": "MIT",
+      "sha": "ed74d11",
+      "description": "Use this agent when consuming or delivering webhooks — signature verification, idempotent handlers, retry and backoff policies, event ordering, dead-l"
+    },
+    {
+      "slug": "api-tester",
+      "role": "api",
+      "source": "contains-studio/agents",
+      "license": "non déclarée",
+      "sha": "a5a480c",
+      "description": "Use this agent for comprehensive API testing including performance testing, load testing, and contract testing. This agent specializes in ensuring API"
+    },
+    {
+      "slug": "security-auditor",
+      "role": "securite",
+      "source": "wshobson/agents",
+      "license": "MIT",
+      "sha": "4bde316",
+      "description": "Review code and architecture for security vulnerabilities, OWASP Top 10, auth flaws, and compliance issues. Use for security review during feature dev"
+    },
+    {
+      "slug": "threat-modeling-expert",
+      "role": "securite",
+      "source": "wshobson/agents",
+      "license": "MIT",
+      "sha": "4bde316",
+      "description": "Expert in threat modeling methodologies, security architecture review, and risk assessment. Masters STRIDE, PASTA, attack trees, and security requirem"
+    },
+    {
+      "slug": "compliance-mapper",
+      "role": "securite",
+      "source": "0xSteph/pentest-ai-agents",
+      "license": "MIT",
+      "sha": "e5d7aa0",
+      "description": "Delegates to this agent when the user wants to map penetration-test findings to compliance frameworks — PCI DSS, NIST 800-53 / CSF, ISO 27001, CIS Con"
+    },
+    {
+      "slug": "supply-chain-auditor",
+      "role": "securite",
+      "source": "0xSteph/pentest-ai-agents",
+      "license": "MIT",
+      "sha": "e5d7aa0",
+      "description": ">-"
+    },
+    {
+      "slug": "penetration-tester",
+      "role": "pentest",
+      "source": "VoltAgent/awesome-claude-code-subagents",
+      "license": "MIT",
+      "sha": "ed74d11",
+      "description": "Use this agent when you need to conduct authorized security penetration tests to identify real vulnerabilities through active exploitation and validat"
+    },
+    {
+      "slug": "engagement-planner",
+      "role": "pentest",
+      "source": "0xSteph/pentest-ai-agents",
+      "license": "MIT",
+      "sha": "e5d7aa0",
+      "description": "Delegates to this agent when the user needs to plan a penetration test, define attack methodology, scope an engagement, map techniques to MITRE ATT&CK"
+    },
+    {
+      "slug": "attack-planner",
+      "role": "pentest",
+      "source": "0xSteph/pentest-ai-agents",
+      "license": "MIT",
+      "sha": "e5d7aa0",
+      "description": ">-"
+    },
+    {
+      "slug": "web-hunter",
+      "role": "pentest",
+      "source": "0xSteph/pentest-ai-agents",
+      "license": "MIT",
+      "sha": "e5d7aa0",
+      "description": ">-"
+    },
+    {
+      "slug": "api-security",
+      "role": "pentest",
+      "source": "0xSteph/pentest-ai-agents",
+      "license": "MIT",
+      "sha": "e5d7aa0",
+      "description": "Delegates to this agent when the user asks about API security testing, REST API attacks, GraphQL exploitation, OAuth/OIDC vulnerabilities, JWT attacks"
+    },
+    {
+      "slug": "mobile-pentester",
+      "role": "pentest",
+      "source": "0xSteph/pentest-ai-agents",
+      "license": "MIT",
+      "sha": "e5d7aa0",
+      "description": "Delegates to this agent when the user asks about mobile application security testing, Android pentesting, iOS pentesting, APK analysis, IPA analysis, "
+    },
+    {
+      "slug": "code-auditor",
+      "role": "pentest",
+      "source": "0xSteph/pentest-ai-agents",
+      "license": "MIT",
+      "sha": "e5d7aa0",
+      "description": "Delegates to this agent when the user wants a secure-code review of application source — static analysis for injection, auth, secrets, deserialization"
+    },
+    {
+      "slug": "threat-modeler",
+      "role": "pentest",
+      "source": "0xSteph/pentest-ai-agents",
+      "license": "MIT",
+      "sha": "e5d7aa0",
+      "description": "Delegates to this agent when the user asks about threat modeling, attack surface analysis, STRIDE, DREAD, attack trees, data flow diagrams, trust boun"
+    },
+    {
+      "slug": "risk-scorer",
+      "role": "pentest",
+      "source": "0xSteph/pentest-ai-agents",
+      "license": "MIT",
+      "sha": "e5d7aa0",
+      "description": "Delegates to this agent when the user wants to score and prioritize findings — build CVSS 3.1/4.0 vectors, enrich with EPSS and CISA KEV, adjust for b"
+    },
+    {
+      "slug": "fix-verifier",
+      "role": "pentest",
+      "source": "0xSteph/pentest-ai-agents",
+      "license": "MIT",
+      "sha": "e5d7aa0",
+      "description": ">-"
+    },
+    {
+      "slug": "report-generator",
+      "role": "pentest",
+      "source": "0xSteph/pentest-ai-agents",
+      "license": "MIT",
+      "sha": "e5d7aa0",
+      "description": "Delegates to this agent when the user needs to write a penetration test report, compile findings into a document, create an executive summary, format "
+    },
+    {
+      "slug": "vuln-scanner",
+      "role": "pentest",
+      "source": "0xSteph/pentest-ai-agents",
+      "license": "MIT",
+      "sha": "e5d7aa0",
+      "description": ">-"
+    },
+    {
+      "slug": "credential-tester",
+      "role": "pentest",
+      "source": "0xSteph/pentest-ai-agents",
+      "license": "MIT",
+      "sha": "e5d7aa0",
+      "description": ">-"
+    },
+    {
+      "slug": "password-auditor",
+      "role": "pentest",
+      "source": "0xSteph/pentest-ai-agents",
+      "license": "MIT",
+      "sha": "e5d7aa0",
+      "description": "Delegates to this agent when the user wants to audit password posture — policy review against NIST 800-63B, password-storage/hashing review, breach-ex"
+    },
+    {
+      "slug": "poc-validator",
+      "role": "pentest",
+      "source": "0xSteph/pentest-ai-agents",
+      "license": "MIT",
+      "sha": "e5d7aa0",
+      "description": ">-"
+    },
+    {
+      "slug": "test-automator",
+      "role": "tester",
+      "source": "wshobson/agents",
+      "license": "MIT",
+      "sha": "4bde316",
+      "description": "Create comprehensive test suites including unit, integration, and E2E tests. Supports TDD/BDD workflows. Use for test creation during feature developm"
+    },
+    {
+      "slug": "test-writer-fixer",
+      "role": "tester",
+      "source": "contains-studio/agents",
+      "license": "non déclarée",
+      "sha": "a5a480c",
+      "description": "Use this agent when code changes have been made and you need to write new tests, run existing tests, analyze failures, and fix them while maintaining "
+    },
+    {
+      "slug": "qa-expert",
+      "role": "tester",
+      "source": "VoltAgent/awesome-claude-code-subagents",
+      "license": "MIT",
+      "sha": "ed74d11",
+      "description": "Use this agent when you need comprehensive quality assurance strategy, test planning across the entire development cycle, or quality metrics analysis "
+    },
+    {
+      "slug": "tdd-orchestrator",
+      "role": "tester",
+      "source": "wshobson/agents",
+      "license": "MIT",
+      "sha": "4bde316",
+      "description": "Master TDD orchestrator specializing in red-green-refactor discipline, multi-agent workflow coordination, and comprehensive test-driven development pr"
+    },
+    {
+      "slug": "test-results-analyzer",
+      "role": "tester",
+      "source": "contains-studio/agents",
+      "license": "non déclarée",
+      "sha": "a5a480c",
+      "description": "Use this agent for analyzing test results, synthesizing test data, identifying trends, and generating quality metrics reports. This agent specializes "
+    },
+    {
+      "slug": "accessibility-expert",
+      "role": "interface",
+      "source": "wshobson/agents",
+      "license": "MIT",
+      "sha": "4bde316",
+      "description": "Expert accessibility specialist ensuring WCAG compliance, inclusive design, and assistive technology compatibility. Masters screen reader optimization"
+    },
+    {
+      "slug": "accessibility-tester",
+      "role": "interface",
+      "source": "VoltAgent/awesome-claude-code-subagents",
+      "license": "MIT",
+      "sha": "ed74d11",
+      "description": "Use this agent when you need comprehensive accessibility testing, WCAG compliance verification, or assessment of assistive technology support."
+    },
+    {
+      "slug": "performance-engineer",
+      "role": "optimisation",
+      "source": "wshobson/agents",
+      "license": "MIT",
+      "sha": "4bde316",
+      "description": "Expert performance engineer specializing in modern observability, application optimization, and scalable system performance. Masters OpenTelemetry, di"
+    },
+    {
+      "slug": "performance-benchmarker",
+      "role": "optimisation",
+      "source": "contains-studio/agents",
+      "license": "non déclarée",
+      "sha": "a5a480c",
+      "description": "Use this agent for comprehensive performance testing, profiling, and optimization recommendations. This agent specializes in measuring speed, identify"
+    },
+    {
+      "slug": "observability-engineer",
+      "role": "optimisation",
+      "source": "wshobson/agents",
+      "license": "MIT",
+      "sha": "4bde316",
+      "description": "Build production-ready monitoring, logging, and tracing systems. Implements comprehensive observability strategies, SLI/SLO management, and incident r"
+    },
+    {
+      "slug": "performance-monitor",
+      "role": "optimisation",
+      "source": "VoltAgent/awesome-claude-code-subagents",
+      "license": "MIT",
+      "sha": "ed74d11",
+      "description": "Use when you need to analyze existing metric, log, and output files to spot performance patterns and anomalies, then write a grounded, evidence-cited "
+    },
+    {
+      "slug": "workflow-optimizer",
+      "role": "optimisation",
+      "source": "contains-studio/agents",
+      "license": "non déclarée",
+      "sha": "a5a480c",
+      "description": "Use this agent for optimizing human-agent collaboration workflows and analyzing workflow efficiency. This agent specializes in identifying bottlenecks"
+    },
+    {
+      "slug": "project-manager",
+      "role": "planification",
+      "source": "VoltAgent/awesome-claude-code-subagents",
+      "license": "MIT",
+      "sha": "ed74d11",
+      "description": "Use this agent when you need to establish project plans, track execution progress, manage risks, control budget/schedule, and coordinate stakeholders "
+    },
+    {
+      "slug": "product-manager",
+      "role": "planification",
+      "source": "VoltAgent/awesome-claude-code-subagents",
+      "license": "MIT",
+      "sha": "ed74d11",
+      "description": "Use this agent when you need to make product strategy decisions, prioritize features, or define roadmap plans based on user needs and business goals."
+    },
+    {
+      "slug": "sprint-prioritizer",
+      "role": "planification",
+      "source": "contains-studio/agents",
+      "license": "non déclarée",
+      "sha": "a5a480c",
+      "description": "Use this agent when planning 6-day development cycles, prioritizing features, managing product roadmaps, or making trade-off decisions. This agent spe"
+    },
+    {
+      "slug": "backlog-grooming",
+      "role": "planification",
+      "source": "VoltAgent/awesome-claude-code-subagents",
+      "license": "MIT",
+      "sha": "ed74d11",
+      "description": "Use when the user needs to groom, refine, or clean up a product backlog. Triggers on: 'groom backlog', 'backlog refinement', 'backlog grooming', 'clea"
+    },
+    {
+      "slug": "project-shipper",
+      "role": "planification",
+      "source": "contains-studio/agents",
+      "license": "non déclarée",
+      "sha": "a5a480c",
+      "description": "PROACTIVELY use this agent when approaching launch milestones, release deadlines, or go-to-market activities. This agent specializes in coordinating l"
+    },
+    {
+      "slug": "studio-producer",
+      "role": "planification",
+      "source": "contains-studio/agents",
+      "license": "non déclarée",
+      "sha": "a5a480c",
+      "description": "PROACTIVELY use this agent when coordinating across multiple teams, allocating resources, or optimizing studio workflows. This agent specializes in cr"
+    },
+    {
+      "slug": "experiment-tracker",
+      "role": "planification",
+      "source": "contains-studio/agents",
+      "license": "non déclarée",
+      "sha": "a5a480c",
+      "description": "PROACTIVELY use this agent when experiments are started, modified, or when results need analysis. This agent specializes in tracking A/B tests, featur"
+    },
+    {
+      "slug": "assumption-mapping",
+      "role": "planification",
+      "source": "VoltAgent/awesome-claude-code-subagents",
+      "license": "MIT",
+      "sha": "ed74d11",
+      "description": "Use when the user needs to identify and prioritize risky assumptions in a product idea, feature, or strategy. Triggers on: 'assumptions', 'what could "
+    },
+    {
+      "slug": "prd-writer",
+      "role": "planification",
+      "source": "iannuttall/claude-agents",
+      "license": "MIT",
+      "sha": "f7df2c3",
+      "description": "Use this agent when you need to create a comprehensive Product Requirements Document (PRD) for a software project or feature. This includes situations"
+    },
+    {
+      "slug": "project-task-planner",
+      "role": "planification",
+      "source": "iannuttall/claude-agents",
+      "license": "MIT",
+      "sha": "f7df2c3",
+      "description": "Use this agent when you need to create a comprehensive development task list from a Product Requirements Document (PRD). This agent analyzes PRDs and "
+    },
+    {
+      "slug": "agent-organizer",
+      "role": "orchestration",
+      "source": "VoltAgent/awesome-claude-code-subagents",
+      "license": "MIT",
+      "sha": "ed74d11",
+      "description": "Use when you need to break a complex task into subtasks, match each to the capabilities of available subagents, and write a concrete team/workflow pla"
+    },
+    {
+      "slug": "task-distributor",
+      "role": "orchestration",
+      "source": "VoltAgent/awesome-claude-code-subagents",
+      "license": "MIT",
+      "sha": "ed74d11",
+      "description": "Use when you need to design and document a task-distribution strategy across multiple agents or workers — how to split work, order queues, respect pri"
+    },
+    {
+      "slug": "workflow-orchestrator",
+      "role": "orchestration",
+      "source": "VoltAgent/awesome-claude-code-subagents",
+      "license": "MIT",
+      "sha": "ed74d11",
+      "description": "Use when you need to design workflow and state-machine definitions — states, transitions, error handling, and compensation/rollback logic — and write "
+    },
+    {
+      "slug": "multi-agent-coordinator",
+      "role": "orchestration",
+      "source": "VoltAgent/awesome-claude-code-subagents",
+      "license": "MIT",
+      "sha": "ed74d11",
+      "description": "Use when you need to plan how multiple concurrent subagents should communicate, sequence their work, share state through files, and handle failures — "
+    },
+    {
+      "slug": "agent-installer",
+      "role": "orchestration",
+      "source": "VoltAgent/awesome-claude-code-subagents",
+      "license": "MIT",
+      "sha": "ed74d11",
+      "description": "Use this agent when the user wants to discover, browse, or install Claude Code agents from the awesome-claude-code-subagents repository."
+    },
+    {
+      "slug": "codebase-orchestrator",
+      "role": "orchestration",
+      "source": "VoltAgent/awesome-claude-code-subagents",
+      "license": "MIT",
+      "sha": "ed74d11",
+      "description": "Use this agent when you need repository-wide refactor governance with explicit approval loops, weighted risk prioritization, diff previews, and determ"
+    },
+    {
+      "slug": "error-coordinator",
+      "role": "orchestration",
+      "source": "VoltAgent/awesome-claude-code-subagents",
+      "license": "MIT",
+      "sha": "ed74d11",
+      "description": "Use when you need to mine error logs and agent output for recurring failure and cascade patterns, then document grounded recovery and cascade-preventi"
+    },
+    {
+      "slug": "context-manager",
+      "role": "orchestration",
+      "source": "wshobson/agents",
+      "license": "MIT",
+      "sha": "4bde316",
+      "description": "Elite AI context engineering specialist mastering dynamic context management, vector databases, knowledge graphs, and intelligent memory systems. Orch"
+    },
+    {
+      "slug": "memory-curator",
+      "role": "orchestration",
+      "source": "VoltAgent/awesome-claude-code-subagents",
+      "license": "MIT",
+      "sha": "ed74d11",
+      "description": "Use to maintain an agent's long-term memory across sessions — deciding what is worth saving, recalling relevant context before acting, recording corre"
+    },
+    {
+      "slug": "knowledge-synthesizer",
+      "role": "orchestration",
+      "source": "VoltAgent/awesome-claude-code-subagents",
+      "license": "MIT",
+      "sha": "ed74d11",
+      "description": "Use when you need to mine recurring patterns from agent logs, session transcripts, and workflow history, then write grounded, evidence-cited findings "
+    },
+    {
+      "slug": "swarm-orchestrator",
+      "role": "orchestration",
+      "source": "0xSteph/pentest-ai-agents",
+      "license": "MIT",
+      "sha": "e5d7aa0",
+      "description": ">-"
+    },
+    {
+      "slug": "code-reviewer",
+      "role": "revue",
+      "source": "wshobson/agents",
+      "license": "MIT",
+      "sha": "4bde316",
+      "description": "Elite code review expert specializing in modern AI-powered code analysis, security vulnerabilities, performance optimization, and production reliabili"
+    },
+    {
+      "slug": "architect-reviewer",
+      "role": "revue",
+      "source": "VoltAgent/awesome-claude-code-subagents",
+      "license": "MIT",
+      "sha": "ed74d11",
+      "description": "Use this agent when you need to evaluate system design decisions, architectural patterns, and technology choices at the macro level."
+    },
+    {
+      "slug": "surgeon-reviewer",
+      "role": "revue",
+      "source": "VoltAgent/awesome-claude-code-subagents",
+      "license": "MIT",
+      "sha": "ed74d11",
+      "description": "Use this agent when you need a ruthlessly prioritized code review that reports only real problems — bugs, money-losing logic, maintenance traps — rank"
+    },
+    {
+      "slug": "ponder-auditor",
+      "role": "revue",
+      "source": "VoltAgent/awesome-claude-code-subagents",
+      "license": "MIT",
+      "sha": "ed74d11",
+      "description": "Use this agent when you need a convergent, multi-pass codebase, UI, architecture, or security audit with 100% surface coverage, adversarial false-posi"
+    },
+    {
+      "slug": "debugger",
+      "role": "revue",
+      "source": "wshobson/agents",
+      "license": "MIT",
+      "sha": "4bde316",
+      "description": "Debugging specialist for errors, test failures, and unexpected behavior. Use proactively when encountering any issues."
+    },
+    {
+      "slug": "error-detective",
+      "role": "revue",
+      "source": "wshobson/agents",
+      "license": "MIT",
+      "sha": "4bde316",
+      "description": "Search logs and codebases for error patterns, stack traces, and anomalies. Correlates errors across systems and identifies root causes. Use PROACTIVEL"
+    },
+    {
+      "slug": "technical-writer",
+      "role": "documentation",
+      "source": "VoltAgent/awesome-claude-code-subagents",
+      "license": "MIT",
+      "sha": "ed74d11",
+      "description": "Use this agent when you need to create, improve, or maintain technical documentation including API references, user guides, SDK documentation, and get"
+    },
+    {
+      "slug": "content-quality-editor",
+      "role": "documentation",
+      "source": "VoltAgent/awesome-claude-code-subagents",
+      "license": "MIT",
+      "sha": "ed74d11",
+      "description": "Use this agent before publishing any AI-generated content — blog posts, READMEs, release notes, commit messages, PR descriptions, documentation, or so"
+    },
+    {
+      "slug": "ai-writing-auditor",
+      "role": "documentation",
+      "source": "VoltAgent/awesome-claude-code-subagents",
+      "license": "MIT",
+      "sha": "ed74d11",
+      "description": "Use this agent when you need to audit content for AI writing patterns and rewrite text to remove them."
+    },
+    {
+      "slug": "scrum-master",
+      "role": "documentation",
+      "source": "VoltAgent/awesome-claude-code-subagents",
+      "license": "MIT",
+      "sha": "ed74d11",
+      "description": "Use when teams need facilitation, process optimization, velocity improvement, or agile ceremony management—especially for sprint planning, retrospecti"
+    }
+  ],
+  "skills": [
+    {
+      "name": "adaptive-layout",
+      "files": 5,
+      "description": "Lays screens out by window, not device: breakpoints, master-detail panes, readable widths, grids. Use when making screen"
+    },
+    {
+      "name": "accessibility-as-code",
+      "files": 5,
+      "description": "Enforces a11y labels, 44pt targets, 200% text, VoiceOver, TalkBack. Use when adding a pressable, swipe or a11y label, te"
+    },
+    {
+      "name": "design-review-workflow",
+      "files": 7,
+      "description": "Runs the end-of-build design review: every screen x theme x direction x text size x device, graded findings, a fix round"
+    },
+    {
+      "name": "design-visual-parity",
+      "files": 8,
+      "description": "Proves built screens match approved design references (iOS, Android, light/dark, RTL) per element. Use when a screen is "
+    },
+    {
+      "name": "design-system-structure",
+      "files": 7,
+      "description": "Structures a design system: two-tier tokens, contrast-proven light/dark palettes, the theme provider, makeStyles, text r"
+    },
+    {
+      "name": "performance-budgets",
+      "files": 4,
+      "description": "Measures cold start, hitches, draw calls, storage writes, bundle and memory against budgets on iOS and Android. Use when"
+    },
+    {
+      "name": "motion-and-animation",
+      "files": 5,
+      "description": "Catalogs each animation as a Reanimated 4 moment. Use when animating a transition, sheet, loop, drag, spring or celebrat"
+    },
+    {
+      "name": "forms-and-input",
+      "files": 6,
+      "description": "Builds react-hook-form + valibot forms: one schema, catalog-key errors, TextField kinds (keyboard, autofill), focus chai"
+    },
+    {
+      "name": "ui-states-and-feedback",
+      "files": 5,
+      "description": "Builds loading, empty, failed and offline states, delayed skeletons, toasts, banners, confirms, Undo. Use when a screen "
+    },
+    {
+      "name": "ui-component-library",
+      "files": 10,
+      "description": "Builds shared src/ui components (buttons, rows, dialogs, toasts, cards): token sizes, every state, a required testID, a "
+    },
+    {
+      "name": "navigation-and-routing",
+      "files": 4,
+      "description": "Builds and checks Expo Router routes and layouts against a contract: typed hrefs, params, protected flows, modals, back "
+    },
+    {
+      "name": "screen-contracts",
+      "files": 5,
+      "description": "Builds screens, dialogs and overlays to a contract (testIDs, copy keys, states in contracts/screens.json) and proves it."
+    },
+    {
+      "name": "persistence-and-migrations",
+      "files": 5,
+      "description": "Builds the expo-sqlite database: tables, repositories, migrations. Use when adding a table, column or saved data, leavin"
+    },
+    {
+      "name": "data-export-and-restore",
+      "files": 6,
+      "description": "Builds data export and restore - a versioned, checksummed backup file, all-or-nothing restore, safe CSV. Use when adding"
+    },
+    {
+      "name": "settings-and-preferences",
+      "files": 3,
+      "description": "Builds app settings - saved fields, defaults, rows, each setting's effect, resets that keep them. Use when adding a sett"
+    },
+    {
+      "name": "dates-streaks-and-statistics",
+      "files": 5,
+      "description": "Builds calendar-day logic: local date keys, an injected clock, midnight, DST, streaks, stats. Use when code reads today,"
+    },
+    {
+      "name": "local-notifications",
+      "files": 7,
+      "description": "Schedules on-device reminders with expo-notifications: rows as truth, one idempotent sync, DST-safe triggers, Android ch"
+    },
+    {
+      "name": "quality-gates",
+      "files": 8,
+      "description": "Installs and repairs quality gates (check:fast, verify, lefthook, Claude Code hooks, the guardrail) without weakening th"
+    },
+    {
+      "name": "tdd-workflow",
+      "files": 6,
+      "description": "Drives changes test-first (TDD, red-green-refactor) - one behaviour per commit, test names, layer order, no test edited "
+    },
+    {
+      "name": "unit-and-component-tests",
+      "files": 6,
+      "description": "Sets up Jest, checks unit, component and route tests (RNTL 14, renderWithProviders, SDK mocks, fakes, fast-check, Stryke"
+    },
+    {
+      "name": "golden-and-snapshot-tests",
+      "files": 5,
+      "description": "Guards data and pixel goldens - *.golden.test.ts snapshots, append-only [contract] entries, Skia tolerance, jest -u rule"
+    },
+    {
+      "name": "typescript-and-lint-rules",
+      "files": 6,
+      "description": "Enforces strict tsconfig, ESLint flat config, size limits, forbidden patterns, TSDoc. Use when writing or splitting .ts/"
+    },
+    {
+      "name": "react-components-and-hooks",
+      "files": 3,
+      "description": "Writes React components and hooks - model hooks, effects, React Compiler, lists, safe areas, error boundaries. Use when "
+    },
+    {
+      "name": "react-native-conventions-index",
+      "files": 6,
+      "description": "Routes any React Native or Expo task to its skills - house rules, a task table, build orders for an app, a feature, a re"
+    },
+    {
+      "name": "state-management-zustand",
+      "files": 4,
+      "description": "Builds Zustand 5 stores - pure reducers. Use when adding a store, action or selector, deciding where state lives, leavin"
+    },
+    {
+      "name": "async-safety",
+      "files": 8,
+      "description": "Prevents silent async bugs: effect races, stale results, lost promises, leaked listeners and timers, AbortSignal gaps. U"
+    },
+    {
+      "name": "value-objects-money-and-units",
+      "files": 7,
+      "description": "Stores money as ISO 4217 minor units, quantities in canonical units, instants as epoch ms. Use when adding a price, curr"
+    },
+    {
+      "name": "web-support",
+      "files": 9,
+      "description": "Ships the web build of an Expo app: platform files, APIs missing in react-native-web, expo-sqlite headers. Use when addi"
+    },
+    {
+      "name": "expo-prebuild-and-config-plugins",
+      "files": 6,
+      "description": "Keeps ios/ and android/ generated from app.config.ts and tested config plugins. Use when adding a plugin, an Info.plist "
+    },
+    {
+      "name": "permissions-and-system-prompts",
+      "files": 7,
+      "description": "Builds OS permission asks - on the press, pre-prompt, denied vs blocked, Settings link, purpose strings, Android rules. "
+    },
+    {
+      "name": "audio-and-haptics-feedback",
+      "files": 5,
+      "description": "Builds SFX and haptics behind ports. Use when adding or tuning sounds, SFX, music or haptics, or sound ignores the silen"
+    },
+    {
+      "name": "troubleshooting-playbook",
+      "files": 20,
+      "description": "Diagnoses React Native/Expo errors, red boxes, crashes, hangs and failed builds from known failures. Use when something "
+    },
+    {
+      "name": "git-commits-and-reporting",
+      "files": 5,
+      "description": "Writes and checks Conventional Commits, Gate-Change trailers, release tags, evidence reports and stop-and-ask requests. "
+    },
+    {
+      "name": "ci-pipeline-and-gates",
+      "files": 6,
+      "description": "Builds GitHub Actions CI for Expo apps - verify on every PR, SHA-pinned actions, pinned runners and Node, device lanes, "
+    },
+    {
+      "name": "app-startup-and-bootstrap",
+      "files": 6,
+      "description": "Orders an Expo app's cold start - polyfills, error net, splash hold, storage open, providers, splash release, background"
+    },
+    {
+      "name": "spec-traceability",
+      "files": 3,
+      "description": "Keeps spec IDs traced in tests, code, commits and reports; flags dangling or untraced IDs. Use when a task cites a spec "
+    },
+    {
+      "name": "naming-conventions",
+      "files": 7,
+      "description": "Names files, routes, exports, hooks, booleans, kinds, testIDs, message keys, app ids and env vars. Use when adding or re"
+    },
+    {
+      "name": "privacy-and-store-declarations",
+      "files": 7,
+      "description": "Proves an app's privacy - network via the API port or offline-only, SDK inventory, privacy manifest, App Privacy and Dat"
+    },
+    {
+      "name": "e2e-maestro",
+      "files": 7,
+      "description": "Writes and runs Maestro E2E flows on iOS simulators and Android emulators - testID steps, debug-link setup, screenshot b"
+    },
+    {
+      "name": "crash-reporting-and-observability",
+      "files": 6,
+      "description": "Wires Sentry crash reporting behind a port: start on consent, PII scrubbing, releases, source maps per build and update."
+    },
+    {
+      "name": "icons-app-icon-and-splash",
+      "files": 6,
+      "description": "Draws icons and app art in code - a Skia-path icon set, a brand mark, adaptive icons, splash, store art. Use when adding"
+    },
+    {
+      "name": "architecture-and-boundaries",
+      "files": 6,
+      "description": "Places app code in the src/ layout and checks import boundaries: one-way zones, pure core, ports with fakes, one composi"
+    },
+    {
+      "name": "dependency-management",
+      "files": 6,
+      "description": "Adds, upgrades and removes npm packages in Expo apps under a written policy - expo install, exact pins, 7-day release ag"
+    },
+    {
+      "name": "superdesign",
+      "files": 12,
+      "description": "Design or redesign frontend UI, presentations, and graphics on the Superdesign canvas with a choice of leading AI models"
+    },
+    {
+      "name": "project-architect",
+      "files": 10,
+      "description": ">"
+    }
+  ]
+}
