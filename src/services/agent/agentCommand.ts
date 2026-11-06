@@ -240,6 +240,7 @@ export const COMMAND_SUGGESTIONS = [
   'Je veux acheter une voiture',
   'J’ai dépensé 2 500 FCFA de transport',
   'Ajoute une mission sport demain 7h',
+  'Bilan de la semaine',
   'Bilan de ma journée',
   'Comment va mon budget ?',
 ];

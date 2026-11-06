@@ -37,6 +37,18 @@ interface DonutChartProps {
   showLegend?:  boolean;
 }
 
+/** Résumé vocal : part de chaque tranche, quatre maximum. */
+export function describeSlices(data: DonutSlice[]): string {
+  const total = data.reduce((sum, slice) => sum + Math.max(0, slice.value), 0);
+  if (total <= 0) return 'Répartition vide.';
+  const parts = data
+    .filter((slice) => slice.value > 0)
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 4)
+    .map((slice) => `${slice.label} ${Math.round((slice.value / total) * 100)} %`);
+  return `Répartition : ${parts.join(', ')}.`;
+}
+
 // ─── Arc Math ─────────────────────────────────────────────
 
 function polarToCartesian(cx: number, cy: number, r: number, deg: number) {
@@ -124,7 +136,12 @@ export function DonutChart({
   }, [data, total]);
 
   return (
-    <View style={styles.container}>
+    <View
+      style={styles.container}
+      accessible
+      accessibilityRole="image"
+      accessibilityLabel={describeSlices(data)}
+    >
       <View style={{ position: 'relative', width: size, height: size }}>
         <Svg width={size} height={size}>
           {/* Track */}

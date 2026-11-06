@@ -125,7 +125,12 @@ export function HeatMap({
   const colWidth = cellSize + gap;
 
   return (
-    <View style={styles.wrapper}>
+    <View
+      style={styles.wrapper}
+      accessible
+      accessibilityRole="image"
+      accessibilityLabel={`${totalActivity} jour${totalActivity > 1 ? 's' : ''} actif${totalActivity > 1 ? 's' : ''} sur les ${days} derniers jours.`}
+    >
       {/* Month labels */}
       {showMonths && (
         <View style={[styles.monthRow, { marginLeft: 20 }]}>

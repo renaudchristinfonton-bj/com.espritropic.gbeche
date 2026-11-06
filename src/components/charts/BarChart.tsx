@@ -70,6 +70,18 @@ function AnimatedBar({
   );
 }
 
+/** Résumé vocal d'un graphe à barres (5 valeurs maximum, sans surcharge). */
+export function describeBars(data: ChartPoint[], formatValue: (v: number) => string): string {
+  if (data.length === 0) return 'Aucune donnée à afficher.';
+  const shown = data.filter((d) => d.value > 0).slice(0, 5);
+  if (shown.length === 0) return 'Toutes les valeurs sont à zéro.';
+  return (
+    'Graphique : ' +
+    shown.map((d) => `${d.label.trim() || 'sans libellé'} ${formatValue(d.value)}`).join(', ') +
+    '.'
+  );
+}
+
 export function BarChart({
   data,
   height      = 160,
@@ -99,7 +111,12 @@ export function BarChart({
   const BAR_GAP  = 6;
 
   return (
-    <View style={{ width: '100%' }}>
+    <View
+      style={{ width: '100%' }}
+      accessible
+      accessibilityRole="image"
+      accessibilityLabel={describeBars(data, formatValue)}
+    >
       <Svg width="100%" height={height} viewBox={`0 0 ${data.length * 48} ${height}`} preserveAspectRatio="xMidYMid meet">
         <Defs>
           <SvgGrad id="barGrad" x1="0%" y1="0%" x2="0%" y2="100%">
