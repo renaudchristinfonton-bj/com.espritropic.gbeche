@@ -11,6 +11,7 @@ Application mobile **100 % hors-ligne** qui transforme ta vie en stratégie mili
   **objectif hebdomadaire calibré** sur les semaines réellement vécues
 - **Alerte guerre fragile** = au plus un rappel par jour, jamais de notification
   système, uniquement si une guerre décroche et que rien n'y est prévu
+- **Dossier de guerre** = historique semaine par semaine (12, 26 ou 52 semaines), taux, victoires, défaites et XP réels
 
 Aucun serveur, aucune connexion Internet, aucune télémétrie : toutes les données
 restent dans SQLite sur l'appareil, derrière un verrou PIN / biométrie.

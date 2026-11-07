@@ -8,7 +8,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import * as Haptics from '@/src/services/haptics';
 
 import { Screen } from '@/src/components/ui/Screen';
@@ -108,6 +108,7 @@ interface ConfirmState {
 
 export default function WarsScreen() {
   const { colors } = useTheme().theme;
+  const router = useRouter();
   const params = useLocalSearchParams<{ action?: string }>();
 
   const warsQuery = useRepoQuery(() => listWars(true), []);
@@ -209,6 +210,7 @@ export default function WarsScreen() {
               setEditingWar(war);
               setWarSheetOpen(true);
             }}
+            onOpenHistory={(war) => router.push({ pathname: '/(app)/war-detail', params: { id: war.id } })}
           />
         ) : null}
 
@@ -383,10 +385,12 @@ function WarSection({
   war,
   onOpenBattle,
   onEditWar,
+  onOpenHistory,
 }: {
   war: WarRow;
   onOpenBattle: (battle: BattleRow) => void;
   onEditWar: (war: WarRow) => void;
+  onOpenHistory: (war: WarRow) => void;
 }) {
   const { colors } = useTheme().theme;
   const battlesQuery = useRepoQuery(() => listBattlesByWar(war.id), [war.id]);
@@ -407,6 +411,7 @@ function WarSection({
     return (
       <>
         <WarPerformanceStrip performance={performance} color={war.color} />
+        <HistoryButton color={war.color} onPress={() => onOpenHistory(war)} />
         <EmptyState
           icon="flag-outline"
           title="Aucune bataille pour l'instant"
@@ -439,11 +444,28 @@ function WarSection({
       </GlassCard>
 
       <WarPerformanceStrip performance={performance} color={war.color} />
+      <HistoryButton color={war.color} onPress={() => onOpenHistory(war)} />
 
       {battles.map((battle) => (
         <BattleCard key={battle.id} battle={battle} onPress={() => onOpenBattle(battle)} onEdit={() => onOpenBattle(battle)} />
       ))}
     </>
+  );
+}
+
+function HistoryButton({ color, onPress }: { color: string; onPress: () => void }) {
+  const { colors } = useTheme().theme;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="Voir l’historique hebdomadaire de cette guerre"
+      onPress={onPress}
+      style={[styles.historyButton, { borderColor: `${color}66`, backgroundColor: `${color}12` }]}
+    >
+      <Ionicons name="stats-chart-outline" size={16} color={color} />
+      <Text style={[styles.historyButtonText, { color }]}>Historique semaine par semaine</Text>
+      <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+    </Pressable>
   );
 }
 
@@ -1205,6 +1227,16 @@ function QuickAdversarySheet({
 }
 
 const styles = StyleSheet.create({
+  historyButton: {
+    minHeight: 46,
+    borderWidth: 1,
+    borderRadius: radius.lg,
+    paddingHorizontal: spacing[3],
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing[2],
+  },
+  historyButtonText: { flex: 1, fontSize: typography.sizes.sm, fontWeight: '800' },
   warScroller: { paddingHorizontal: spacing[5], gap: spacing[2.5], paddingBottom: spacing[2] },
   warTab: {
     flexDirection: 'row',

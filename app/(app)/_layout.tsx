@@ -178,6 +178,13 @@ export default function AppTabsLayout() {
               tabBarStyle: { display: 'none' },
             }}
           />
+          <Tabs.Screen
+            name="war-detail"
+            options={{
+              href: null,
+              tabBarStyle: { display: 'none' },
+            }}
+          />
         </Tabs>
       </SwipeTabView>
       <AssistantFab />
