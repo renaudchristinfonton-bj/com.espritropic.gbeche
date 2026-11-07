@@ -7,6 +7,7 @@
 import React, { useMemo } from 'react';
 import { StyleSheet, Text, View, ScrollView } from 'react-native';
 import { useTheme } from '@/src/theme/ThemeContext';
+import { startOfDayMs, toDayKey } from '@/src/utils/dayKey';
 
 // ─── Types ────────────────────────────────────────────────
 
@@ -21,6 +22,12 @@ interface HeatMapProps {
   cellSize?: number;
   gap?:      number;
   showMonths?: boolean;
+  /**
+   * Dernier jour affiché (epoch ms). Par défaut : aujourd'hui.
+   * Injectable pour que les tests et les bilans historiques restent
+   * déterministes.
+   */
+  endDate?:  number;
 }
 
 // ─── Color Scale ──────────────────────────────────────────
@@ -37,8 +44,12 @@ const DAYS_OF_WEEK = ['D', 'L', 'M', 'M', 'J', 'V', 'S'];
 
 // ─── Helpers ──────────────────────────────────────────────
 
+/**
+ * Clé de jour LOCALE. `toISOString()` renvoyait la veille pour tout fuseau
+ * positif (Cotonou UTC+1) : la grille se décalait d'un jour.
+ */
 function formatDate(date: Date): string {
-  return date.toISOString().split('T')[0];
+  return toDayKey(date.getTime());
 }
 
 function addDays(date: Date, n: number): Date {
@@ -55,6 +66,7 @@ export function HeatMap({
   cellSize   = 12,
   gap        = 3,
   showMonths = true,
+  endDate,
 }: HeatMapProps) {
   const { theme } = useTheme();
   const { colors } = theme;
@@ -68,8 +80,7 @@ export function HeatMap({
 
   // Generate grid: fill from (days) ago to today, padded to full weeks
   const { grid, monthLabels } = useMemo(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = new Date(startOfDayMs(endDate ?? Date.now()));
 
     // Start = (days) ago, aligned to Sunday
     const startDate = addDays(today, -(days - 1));
@@ -79,7 +90,7 @@ export function HeatMap({
     // Total cells (multiple of 7)
     const totalDays = Math.ceil((days + dayOfWeek) / 7) * 7;
 
-    const allDays: Array<{ date: string; value: number; inRange: boolean; month: number }> = [];
+    const allDays: { date: string; value: number; inRange: boolean; month: number }[] = [];
     for (let i = 0; i < totalDays; i++) {
       const d    = addDays(gridStart, i);
       const key  = formatDate(d);
@@ -95,7 +106,7 @@ export function HeatMap({
 
     // Month labels
     const seen = new Set<number>();
-    const mLabels: Array<{ col: number; label: string }> = [];
+    const mLabels: { col: number; label: string }[] = [];
     weeks.forEach((week, col) => {
       const month = week[0].month;
       if (!seen.has(month)) {
@@ -106,7 +117,7 @@ export function HeatMap({
     });
 
     return { grid: weeks, monthLabels: mLabels };
-  }, [data, days, lookup]);
+  }, [days, lookup, endDate]);
 
   const totalActivity = useMemo(() =>
     data.reduce((sum, d) => sum + (d.value > 0 ? 1 : 0), 0), [data]);
@@ -114,7 +125,12 @@ export function HeatMap({
   const colWidth = cellSize + gap;
 
   return (
-    <View style={styles.wrapper}>
+    <View
+      style={styles.wrapper}
+      accessible
+      accessibilityRole="image"
+      accessibilityLabel={`${totalActivity} jour${totalActivity > 1 ? 's' : ''} actif${totalActivity > 1 ? 's' : ''} sur les ${days} derniers jours.`}
+    >
       {/* Month labels */}
       {showMonths && (
         <View style={[styles.monthRow, { marginLeft: 20 }]}>

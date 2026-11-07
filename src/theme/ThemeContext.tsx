@@ -1,53 +1,53 @@
 /**
- * GBECHE — ThemeContext
- * Fournit le thème dark/light à toute l'application.
- * La préférence est persistée via MMKV (hors-ligne).
+ * GBECHE — ThemeContext.
+ * Préférence persistée dans la table settings (cache synchro chargé au boot).
+ * Le mode sombre reste la référence ; le mode clair est maintenu en parallèle.
  */
 
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { useColorScheme }  from 'react-native';
-import { MMKV }           from 'react-native-mmkv';
+import React, { createContext, useContext, useMemo, useState } from 'react';
+import { useColorScheme } from 'react-native';
+
+import { getSetting, setSetting, SETTING_KEYS } from '../db/settings';
 import { buildTheme, type Theme } from './index';
 
-// ─── MMKV storage (offline, rapide) ─────────────────────
-const storage = new MMKV({ id: 'gbeche-settings' });
-const THEME_KEY = 'app_theme';
-
-type ThemeMode = 'dark' | 'light' | 'system';
+export type ThemeMode = 'dark' | 'light' | 'system';
 
 interface ThemeContextValue {
-  theme:     Theme;
+  theme: Theme;
   themeMode: ThemeMode;
-  setThemeMode: (m: ThemeMode) => void;
-  toggleTheme:  () => void;
+  setThemeMode: (mode: ThemeMode) => void;
+  toggleTheme: () => void;
 }
 
 const ThemeContext = createContext<ThemeContextValue>({
-  theme:        buildTheme('dark'),
-  themeMode:    'dark',
+  theme: buildTheme('dark'),
+  themeMode: 'dark',
   setThemeMode: () => {},
-  toggleTheme:  () => {},
+  toggleTheme: () => {},
 });
 
+function readStoredMode(): ThemeMode {
+  const value = getSetting(SETTING_KEYS.themeMode);
+  if (value === 'dark' || value === 'light' || value === 'system') return value;
+  return 'dark';
+}
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const systemScheme = useColorScheme() ?? 'dark';
-  const [themeMode, setThemeModeState] = useState<ThemeMode>(
-    () => (storage.getString(THEME_KEY) as ThemeMode) ?? 'dark'
-  );
+  const [themeMode, setMode] = useState<ThemeMode>(readStoredMode);
+  const systemScheme = useColorScheme();
 
   const resolvedMode: 'dark' | 'light' =
-    themeMode === 'system' ? systemScheme : themeMode;
+    themeMode === 'system' ? (systemScheme === 'light' ? 'light' : 'dark') : themeMode;
 
-  const theme = buildTheme(resolvedMode);
+  const theme = useMemo(() => buildTheme(resolvedMode), [resolvedMode]);
 
-  const setThemeMode = (m: ThemeMode) => {
-    storage.set(THEME_KEY, m);
-    setThemeModeState(m);
+  const setThemeMode = (mode: ThemeMode) => {
+    setMode(mode);
+    void setSetting(SETTING_KEYS.themeMode, mode);
   };
 
   const toggleTheme = () => {
-    const next = resolvedMode === 'dark' ? 'light' : 'dark';
-    setThemeMode(next);
+    setThemeMode(resolvedMode === 'dark' ? 'light' : 'dark');
   };
 
   return (
@@ -57,4 +57,6 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-export const useTheme = () => useContext(ThemeContext);
+export function useTheme(): ThemeContextValue {
+  return useContext(ThemeContext);
+}

@@ -287,4 +287,13 @@ export const fr = {
   },
 } as const;
 
-export type Translations = typeof fr;
+/**
+ * Type structurel où toutes les feuilles sont de simples chaînes,
+ * afin que le catalogue anglais puisse utiliser des textes différents
+ * tout en respectant exactement la même arborescence de clés.
+ */
+type DeepString<T> = {
+  [K in keyof T]: T[K] extends string ? string : DeepString<T[K]>;
+};
+
+export type Translations = DeepString<typeof fr>;

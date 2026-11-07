@@ -1,0 +1,29 @@
+# Configuration Netlify — version web 100 % statique de GBECHE.
+# Build : export statique Expo Router (même commande que localement).
+[build]
+  command = "npx expo export --platform web"
+  publish = "dist"
+
+[build.environment]
+  # Expo SDK 54 requiert Node 20+.
+  NODE_VERSION = "20"
+  # Évite toute télémétrie interactive en CI.
+  EXPO_NO_TELEMETRY = "true"
+  # Export strictement hors-ligne : aucune ressource réseau ne doit être requise.
+  EXPO_OFFLINE = "1"
+
+# Les routes ont leur propre HTML grâce au static rendering, mais on garde
+# un fallback SPA pour les chemins résolus uniquement côté client.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# expo-sqlite sur web persiste via OPFS (AccessHandlePoolVFS / wa-sqlite),
+# qui exige un contexte cross-origin isolé. Aucune ressource tierce n'étant
+# chargée par l'app, ces en-têtes ne cassent rien et activent la persistance.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Cross-Origin-Opener-Policy = "same-origin"
+    Cross-Origin-Embedder-Policy = "require-corp"

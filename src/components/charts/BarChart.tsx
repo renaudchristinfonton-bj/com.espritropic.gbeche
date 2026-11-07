@@ -5,14 +5,14 @@
  */
 
 import React, { useEffect, useMemo } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
-import Svg, { Rect, Path, Line, Text as SvgText, Circle, Defs, LinearGradient as SvgGrad, Stop } from 'react-native-svg';
+import { View } from 'react-native';
+import Svg, { Rect, Path, Text as SvgText, Circle, Defs, LinearGradient as SvgGrad, Stop } from 'react-native-svg';
 import Animated, {
   useSharedValue,
   useAnimatedProps,
   withTiming,
   Easing,
-  useDerivedValue,
+  type SharedValue,
 } from 'react-native-reanimated';
 import { useTheme } from '@/src/theme/ThemeContext';
 
@@ -52,7 +52,7 @@ function AnimatedBar({
   x, y, width, height, color, progress,
 }: {
   x: number; y: number; width: number; height: number;
-  color: string; progress: Animated.SharedValue<number>;
+  color: string; progress: SharedValue<number>;
 }) {
   const animProps = useAnimatedProps(() => ({
     y:      y + height * (1 - progress.value),
@@ -67,6 +67,18 @@ function AnimatedBar({
       fill={color}
       rx={4}
     />
+  );
+}
+
+/** Résumé vocal d'un graphe à barres (5 valeurs maximum, sans surcharge). */
+export function describeBars(data: ChartPoint[], formatValue: (v: number) => string): string {
+  if (data.length === 0) return 'Aucune donnée à afficher.';
+  const shown = data.filter((d) => d.value > 0).slice(0, 5);
+  if (shown.length === 0) return 'Toutes les valeurs sont à zéro.';
+  return (
+    'Graphique : ' +
+    shown.map((d) => `${d.label.trim() || 'sans libellé'} ${formatValue(d.value)}`).join(', ') +
+    '.'
   );
 }
 
@@ -99,7 +111,12 @@ export function BarChart({
   const BAR_GAP  = 6;
 
   return (
-    <View style={{ width: '100%' }}>
+    <View
+      style={{ width: '100%' }}
+      accessible
+      accessibilityRole="image"
+      accessibilityLabel={describeBars(data, formatValue)}
+    >
       <Svg width="100%" height={height} viewBox={`0 0 ${data.length * 48} ${height}`} preserveAspectRatio="xMidYMid meet">
         <Defs>
           <SvgGrad id="barGrad" x1="0%" y1="0%" x2="0%" y2="100%">
@@ -158,7 +175,7 @@ export function BarChart({
 // ─── LineChart ────────────────────────────────────────────
 
 function buildLinePath(
-  points: Array<{ x: number; y: number }>,
+  points: { x: number; y: number }[],
   smooth = false,
 ): string {
   if (points.length === 0) return '';
@@ -178,7 +195,7 @@ function buildLinePath(
 
 function buildAreaPath(
   linePath: string,
-  points: Array<{ x: number; y: number }>,
+  points: { x: number; y: number }[],
   bottomY: number,
 ): string {
   if (points.length === 0) return '';

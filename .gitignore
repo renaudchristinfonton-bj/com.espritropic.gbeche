@@ -41,3 +41,7 @@ app-example
 # generated native folders
 /ios
 /android
+gbeche-dist.zip
+
+# Hub de dépôts d'agents clonés par scripts/install-agents-hub.mjs (jetable)
+.agents-hub/
